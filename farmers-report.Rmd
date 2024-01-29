@@ -1,0 +1,339 @@
+---
+title: "Farmers report"
+subtitle: for the week prior `r Sys.Date()`
+output:
+  html_document: default
+params:
+  elastic_host: dummy
+  elastic_username: dummy
+  elastic_password: dummy
+---
+
+This is a report for farm5 efficiency among HumGen teams for the last week.
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(ggplot2)
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r include=FALSE}
+library(elastic)
+index <- "user-data-ssg-isg-lsf-analytics-*"
+elastic_con <- connect(
+  host = params$elastic_host,
+  path = "",
+  user = params$elastic_username,
+  pwd = params$elastic_password,
+  port = 19200,
+  transport_schema = "http"
+)
+
+humgen_filters <- list(
+  list(
+    "match_phrase" = list(
+      "BOM" = "Human Genetics"
+    )
+  ),
+  list(
+    "match_phrase" = list(
+      "CLUSTER_NAME" = "farm5"
+    )
+  ),
+  list(
+    "range" = list(
+      "timestamp" = list(
+        "lte" = "now/d",
+        "gte" = "now-1w/d"
+      )
+    )
+  )
+)
+
+humgen_query <- list(
+  "bool" = list(
+    "filter" = humgen_filters
+  )
+)
+
+cpu_hour <- 0.00254  # in £
+gb_ram_hour <- 0.000217  # in £
+
+wasted_cost_agg <- list(
+  "scripted_metric" = list(
+    "init_script" = "state.costs = []",
+    "map_script" = "double cpu_cost = doc.WASTED_CPU_SECONDS.value * params.cpu_second; double mem_cost = doc.WASTED_MB_SECONDS.value * params.mb_second; state.costs.add(Math.max(cpu_cost, mem_cost))",
+    "combine_script" = "double total = 0; for (t in state.costs) { total += t } return total",
+    "reduce_script" = "double total = 0; for (a in states) { total += a } return total",
+    "params" = list("cpu_second" = cpu_hour / 60 / 60,
+                    "mb_second" = gb_ram_hour / 1024 / 60 / 60)
+  )
+)
+
+column_rename <- c('Wasted memory fraction' = 'mem_wasted_frac',
+                   'Wasted CPU fraction' = 'cpu_wasted_frac',
+                   'Wasted CPU (hrs)' = 'cpu_wasted_hrs',
+                   'Consumed CPU (hrs)' = 'cpu_avail_hrs',
+                   'Wasted memory (Gb x hrs)' = 'mem_wasted_gb_hrs',
+                   'Wasted money' = 'wasted_cost',
+                   'Accounting name' = 'accounting_name')
+
+make_dt <- function(df){
+  dt <- DT::datatable(
+    df,
+    options = list(dom = 'ftp'),
+    colnames = column_rename[column_rename %in% colnames(df)]
+  )
+
+  if('mem_wasted_gb_hrs' %in% colnames(df)){
+    dt <- DT::formatRound(dt, 'Wasted memory (Gb x hrs)', 0)
+  }
+
+  if('mem_wasted_frac' %in% colnames(df))
+    dt <- DT::formatPercentage(dt, 'Wasted memory fraction', 2)
+
+  if('cpu_avail_hrs' %in% colnames(df))
+    dt <- DT::formatRound(dt, 'Consumed CPU (hrs)', 0)
+
+  if('cpu_wasted_hrs' %in% colnames(df))
+    dt <- DT::formatRound(dt, 'Wasted CPU (hrs)', 0)
+
+  if('cpu_wasted_frac' %in% colnames(df))
+    dt <- DT::formatPercentage(dt, 'Wasted CPU fraction', 2)
+
+  if('wasted_cost' %in% colnames(df))
+    dt <- DT::formatCurrency(dt, 'Wasted money', currency = '£', digits = 1)
+
+  return(dt)
+}
+```
+
+
+## Number of failed jobs
+```{r echo=FALSE, fig.height=3, fig.width=3}
+b <- list(
+  "aggs" = list(
+    "stats" = list(
+      "terms" = list(
+        "field" = "Job",
+        "order" = list(
+          "_count" = "desc"
+        )
+      )
+    )
+  ),
+  "size" = 0,
+  "query" = humgen_query
+)
+
+res <- Search(
+  elastic_con,
+  index = index,
+  body = b,
+  asdf = T
+)
+
+df <- res$aggregations$stats$buckets %>%
+  arrange(key) %>%
+  mutate(csum = rev(cumsum(rev(doc_count))),
+         pos = doc_count/2 + lead(csum, 1),
+         pos = if_else(is.na(pos), doc_count/2, pos))
+
+ggplot(df, aes(x = '', fill = key, y = doc_count)) +
+  geom_bar(stat = 'identity', width=1, color="white") +
+  coord_polar("y", start=0) +
+  labs(fill = 'Job status') +
+  ggrepel::geom_label_repel(aes(y = pos, label = doc_count),
+                            size = 4.5,
+                            nudge_x = 1,
+                            show.legend = FALSE) +
+  theme_void()
+```
+
+### per team
+```{r echo=FALSE}
+b <- list(
+  "aggs" = list(
+    "stats" = list(
+      "multi_terms" = list(
+        "terms" = list(
+          list("field" = "ACCOUNTING_NAME"),
+          list("field" = "Job")
+        ),
+        "size" = 100
+      )
+    )
+  ),
+  "size" = 0,
+  "query" = humgen_query
+)
+
+res <- Search(
+  elastic_con,
+  index = index,
+  body = b,
+  asdf = T
+)
+
+df <- res$aggregations$stats$buckets %>%
+    select(-key_as_string) %>%
+    tidyr::hoist(.col = key, accounting_name = 1L, job_status = 2L)
+
+ggplot(df, aes(x = accounting_name, fill=job_status, y=doc_count)) +
+  geom_bar(stat='identity') +
+  labs(y = 'Number of jobs', fill = 'Job status', x = "Accounting name") +
+  theme_bw() +
+  coord_flip()
+```
+```{r echo=FALSE}
+DT::datatable(
+   df %>%
+    tidyr::pivot_wider(id_cols = 'accounting_name', names_from = 'job_status', values_from = 'doc_count', values_fill = 0) %>%
+    mutate(fail_rate = Failed / (Failed + Success)) %>%
+    arrange(desc(fail_rate)),
+  options = list(dom = 'ftp'),
+  colnames = c('Accounting name' = 'accounting_name',
+               'Fail rate' = 'fail_rate')
+) %>%
+  DT::formatPercentage('Fail rate', 1)
+```
+
+## Wasted resources
+Resource is considered to be wasted if it is not used or its job failed.
+For memory we assume that memory consumption under the peak value is not wasted.
+```{r echo=FALSE, fig.width=10}
+b <- list(
+  "aggs" = list(
+    "stats" = list(
+      "terms" = list(
+        "field" = "ACCOUNTING_NAME",
+        "size" = 100
+      ),
+      "aggs" = list(
+        "cpu_avail_sec" = list(
+          "sum" = list(
+            "field" = "AVAIL_CPU_TIME_SEC"
+          )
+        ),
+        "cpu_wasted_sec" = list(
+          "sum" = list(
+            "field" = "WASTED_CPU_SECONDS"
+          )
+        ),
+        "mem_avail_mb_sec" = list(
+          "sum" = list(
+            "field" = "MEM_REQUESTED_MB_SEC"
+          )
+        ),
+        "mem_wasted_mb_sec" = list(
+          "sum" = list(
+            "field" = "WASTED_MB_SECONDS"
+          )
+        ),
+        "wasted_cost" = wasted_cost_agg
+      )
+    )
+  ),
+  "size" = 0,
+  "query" = humgen_query
+)
+
+res <- Search(
+  elastic_con,
+  index = index,
+  body = b,
+  asdf = T
+)
+
+df <- res$aggregations$stats$buckets %>%
+  select(-doc_count) %>%
+  rename_all(~gsub('.value', '', .)) %>%
+  mutate(mem_wasted_frac = mem_wasted_mb_sec/mem_avail_mb_sec,
+         cpu_wasted_frac = cpu_wasted_sec/cpu_avail_sec) %>%
+  mutate(cpu_wasted_hrs = cpu_wasted_sec/60/60,
+         mem_wasted_gb_hrs = mem_wasted_mb_sec/1024/60/60) %>%
+  select(accounting_name = key, cpu_wasted_hrs, cpu_wasted_frac, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost)
+
+df %>%
+  tidyr::pivot_longer(cols = c('cpu_wasted_hrs', 'mem_wasted_gb_hrs')) %>%
+  ggplot(aes(x=accounting_name, y=value, fill=name)) +
+    geom_bar(stat = 'identity') +
+    coord_flip() +
+    facet_grid(.~name, scales='free_x', labeller = as_labeller(setNames(names(column_rename), column_rename))) +
+    theme_bw() +
+    theme(legend.position="none", axis.title.x=element_blank(), axis.title.y=element_blank())
+
+make_dt(df)
+```
+
+
+If process allocates only 1 cpu and uses a fraction of it, we still consider it as wasting resources.
+However it would be difficult to optimize that process.
+Let's assume that successful processes requiring 1 cpu do not waste cpu.
+```{r echo=FALSE}
+b <- list(
+  "aggs" = list(
+    "stats" = list(
+      "multi_terms" = list(
+        "terms" = list(
+          list("field" = "ACCOUNTING_NAME"),
+          list("field" = "NUM_EXEC_PROCS"),
+          list("field" = "Job")
+        ),
+        "size" = 1000
+      ),
+      "aggs" = list(
+        "cpu_avail_sec" = list(
+          "sum" = list(
+            "field" = "AVAIL_CPU_TIME_SEC"
+          )
+        ),
+        "cpu_wasted_sec" = list(
+          "sum" = list(
+            "field" = "WASTED_CPU_SECONDS"
+          )
+        ),
+        "mem_avail_mb_sec" = list(
+          "sum" = list(
+            "field" = "MEM_REQUESTED_MB_SEC"
+          )
+        ),
+        "mem_wasted_mb_sec" = list(
+          "sum" = list(
+            "field" = "WASTED_MB_SECONDS"
+          )
+        )
+      )
+    )
+  ),
+  "size" = 0,
+  "query" = humgen_query
+)
+
+res <- Search(
+  elastic_con,
+  index = index,
+  body = b,
+  asdf = T
+)
+
+df <- res$aggregations$stats$buckets %>%
+  select(-key_as_string, -doc_count) %>%
+  tidyr::hoist(.col = key, accounting_name = 1L, procs = 2L, job_status = 3L) %>%
+  rename_all(~gsub('.value', '', .)) %>%
+  group_by(accounting_name) %>%
+  mutate(cpu_avail_sec_total = sum(cpu_avail_sec)) %>%
+  filter(!(procs == 1 & job_status == 'Success')) %>%
+  summarise(cpu_avail_sec = first(cpu_avail_sec_total),
+            cpu_wasted_sec = sum(cpu_wasted_sec))
+
+df %>%
+  mutate(cpu_avail_hrs = cpu_avail_sec/60/60,
+         cpu_wasted_hrs = cpu_wasted_sec/60/60,
+         wasted_cost = cpu_wasted_hrs * cpu_hour) %>%
+  mutate(cpu_wasted_frac = cpu_wasted_sec/cpu_avail_sec) %>%
+  select(-cpu_wasted_sec, -cpu_avail_sec) -> dt
+
+
+make_dt(dt)
+```
