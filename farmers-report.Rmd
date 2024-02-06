@@ -7,6 +7,7 @@ params:
   elastic_host: dummy
   elastic_username: dummy
   elastic_password: dummy
+  static: FALSE
 ---
 
 This is a report for farm5 efficiency among HumGen teams for the last week.
@@ -50,6 +51,8 @@ humgen_filters <- list(
   )
 )
 
+table_view_opts <- ifelse(params$static, 't', 'ftp')
+
 humgen_query <- list(
   "bool" = list(
     "filter" = humgen_filters
@@ -79,9 +82,12 @@ column_rename <- c('Wasted memory fraction' = 'mem_wasted_frac',
                    'Accounting name' = 'accounting_name')
 
 make_dt <- function(df){
+  if('wasted_cost' %in% colnames(df))
+    df <- dplyr::arrange(df, desc(wasted_cost))
+
   dt <- DT::datatable(
     df,
-    options = list(dom = 'ftp'),
+    options = list(dom = table_view_opts),
     colnames = column_rename[column_rename %in% colnames(df)]
   )
 
@@ -110,7 +116,7 @@ make_dt <- function(df){
 
 
 ## Number of failed jobs
-```{r echo=FALSE, fig.height=3, fig.width=3}
+```{r echo=FALSE, fig.height=3, fig.width=3, include=!params$static}
 b <- list(
   "aggs" = list(
     "stats" = list(
@@ -151,7 +157,7 @@ ggplot(df, aes(x = '', fill = key, y = doc_count)) +
 ```
 
 ### per team
-```{r echo=FALSE}
+```{r echo=FALSE, fig.height=4, fig.width=9}
 b <- list(
   "aggs" = list(
     "stats" = list(
@@ -179,18 +185,24 @@ df <- res$aggregations$stats$buckets %>%
     select(-key_as_string) %>%
     tidyr::hoist(.col = key, accounting_name = 1L, job_status = 2L)
 
-ggplot(df, aes(x = accounting_name, fill=job_status, y=doc_count)) +
+p <- ggplot(df, aes(x = accounting_name, fill=job_status, y=doc_count)) +
   geom_bar(stat='identity') +
   labs(y = 'Number of jobs', fill = 'Job status', x = "Accounting name") +
-  theme_bw() +
-  coord_flip()
+  theme_bw()
+
+if(params$static){
+  p + theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1),
+            axis.title.x=element_blank())
+} else{
+  p + coord_flip()
+}
 ```
-```{r echo=FALSE}
+```{r echo=FALSE, include=!params$static}
 DT::datatable(
    df %>%
     tidyr::pivot_wider(id_cols = 'accounting_name', names_from = 'job_status', values_from = 'doc_count', values_fill = 0) %>%
     mutate(fail_rate = Failed / (Failed + Success)) %>%
-    arrange(desc(fail_rate)),
+    arrange(desc(Failed)),
   options = list(dom = 'ftp'),
   colnames = c('Accounting name' = 'accounting_name',
                'Fail rate' = 'fail_rate')
@@ -329,9 +341,9 @@ df <- res$aggregations$stats$buckets %>%
 
 df %>%
   mutate(cpu_avail_hrs = cpu_avail_sec/60/60,
-         cpu_wasted_hrs = cpu_wasted_sec/60/60,
+         cpu_wasted_hrs = cpu_wasted_sec/60/60) %>%
+  mutate(cpu_wasted_frac = cpu_wasted_sec/cpu_avail_sec,
          wasted_cost = cpu_wasted_hrs * cpu_hour) %>%
-  mutate(cpu_wasted_frac = cpu_wasted_sec/cpu_avail_sec) %>%
   select(-cpu_wasted_sec, -cpu_avail_sec) -> dt
 
 
