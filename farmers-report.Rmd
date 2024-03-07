@@ -81,6 +81,22 @@ column_rename <- c('Wasted memory fraction' = 'mem_wasted_frac',
                    'Wasted money' = 'wasted_cost',
                    'Accounting name' = 'accounting_name')
 
+rename_groups <- function(names) {
+  rules <- c(
+    '^team152$' = 'Anderson group',
+    '^team281$' = 'Martin group',
+    '^team282$' = 'Davenport group',
+    '^team354$' = 'Lehner group',
+    '^team227$' = 'Parts group',
+    '^team29-grp$' = 'Hurles group'
+  )
+  stringr::str_replace_all(names, rules)
+}
+
+rename_group_column <- function(df) {
+  mutate(df, accounting_name = rename_groups(accounting_name))
+}
+
 make_dt <- function(df){
   if('wasted_cost' %in% colnames(df))
     df <- dplyr::arrange(df, desc(wasted_cost))
@@ -183,7 +199,8 @@ res <- Search(
 
 df <- res$aggregations$stats$buckets %>%
     select(-key_as_string) %>%
-    tidyr::hoist(.col = key, accounting_name = 1L, job_status = 2L)
+    tidyr::hoist(.col = key, accounting_name = 1L, job_status = 2L) %>%
+    rename_group_column()
 
 p <- ggplot(df, aes(x = accounting_name, fill=job_status, y=doc_count)) +
   geom_bar(stat='identity') +
@@ -264,7 +281,8 @@ df <- res$aggregations$stats$buckets %>%
          cpu_wasted_frac = cpu_wasted_sec/cpu_avail_sec) %>%
   mutate(cpu_wasted_hrs = cpu_wasted_sec/60/60,
          mem_wasted_gb_hrs = mem_wasted_mb_sec/1024/60/60) %>%
-  select(accounting_name = key, cpu_wasted_hrs, cpu_wasted_frac, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost)
+  select(accounting_name = key, cpu_wasted_hrs, cpu_wasted_frac, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost) %>%
+  rename_group_column()
 
 df %>%
   tidyr::pivot_longer(cols = c('cpu_wasted_hrs', 'mem_wasted_gb_hrs')) %>%
@@ -337,7 +355,8 @@ df <- res$aggregations$stats$buckets %>%
   mutate(cpu_avail_sec_total = sum(cpu_avail_sec)) %>%
   filter(!(procs == 1 & job_status == 'Success')) %>%
   summarise(cpu_avail_sec = first(cpu_avail_sec_total),
-            cpu_wasted_sec = sum(cpu_wasted_sec))
+            cpu_wasted_sec = sum(cpu_wasted_sec)) %>%
+  rename_group_column()
 
 df %>%
   mutate(cpu_avail_hrs = cpu_avail_sec/60/60,
