@@ -1,4 +1,4 @@
-library(magrittr)
+library(dplyr)
 
 column_rename <- c(
   'Fail rate' = 'fail_rate',
@@ -14,20 +14,26 @@ column_rename <- c(
   'User name' = 'USER_NAME'
 )
 
-rename_groups <- function(names) {
-  rules <- c(
-    '^team152$' = 'Anderson group',
-    '^team281$' = 'Martin group',
-    '^team282$' = 'Davenport group',
-    '^team354$' = 'Lehner group',
-    '^team227$' = 'Parts group',
-    '^team29-grp$' = 'Hurles group'
-  )
-  stringr::str_replace_all(names, rules)
-}
+team_map <- tibble::enframe(
+  c(
+    'team152' = 'Anderson group',
+    'team281' = 'Martin group',
+    'team282' = 'Davenport group',
+    'team354' = 'Lehner group',
+    'team227' = 'Parts group',
+    'team29-grp' = 'Hurles group',
+    'team170' = 'Gaffney group',
+    'team151' = 'Soranzo group'
+  ),
+  name = 'team_code',
+  value = 'team_name'
+)
 
 rename_group_column <- function(df) {
-  mutate(df, accounting_name = rename_groups(accounting_name))
+  df %>%
+    left_join(team_map, by = c('accounting_name' = 'team_code')) %>%
+    mutate(accounting_name = ifelse(is.na(team_name), accounting_name, team_name)) %>%
+    select(-team_name)
 }
 
 make_dt <- function(df){
@@ -65,5 +71,6 @@ make_dt <- function(df){
 
   if('fail_rate' %in% colnames(df))
     dt <- DT::formatPercentage(dt, 'Fail rate', 1)
+
   return(dt)
 }
