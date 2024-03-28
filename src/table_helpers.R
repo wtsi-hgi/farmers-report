@@ -11,7 +11,8 @@ column_rename <- c(
   'Wasted memory (GB x hrs)' = 'mem_wasted_gb_hrs',
   'Wasted money' = 'wasted_cost',
   'Accounting name' = 'accounting_name',
-  'User name' = 'USER_NAME'
+  'User name' = 'USER_NAME',
+  'Awesome-ness' = 'awesomeness'
 )
 
 team_map <- tibble::enframe(
@@ -72,5 +73,27 @@ make_dt <- function(df){
   if('fail_rate' %in% colnames(df))
     dt <- DT::formatPercentage(dt, 'Fail rate', 1)
 
+  if('awesomeness' %in% colnames(df))
+    dt <- DT::formatRound(dt, 'Awesome-ness', 1)
+
   return(dt)
+}
+
+generate_ranks <- function(df) {
+  rank_fields <- c('cpu_wasted_frac', 'mem_wasted_frac')
+  max_rank <- length(rank_fields) * nrow(df)
+  cpu_threshold <- 0.5 * median(df$cpu_avail_hrs)
+  mem_threshold <- 0.5 * median(df$mem_avail_gb_hrs)
+
+  df %>%
+    mutate(  # the smaller your rank the worse your performance
+           cpu_frac_rank = rank(-cpu_wasted_frac),
+           mem_frac_rank = rank(-mem_wasted_frac)) %>%
+    mutate(
+      cpu_frac_rank = ifelse(cpu_avail_hrs > cpu_threshold, cpu_frac_rank, cpu_frac_rank / 2),
+      mem_frac_rank = ifelse(mem_avail_gb_hrs > mem_threshold, mem_frac_rank, mem_frac_rank / 2)
+    ) %>%
+    select(accounting_name, ends_with('_rank')) %>%
+    mutate(rank = cpu_frac_rank + mem_frac_rank) %>%
+    mutate(awesomeness = 10 * rank / max_rank)
 }

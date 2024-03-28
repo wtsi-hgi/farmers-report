@@ -208,10 +208,11 @@ make_dt(dt)
 If process allocates only 1 cpu and uses a fraction of it, we still consider it as wasting resources.
 However it would be difficult to optimize that process.
 Let's assume that successful processes requiring 1 cpu do not waste cpu.
-(numbers for money below do not account CPU adjustment)
 ```{r echo=FALSE, fig.width=10}
 df %>%
-  mutate(cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec)) %>%
+  mutate(mem_wasted_cost = mem_wasted_mb_sec * gb_ram_hour / 1024 / 60 / 60) %>%
+  mutate(cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec),
+         wasted_cost = ifelse(job_status == 'Success' & procs == 1, mem_wasted_cost, wasted_cost)) %>%
   group_by(accounting_name) %>%
   summarise_at(c('cpu_avail_sec', 'cpu_wasted_sec', 'mem_avail_mb_sec', 'mem_wasted_mb_sec', 'wasted_cost'), sum) %>%
   mutate(
@@ -225,6 +226,11 @@ df %>%
   select(accounting_name, cpu_avail_hrs, cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost) %>%
   rename_group_column() -> dt
 
+ranks <- generate_ranks(dt) %>% select(accounting_name, awesomeness)
+
+dt %>%
+  left_join(ranks, by = 'accounting_name') -> dt
+
 dt %>%
   tidyr::pivot_longer(cols = c('cpu_wasted_hrs', 'mem_wasted_gb_hrs')) %>%
   ggplot(aes(x=accounting_name, y=value, fill=name)) +
@@ -234,6 +240,11 @@ dt %>%
     theme_bw() +
     theme(legend.position="none", axis.title.x=element_blank(), axis.title.y=element_blank())
 
+```
+Awesome-ness is a 0-to-10 complex score representing a team performance. A team gets score 10 if it has the lowest fraction
+of wasted resources for both CPU and RAM. The more heavy jobs team submits the harder it is to be efficient and vice versa.
+For this reason teams get penalised if they consume very little resources.
+```{r echo=FALSE}
 make_dt(dt)
 ```
 
@@ -274,7 +285,7 @@ res <- Search(
   index = index,
   time_scroll="1m",
   source = c('USER_NAME', 'Job',
-             'AVAIL_CPU_TIME_SEC', 'NUM_EXEC_PROCS', 'WASTED_CPU_SECONDS',
+             'NUM_EXEC_PROCS', 'AVAIL_CPU_TIME_SEC', 'WASTED_CPU_SECONDS',
              'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS'),
   body = b,
   asdf = T,
