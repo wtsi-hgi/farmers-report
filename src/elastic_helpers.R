@@ -8,7 +8,7 @@ humgen_filters <- list(
   ),
   list(
     "match_phrase" = list(
-      "CLUSTER_NAME" = "farm5"
+      "META_CLUSTER_NAME" = "farm"
     )
   ),
   list(

@@ -37,13 +37,17 @@ rename_group_column <- function(df) {
     select(-team_name)
 }
 
-make_dt <- function(df){
+make_dt <- function(df, all_rows = FALSE){
   if('wasted_cost' %in% colnames(df))
     df <- dplyr::arrange(df, desc(wasted_cost))
 
+  if('awesomeness' %in% colnames(df))
+    df <- dplyr::arrange(df, desc(awesomeness))
+
+  page_length <- ifelse(all_rows, 1e5, 10)
   dt <- DT::datatable(
     df,
-    options = list(dom = table_view_opts),
+    options = list(dom = table_view_opts, pageLength = page_length),
     colnames = column_rename[column_rename %in% colnames(df)]
   )
 
@@ -96,4 +100,12 @@ generate_ranks <- function(df) {
     select(accounting_name, ends_with('_rank')) %>%
     mutate(rank = cpu_frac_rank + mem_frac_rank) %>%
     mutate(awesomeness = 10 * rank / max_rank)
+}
+
+mutate_for_piechart <- function(df) {
+  mutate(df,
+    csum = rev(cumsum(rev(doc_count))),
+    pos = doc_count/2 + lead(csum, 1),
+    pos = if_else(is.na(pos), doc_count/2, pos)
+  )
 }
