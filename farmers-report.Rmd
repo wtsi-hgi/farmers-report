@@ -41,24 +41,9 @@ table_view_opts <- ifelse(params$static, 't', 'ftp')
 
 `r if(!params$static){"## Cluster usage"}`
 ```{r farm usage, echo=FALSE, fig.height=1.5}
-b <- list(
-  "aggs" = list(
-    "stats" = list(
-      "terms" = list(
-        "field" = "CLUSTER_NAME"
-      )
-    )
-  ),
-  "size" = 0,
-  "query" = humgen_query
-)
+b <- build_agg_query("CLUSTER_NAME")
 
-res <- Search(
-  elastic_con,
-  index = index,
-  body = b,
-  asdf = T
-)
+res <- Search(elastic_con, index = index, body = b, asdf = T)
 
 df <- res$aggregations$stats$buckets %>%
   arrange(key)
@@ -73,27 +58,9 @@ ggplot(df, aes(x = key, y = doc_count, fill = key)) +
 
 ## Number of failed jobs
 ```{r pie chart, echo=FALSE, fig.height=3, fig.width=3, include=!params$static}
-b <- list(
-  "aggs" = list(
-    "stats" = list(
-      "terms" = list(
-        "field" = "Job",
-        "order" = list(
-          "_count" = "desc"
-        )
-      )
-    )
-  ),
-  "size" = 0,
-  "query" = humgen_query
-)
+b <- build_agg_query("Job")
 
-res <- Search(
-  elastic_con,
-  index = index,
-  body = b,
-  asdf = T
-)
+res <- Search(elastic_con, index = index, body = b, asdf = T)
 
 df <- res$aggregations$stats$buckets %>%
   arrange(key) %>%
@@ -104,28 +71,9 @@ piechart(df, legend_name = 'Job status')
 
 ### per team
 ```{r failed stats, echo=FALSE, fig.height=4, fig.width=9}
-b <- list(
-  "aggs" = list(
-    "stats" = list(
-      "multi_terms" = list(
-        "terms" = list(
-          list("field" = "ACCOUNTING_NAME"),
-          list("field" = "Job")
-        ),
-        "size" = 100
-      )
-    )
-  ),
-  "size" = 0,
-  "query" = humgen_query
-)
+b <- build_terms_query(fields = c("ACCOUNTING_NAME", "Job"))
 
-res <- Search(
-  elastic_con,
-  index = index,
-  body = b,
-  asdf = T
-)
+res <- Search(elastic_con, index = index, body = b, asdf = T)
 
 df <- res$aggregations$stats$buckets %>%
     select(-key_as_string) %>%
@@ -137,10 +85,10 @@ p <- ggplot(df, aes(x = accounting_name, fill=job_status, y=doc_count)) +
   labs(y = 'Number of jobs', fill = 'Job status', x = "Accounting name") +
   theme_bw()
 
-if(params$static){
+if(params$static) {
   p + theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1),
             axis.title.x=element_blank())
-} else{
+} else {
   p + coord_flip()
 }
 ```
@@ -157,52 +105,36 @@ make_dt(dt)
 Resource is considered to be wasted if it is not used or its job failed.
 For memory we assume that memory consumption under the peak value is not wasted.
 ```{r elastic agg query, echo=FALSE}
-b <- list(
-  "aggs" = list(
-    "stats" = list(
-      "multi_terms" = list(
-        "terms" = list(
-          list("field" = "ACCOUNTING_NAME"),
-          list("field" = "NUM_EXEC_PROCS"),
-          list("field" = "Job")
-        ),
-        "size" = 1000
-      ),
-      "aggs" = list(
-        "cpu_avail_sec" = list(
-          "sum" = list(
-            "field" = "AVAIL_CPU_TIME_SEC"
-          )
-        ),
-        "cpu_wasted_sec" = list(
-          "sum" = list(
-            "field" = "WASTED_CPU_SECONDS"
-          )
-        ),
-        "mem_avail_mb_sec" = list(
-          "sum" = list(
-            "field" = "MEM_REQUESTED_MB_SEC"
-          )
-        ),
-        "mem_wasted_mb_sec" = list(
-          "sum" = list(
-            "field" = "WASTED_MB_SECONDS"
-          )
-        ),
-        "wasted_cost" = wasted_cost_agg
-      )
+custom_aggs <- list(
+  "cpu_avail_sec" = list(
+    "sum" = list(
+      "field" = "AVAIL_CPU_TIME_SEC"
     )
   ),
-  "size" = 0,
-  "query" = humgen_query
+  "cpu_wasted_sec" = list(
+    "sum" = list(
+      "field" = "WASTED_CPU_SECONDS"
+    )
+  ),
+  "mem_avail_mb_sec" = list(
+    "sum" = list(
+      "field" = "MEM_REQUESTED_MB_SEC"
+    )
+  ),
+  "mem_wasted_mb_sec" = list(
+    "sum" = list(
+      "field" = "WASTED_MB_SECONDS"
+    )
+  ),
+  "wasted_cost" = wasted_cost_agg
 )
 
-res <- Search(
-  elastic_con,
-  index = index,
-  body = b,
-  asdf = T
+b <- build_terms_query(
+  fields = c("ACCOUNTING_NAME", "NUM_EXEC_PROCS", "Job"),
+  aggs = custom_aggs
 )
+
+res <- Search(elastic_con, index = index, body = b, asdf = T)
 
 df <- res$aggregations$stats$buckets %>%
   select(-key_as_string, -doc_count) %>%

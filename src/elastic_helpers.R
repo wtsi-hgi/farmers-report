@@ -41,6 +41,42 @@ wasted_cost_agg <- list(
   )
 )
 
+build_agg_query <- function(field, query = humgen_query) {
+  b <- list(
+    "aggs" = list(
+      "stats" = list(
+        "terms" = list(
+          "field" = field,
+          "size" = 1000
+        )
+      )
+    ),
+    "size" = 0,
+    "query" = query
+  )
+  return(b)
+}
+
+build_terms_query <- function(fields, aggs = NULL, query = humgen_query) {
+  terms <- lapply(fields, function(field){
+    list("field" = field)
+  })
+
+  b <- list(
+    "aggs" = list(
+      "stats" = list(
+        "multi_terms" = list(
+          "terms" = terms,
+          "size" = 1000
+        ),
+        "aggs" = aggs
+      )
+    ),
+    "size" = 0,
+    "query" = query
+  )
+}
+
 extract_hits_from_elastic_response <- function(x) {
   garbage_columns <- c('_index', '_type', '_id', '_score', 'sort')
   x$hits$hits %>%
