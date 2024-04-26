@@ -37,14 +37,14 @@ rename_group_column <- function(df) {
     select(-team_name)
 }
 
-make_dt <- function(df, all_rows = FALSE){
+make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
   if('wasted_cost' %in% colnames(df))
     df <- dplyr::arrange(df, desc(wasted_cost))
 
   if('awesomeness' %in% colnames(df))
     df <- dplyr::arrange(df, desc(awesomeness))
 
-  page_length <- ifelse(all_rows, 1e5, 10)
+  page_length <- ifelse(all_rows, nrow(df), 10)
   dt <- DT::datatable(
     df,
     options = list(dom = table_view_opts, pageLength = page_length),
@@ -102,10 +102,28 @@ generate_ranks <- function(df) {
     mutate(awesomeness = 10 * rank / max_rank)
 }
 
-mutate_for_piechart <- function(df) {
+mutate_for_piechart <- function(df, count_col = 'doc_count') {
   mutate(df,
-    csum = rev(cumsum(rev(doc_count))),
-    pos = doc_count/2 + lead(csum, 1),
-    pos = if_else(is.na(pos), doc_count/2, pos)
+    csum = rev(cumsum(rev(.data[[count_col]]))),
+    pos = .data[[count_col]]/2 + lead(csum, 1),
+    pos = if_else(is.na(pos), .data[[count_col]]/2, pos)
   )
+}
+
+generate_efficiency_stats <- function(df, extra_stats = list()) {
+  fields <- c('cpu_avail_sec', 'cpu_wasted_sec', 'mem_avail_mb_sec', 'mem_wasted_mb_sec', 'wasted_cost')
+  df %>%
+    summarise(
+      across(all_of(fields), sum),
+      !!!extra_stats
+    ) %>%
+    mutate(
+      cpu_avail_hrs = cpu_avail_sec / 60 / 60,
+      cpu_wasted_frac = cpu_wasted_sec / cpu_avail_sec,
+      cpu_wasted_hrs = cpu_wasted_sec / 60 / 60,
+      mem_avail_gb_hrs = mem_avail_mb_sec / 1024 / 60 / 60,
+      mem_wasted_frac = mem_wasted_mb_sec / mem_avail_mb_sec,
+      mem_wasted_gb_hrs = mem_wasted_mb_sec / 1024 / 60 / 60,
+    ) %>%
+    select(-setdiff(fields, 'wasted_cost'))
 }

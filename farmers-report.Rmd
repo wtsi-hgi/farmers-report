@@ -45,15 +45,9 @@ b <- build_agg_query("CLUSTER_NAME")
 
 res <- Search(elastic_con, index = index, body = b, asdf = T)
 
-df <- res$aggregations$stats$buckets %>%
-  arrange(key)
+df <- parse_elastic_single_agg(res)
 
-ggplot(df, aes(x = key, y = doc_count, fill = key)) +
-  geom_bar(stat = 'identity') +
-  coord_flip() +
-  labs(x = '', y = 'Number of jobs', fill = 'Farm') +
-  scale_fill_brewer(palette = "Dark2") +
-  theme_bw() + theme(legend.position = "none")
+make_farm_job_count_plot(df)
 ```
 
 ## Number of failed jobs
@@ -62,11 +56,10 @@ b <- build_agg_query("Job")
 
 res <- Search(elastic_con, index = index, body = b, asdf = T)
 
-df <- res$aggregations$stats$buckets %>%
-  arrange(key) %>%
+df <- parse_elastic_single_agg(res) %>%
   mutate_for_piechart()
 
-piechart(df, legend_name = 'Job status')
+piechart(df, count_field = 'doc_count', key_field = 'key', legend_name = 'Job status')
 ```
 
 ### per team
@@ -75,22 +68,10 @@ b <- build_terms_query(fields = c("ACCOUNTING_NAME", "Job"))
 
 res <- Search(elastic_con, index = index, body = b, asdf = T)
 
-df <- res$aggregations$stats$buckets %>%
-    select(-key_as_string) %>%
-    tidyr::hoist(.col = key, accounting_name = 1L, job_status = 2L) %>%
-    rename_group_column()
+parse_elastic_multi_agg(res, column_names = c('accounting_name', 'job_status')) %>%
+  rename_group_column() -> df
 
-p <- ggplot(df, aes(x = accounting_name, fill=job_status, y=doc_count)) +
-  geom_bar(stat='identity') +
-  labs(y = 'Number of jobs', fill = 'Job status', x = "Accounting name") +
-  theme_bw()
-
-if(params$static) {
-  p + theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1),
-            axis.title.x=element_blank())
-} else {
-  p + coord_flip()
-}
+make_per_team_job_plot(df, static = params$static)
 ```
 
 ```{r echo=FALSE, include=!params$static}
@@ -98,7 +79,7 @@ df %>%
   tidyr::pivot_wider(id_cols = 'accounting_name', names_from = 'job_status', values_from = 'doc_count', values_fill = 0) %>%
   mutate(fail_rate = Failed / (Failed + Success)) %>%
   arrange(desc(Failed)) -> dt
-make_dt(dt)
+make_dt(dt, table_view_opts = table_view_opts)
 ```
 
 ## Wasted resources
@@ -136,26 +117,18 @@ b <- build_terms_query(
 
 res <- Search(elastic_con, index = index, body = b, asdf = T)
 
-df <- res$aggregations$stats$buckets %>%
-  select(-key_as_string, -doc_count) %>%
-  tidyr::hoist(.col = key, accounting_name = 1L, procs = 2L, job_status = 3L) %>%
-  rename_all(~gsub('.value', '', .))
+df <- parse_elastic_multi_agg(res, column_names = c('accounting_name', 'procs', 'job_status')) %>%
+  select(-doc_count)
 ```
 
 ```{r echo=FALSE, include=!params$static}
 df %>%
   group_by(accounting_name) %>%
-  summarise_at(c('cpu_avail_sec', 'cpu_wasted_sec', 'mem_avail_mb_sec', 'mem_wasted_mb_sec', 'wasted_cost'), sum) %>%
-  mutate(
-    mem_wasted_frac = mem_wasted_mb_sec / mem_avail_mb_sec,
-    cpu_wasted_frac = cpu_wasted_sec / cpu_avail_sec,
-    cpu_wasted_hrs = cpu_wasted_sec / 60 / 60,
-    mem_wasted_gb_hrs = mem_wasted_mb_sec / 1024 / 60 / 60
-  ) %>%
+  generate_efficiency_stats() %>%
   select(accounting_name, cpu_wasted_hrs, cpu_wasted_frac, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost) %>%
   rename_group_column() -> dt
 
-make_dt(dt)
+make_dt(dt, table_view_opts = table_view_opts)
 ```
 
 If process allocates only 1 cpu and uses a fraction of it, we still consider it as wasting resources.
@@ -163,19 +136,13 @@ However it would be difficult to optimize that process.
 Let's assume that successful processes requiring 1 cpu do not waste cpu.
 ```{r echo=FALSE, fig.width=10}
 df %>%
-  mutate(mem_wasted_cost = mem_wasted_mb_sec * gb_ram_hour / 1024 / 60 / 60) %>%
-  mutate(cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec),
-         wasted_cost = ifelse(job_status == 'Success' & procs == 1, mem_wasted_cost, wasted_cost)) %>%
-  group_by(accounting_name) %>%
-  summarise_at(c('cpu_avail_sec', 'cpu_wasted_sec', 'mem_avail_mb_sec', 'mem_wasted_mb_sec', 'wasted_cost'), sum) %>%
   mutate(
-    cpu_avail_hrs = cpu_avail_sec / 60 / 60,
-    cpu_wasted_frac = cpu_wasted_sec / cpu_avail_sec,
-    cpu_wasted_hrs = cpu_wasted_sec / 60 / 60,
-    mem_avail_gb_hrs = mem_avail_mb_sec / 1024 / 60 / 60,
-    mem_wasted_frac = mem_wasted_mb_sec / mem_avail_mb_sec,
-    mem_wasted_gb_hrs = mem_wasted_mb_sec / 1024 / 60 / 60
+    mem_wasted_cost = mem_wasted_mb_sec * gb_ram_hour / 1024 / 60 / 60,
+    cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec),
+    wasted_cost = ifelse(job_status == 'Success' & procs == 1, mem_wasted_cost, wasted_cost)
   ) %>%
+  group_by(accounting_name) %>%
+  generate_efficiency_stats() %>%
   select(accounting_name, cpu_avail_hrs, cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost) %>%
   rename_group_column() -> dt
 
@@ -186,13 +153,7 @@ dt %>%
 
 dt %>%
   tidyr::pivot_longer(cols = c('cpu_wasted_hrs', 'mem_wasted_gb_hrs')) %>%
-  ggplot(aes(x=accounting_name, y=value, fill=name)) +
-    geom_bar(stat = 'identity') +
-    coord_flip() +
-    facet_grid(.~name, scales='free_x', labeller = as_labeller(setNames(names(column_rename), column_rename))) +
-    theme_bw() +
-    theme(legend.position="none", axis.title.x=element_blank(), axis.title.y=element_blank())
-
+  make_wastage_plot(renamer = column_rename)
 ```
 <div style="page-break-before: always;" />
 
@@ -200,12 +161,26 @@ Awesome-ness is a 0-to-10 complex score representing a team performance. A team 
 of wasted resources for both CPU and RAM. The more heavy jobs team submits the harder it is to be efficient and vice versa.
 For this reason teams get penalised if they consume very little resources.
 
+```{asis awesomeness formula, echo=!params$static}
+$$
+awesomeness = 10 \times \frac{rank_{wasted\ CPU\ fraction} + rank_{wasted\ RAM\ fraction}}{ 2 \times numer\ of\ LSF\ groups}
+$$
+
+$$
+rank_{metric} = \begin{cases}
+ metric \leq \dfrac {median(metric)} {2} ,& \dfrac {rank(-metric)} {2} \\
+ otherwise  ,& rank(-metric)
+\end{cases}
+$$
+```
+
+
 ```{r echo=FALSE}
 if(params$static) {
   dt <- select(dt, -mem_wasted_gb_hrs, -cpu_wasted_hrs)
 }
 
-make_dt(dt, all_rows = params$static)
+make_dt(dt, all_rows = params$static, table_view_opts = table_view_opts)
 ```
 
 ```{r get leading team, echo=FALSE}
@@ -254,28 +229,29 @@ res <- Search(
 
 df <- pull_everything(elastic_con, res)
 df %>%
+  rename(
+    cpu_avail_sec = AVAIL_CPU_TIME_SEC,
+    mem_avail_mb_sec = MEM_REQUESTED_MB_SEC,
+    mem_wasted_mb_sec = WASTED_MB_SECONDS
+  ) %>%
   group_by(USER_NAME) %>%
   mutate(
     cpu_wasted_sec = ifelse(Job == 'Success' & NUM_EXEC_PROCS == 1, 0, WASTED_CPU_SECONDS),
     cpu_wasted_cost = cpu_wasted_sec * cpu_hour / 60 / 60,
-    mem_wasted_cost = WASTED_MB_SECONDS * gb_ram_hour / 1024 / 60 / 60,
+    mem_wasted_cost = mem_wasted_mb_sec * gb_ram_hour / 1024 / 60 / 60,
     wasted_cost = pmax(cpu_wasted_cost, mem_wasted_cost)
   ) %>%
-  summarise(
-    number_of_jobs = n(),
-    fail_rate = sum(Job == 'Failed') / number_of_jobs,
-    cpu_avail_hrs = sum(AVAIL_CPU_TIME_SEC) / 60 / 60,
-    cpu_wasted_hrs = sum(cpu_wasted_sec) / 60 / 60,
-    cpu_wasted_frac = cpu_wasted_hrs / cpu_avail_hrs,
-    mem_avail_gb_hrs = sum(MEM_REQUESTED_MB_SEC) / 1024 / 60 / 60,
-    mem_wasted_gb_hrs = sum(WASTED_MB_SECONDS) / 1024 / 60 / 60,
-    mem_wasted_frac = mem_wasted_gb_hrs / mem_avail_gb_hrs,
-    wasted_cost = sum(wasted_cost)
+  generate_efficiency_stats(
+    extra_stats = list(
+      number_of_jobs = quote(n()),
+      wasted_cost = quote(sum(wasted_cost)),
+      fail_rate = quote(sum(Job == 'Failed') / number_of_jobs)
+    )
   ) -> dt
 
 if(params$static){
   dt <- select(dt, -cpu_wasted_hrs, -mem_wasted_gb_hrs)
 }
 
-make_dt(dt)
+make_dt(dt, table_view_opts = table_view_opts)
 ```

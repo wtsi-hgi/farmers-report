@@ -41,6 +41,7 @@ wasted_cost_agg <- list(
   )
 )
 
+# creates elastic query body object to aggregate over single field
 build_agg_query <- function(field, query = humgen_query) {
   b <- list(
     "aggs" = list(
@@ -57,6 +58,7 @@ build_agg_query <- function(field, query = humgen_query) {
   return(b)
 }
 
+# creates elastic query body object to aggregate over multiple fields
 build_terms_query <- function(fields, aggs = NULL, query = humgen_query) {
   terms <- lapply(fields, function(field){
     list("field" = field)
@@ -99,4 +101,20 @@ pull_everything <- function(connection, response) {
   }
 
   return(dt)
+}
+
+# returns data.frame from the elastic response object for single-field aggregation
+parse_elastic_single_agg <- function (response) {
+  response$aggregations$stats$buckets %>%
+    arrange(key)
+}
+
+# returns data.frame from the elastic response object for multi-fields aggregation
+# column_names is a vector of column names corresponding to the aggregation fields
+parse_elastic_multi_agg <- function (response, column_names) {
+  rule <- setNames(seq_along(column_names), column_names)
+  response$aggregations$stats$buckets %>%
+    select(-key_as_string) %>%
+    tidyr::hoist(.col = key, !!!rule) %>%
+    rename_all(~gsub('.value', '', .))
 }
