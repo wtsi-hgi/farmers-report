@@ -20,12 +20,26 @@ fake_elastic_response <- list(
   )
 )
 
+fake_elastic_single_agg_response <- list(
+  aggregations = list(stats = list(buckets = data.frame(key = 1:3)))
+)
+
+fake_elastic_multi_agg_response <- list(
+  aggregations = list(stats = list(buckets = tibble::tibble(
+    key = list(
+      c('value1', 'value2'),
+      c('value3', 'value4'),
+      c('value5', 'value6')),
+    key_as_string = character(3)
+  )))
+)
+
 test_that("extract_hits_from_elastic_response works", {
   hits <- extract_hits_from_elastic_response(fake_elastic_response)
 
   expect_s3_class(hits,'data.frame')
   expect_length(names(hits), 1)
-  expect_equal(names(hits), "name")
+  expect_named(hits, "name")
 })
 
 test_that("build_agg_query works", {
@@ -33,7 +47,7 @@ test_that("build_agg_query works", {
   q <- build_agg_query(field = field_name)
 
   expect_type(q, "list")
-  expect_equal(names(q$aggs$stats), 'terms')
+  expect_named(q$aggs$stats, 'terms')
   expect_equal(q$aggs$stats$terms$field, field_name)
   expect_equal(q$query, humgen_query)
 })
@@ -43,7 +57,54 @@ test_that("build_terms_query works", {
   q <- build_terms_query(field = field_names)
 
   expect_type(q, "list")
-  expect_equal(names(q$aggs$stats)[1], 'multi_terms')
+  expect_named(q$aggs$stats[1], 'multi_terms')
   expect_equal(q$aggs$stats$multi_terms$terms, list(list(field='fieldname1'), list(field='fieldname2')))
   expect_equal(q$query, humgen_query)
+})
+
+test_that("build_elastic_sub_agg works", {
+  sub_agg <- build_elastic_sub_agg("myfield", "sum")
+  expected_struct <- list(
+    "sum" = list(
+      "field" = "myfield"
+    )
+  )
+  expect_identical(sub_agg, expected_struct)
+})
+
+test_that('build_humgen_filters works', {
+  f1 <- build_humgen_filters()
+  expect_length(f1, 3)
+  expect_named(f1, NULL)
+
+  f2 <- build_humgen_filters(
+    custom_filters = list("match_phrase" = list("field" = 'value'))
+  )
+  expect_length(f2, 4)
+  expect_named(f2, NULL)
+})
+
+test_that('build_humgen_query works', {
+  q <- build_humgen_query()
+
+  expect_named(q, 'bool')
+  expect_named(q$bool, 'filter')
+  expect_length(q$bool$filter, 3)
+  expect_named(q$bool$filter, NULL)
+})
+
+test_that('parse_elastic_single_agg works', {
+  df <- parse_elastic_single_agg(fake_elastic_single_agg_response)
+
+  expect_s3_class(df,'data.frame')
+  expect_named(df, "key")
+})
+
+test_that('parse_elastic_multi_agg works', {
+  field_names <- c('field1', 'field2')
+  df <- parse_elastic_multi_agg(fake_elastic_multi_agg_response, column_names = field_names)
+
+  expect_s3_class(df,'data.frame')
+  expect_named(df, field_names)
+  expect_equal(nrow(df), 3)
 })

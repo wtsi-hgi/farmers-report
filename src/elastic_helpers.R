@@ -1,34 +1,46 @@
 library(dplyr)
 
-humgen_filters <- list(
-  list(
-    "match_phrase" = list(
-      "BOM" = "Human Genetics"
-    )
-  ),
-  list(
-    "match_phrase" = list(
-      "META_CLUSTER_NAME" = "farm"
-    )
-  ),
-  list(
-    "range" = list(
-      "timestamp" = list(
-        "lte" = "now/d",
-        "gte" = "now-1w/d"
+source("src/constants.R")
+
+build_humgen_filters <- function (custom_filters = NULL) {
+  filters <- list(
+    list(
+      "match_phrase" = list(
+        "BOM" = "Human Genetics"
+      )
+    ),
+    list(
+      "match_phrase" = list(
+        "META_CLUSTER_NAME" = "farm"
+      )
+    ),
+    list(
+      "range" = list(
+        "timestamp" = list(
+          "lte" = "now/d",
+          "gte" = "now-1w/d"
+        )
       )
     )
   )
-)
 
-humgen_query <- list(
-  "bool" = list(
-    "filter" = humgen_filters
+  if (!is.null(custom_filters))
+    filters <- c(filters, list(custom_filters))
+
+  return(filters)
+}
+
+humgen_filters <- build_humgen_filters()
+
+build_humgen_query <- function (filters = humgen_filters) {
+  list(
+    "bool" = list(
+      "filter" = filters
+    )
   )
-)
+}
 
-cpu_hour <- 0.00254  # in £
-gb_ram_hour <- 0.000217  # in £
+humgen_query <- build_humgen_query()
 
 wasted_cost_agg <- list(
   "scripted_metric" = list(
@@ -36,8 +48,8 @@ wasted_cost_agg <- list(
     "map_script" = "double cpu_cost = doc.WASTED_CPU_SECONDS.value * params.cpu_second; double mem_cost = doc.WASTED_MB_SECONDS.value * params.mb_second; state.costs.add(Math.max(cpu_cost, mem_cost))",
     "combine_script" = "double total = 0; for (t in state.costs) { total += t } return total",
     "reduce_script" = "double total = 0; for (a in states) { total += a } return total",
-    "params" = list("cpu_second" = cpu_hour / 60 / 60,
-                    "mb_second" = gb_ram_hour / 1024 / 60 / 60)
+    "params" = list("cpu_second" = cpu_second,
+                    "mb_second" = ram_mb_second)
   )
 )
 
@@ -76,6 +88,15 @@ build_terms_query <- function(fields, aggs = NULL, query = humgen_query) {
     ),
     "size" = 0,
     "query" = query
+  )
+}
+
+build_elastic_sub_agg <- function (field, agg_fun) {
+  setNames(
+    list(
+      list("field" = field)
+    ),
+    agg_fun
   )
 }
 

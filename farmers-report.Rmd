@@ -19,13 +19,13 @@ library(ggplot2)
 source('src/table_helpers.R')
 source('src/elastic_helpers.R')
 source('src/plot_helpers.R')
+source("src/constants.R")
 
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ```{r connect, include=FALSE}
 library(elastic)
-index <- "user-data-ssg-isg-lsf-analytics-*"
 elastic_con <- connect(
   host = params$elastic_host,
   path = "",
@@ -87,26 +87,10 @@ Resource is considered to be wasted if it is not used or its job failed.
 For memory we assume that memory consumption under the peak value is not wasted.
 ```{r elastic agg query, echo=FALSE}
 custom_aggs <- list(
-  "cpu_avail_sec" = list(
-    "sum" = list(
-      "field" = "AVAIL_CPU_TIME_SEC"
-    )
-  ),
-  "cpu_wasted_sec" = list(
-    "sum" = list(
-      "field" = "WASTED_CPU_SECONDS"
-    )
-  ),
-  "mem_avail_mb_sec" = list(
-    "sum" = list(
-      "field" = "MEM_REQUESTED_MB_SEC"
-    )
-  ),
-  "mem_wasted_mb_sec" = list(
-    "sum" = list(
-      "field" = "WASTED_MB_SECONDS"
-    )
-  ),
+  "cpu_avail_sec" = build_elastic_sub_agg("AVAIL_CPU_TIME_SEC", "sum"),
+  "cpu_wasted_sec" = build_elastic_sub_agg("WASTED_CPU_SECONDS", "sum"),
+  "mem_avail_mb_sec" = build_elastic_sub_agg("MEM_REQUESTED_MB_SEC", "sum"),
+  "mem_wasted_mb_sec" = build_elastic_sub_agg("WASTED_MB_SECONDS", "sum"),
   "wasted_cost" = wasted_cost_agg
 )
 
@@ -137,7 +121,7 @@ Let's assume that successful processes requiring 1 cpu do not waste cpu.
 ```{r echo=FALSE, fig.width=10}
 df %>%
   mutate(
-    mem_wasted_cost = mem_wasted_mb_sec * gb_ram_hour / 1024 / 60 / 60,
+    mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
     cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec),
     wasted_cost = ifelse(job_status == 'Success' & procs == 1, mem_wasted_cost, wasted_cost)
   ) %>%
@@ -199,16 +183,11 @@ if(leading_team %in% team_map$team_name){
 }
 
 b <- list(
-  "query" = list(
-    "bool" = list(
-      "filter" = c(
-        humgen_filters,
-        list(
-          list(
-            "match_phrase" = list(
-              "ACCOUNTING_NAME" = leading_team
-            )
-          )
+  query = build_humgen_query(
+    filters = build_humgen_filters(
+      custom_filters = list(
+        "match_phrase" = list(
+          "ACCOUNTING_NAME" = leading_team
         )
       )
     )
@@ -237,8 +216,8 @@ df %>%
   group_by(USER_NAME) %>%
   mutate(
     cpu_wasted_sec = ifelse(Job == 'Success' & NUM_EXEC_PROCS == 1, 0, WASTED_CPU_SECONDS),
-    cpu_wasted_cost = cpu_wasted_sec * cpu_hour / 60 / 60,
-    mem_wasted_cost = mem_wasted_mb_sec * gb_ram_hour / 1024 / 60 / 60,
+    cpu_wasted_cost = cpu_wasted_sec * cpu_second,
+    mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
     wasted_cost = pmax(cpu_wasted_cost, mem_wasted_cost)
   ) %>%
   generate_efficiency_stats(

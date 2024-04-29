@@ -7,6 +7,7 @@ library(dplyr)
 source('src/table_helpers.R')
 source('src/elastic_helpers.R')
 source('src/plot_helpers.R')
+source("src/constants.R")
 
 params <- list(
   elastic_host = "",
@@ -14,7 +15,6 @@ params <- list(
   elastic_password = ""
 )
 
-index <- "user-data-ssg-isg-lsf-analytics-*"
 elastic_con <- connect(
   host = params$elastic_host,
   path = "",
@@ -29,21 +29,16 @@ get_accounting_names <- function(con) {
 
   res <- Search(con, index = index, body = b, asdf = T)
 
-  res$aggregations$stats$buckets$key
+  parse_elastic_single_agg(res)$key
 }
 
 get_user_names <- function(con, accounting_name) {
   b <- list(
-    "query" = list(
-      "bool" = list(
-        "filter" = c(
-          humgen_filters,
-          list(
-            list(
-              "match_phrase" = list(
-                "ACCOUNTING_NAME" = accounting_name
-              )
-            )
+    query = build_humgen_query(
+      filters = build_humgen_filters(
+        custom_filters = list(
+          "match_phrase" = list(
+            "ACCOUNTING_NAME" = accounting_name
           )
         )
       )
@@ -109,16 +104,11 @@ server <- function(input, output, session) {
   })
 
   humgen_user_query <- eventReactive(input$user_name, {
-    list(
-      "bool" = list(
-        "filter" = c(
-          humgen_filters,
-          list(
-            list(
-              "match_phrase" = list(
-                "USER_NAME" = input$user_name
-              )
-            )
+    build_humgen_query(
+      filters = build_humgen_filters(
+        custom_filters = list(
+          "match_phrase" = list(
+            "USER_NAME" = input$user_name
           )
         )
       )
@@ -130,11 +120,10 @@ server <- function(input, output, session) {
 
     res <- Search(elastic_con, index = index, body = b, asdf = T)
 
-    df <- res$aggregations$stats$buckets %>%
-      arrange(key) %>%
+    df <- parse_elastic_single_agg(res) %>%
       mutate_for_piechart()
 
-    piechart(df, legend_name = 'Farm')
+    piechart(df, count_field = 'doc_count', key_field = 'key', legend_name = 'Farm')
   })
 
   output$job_failure <- renderPlot({
@@ -142,72 +131,42 @@ server <- function(input, output, session) {
 
     res <- Search(elastic_con, index = index, body = b, asdf = T)
 
-    df <- res$aggregations$stats$buckets %>%
-      arrange(key) %>%
+    df <- parse_elastic_single_agg(res) %>%
       mutate_for_piechart()
 
-    piechart(df, legend_name = 'Job status')
+    piechart(df, count_field = 'doc_count', key_field = 'key', legend_name = 'Job status')
   })
 
   output$efficiency <- DT::renderDT({
     custom_aggs <- list(
-      "cpu_avail_sec" = list(
-        "sum" = list(
-          "field" = "AVAIL_CPU_TIME_SEC"
-        )
-      ),
-      "cpu_wasted_sec" = list(
-        "sum" = list(
-          "field" = "WASTED_CPU_SECONDS"
-        )
-      ),
-      "mem_avail_mb_sec" = list(
-        "sum" = list(
-          "field" = "MEM_REQUESTED_MB_SEC"
-        )
-      ),
-      "mem_wasted_mb_sec" = list(
-        "sum" = list(
-          "field" = "WASTED_MB_SECONDS"
-        )
-      ),
+      "cpu_avail_sec" = build_elastic_sub_agg("AVAIL_CPU_TIME_SEC", "sum"),
+      "cpu_wasted_sec" = build_elastic_sub_agg("WASTED_CPU_SECONDS", "sum"),
+      "mem_avail_mb_sec" = build_elastic_sub_agg("MEM_REQUESTED_MB_SEC", "sum"),
+      "mem_wasted_mb_sec" = build_elastic_sub_agg("WASTED_MB_SECONDS", "sum"),
       "wasted_cost" = wasted_cost_agg
     )
 
     b <- build_terms_query(
-      fields = c("ACCOUNTING_NAME", "NUM_EXEC_PROCS", "Job"),
-      aggs = custom_aggs
+      fields = c("NUM_EXEC_PROCS", "Job"),
+      aggs = custom_aggs,
+      query = humgen_user_query()
     )
 
     res <- Search(elastic_con, index = index, body = b, asdf = T)
 
-    df <- res$aggregations$stats$buckets %>%
-      select(-key_as_string, -doc_count) %>%
-      tidyr::hoist(.col = key, accounting_name = 1L, procs = 2L, job_status = 3L) %>%
-      rename_all(~gsub('.value', '', .))
+    df <- parse_elastic_multi_agg(res, column_names = c('procs', 'job_status')) %>%
+      select(-doc_count)
 
-    df %>%
-      mutate(mem_wasted_cost = mem_wasted_mb_sec * gb_ram_hour / 1024 / 60 / 60) %>%
-      mutate(cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec),
-             wasted_cost = ifelse(job_status == 'Success' & procs == 1, mem_wasted_cost, wasted_cost)) %>%
-      group_by(accounting_name) %>%
-      summarise_at(c('cpu_avail_sec', 'cpu_wasted_sec', 'mem_avail_mb_sec', 'mem_wasted_mb_sec', 'wasted_cost'), sum) %>%
+    dt <- df %>%
       mutate(
-        cpu_avail_hrs = cpu_avail_sec / 60 / 60,
-        cpu_wasted_frac = cpu_wasted_sec / cpu_avail_sec,
-        cpu_wasted_hrs = cpu_wasted_sec / 60 / 60,
-        mem_avail_gb_hrs = mem_avail_mb_sec / 1024 / 60 / 60,
-        mem_wasted_frac = mem_wasted_mb_sec / mem_avail_mb_sec,
-        mem_wasted_gb_hrs = mem_wasted_mb_sec / 1024 / 60 / 60
+        mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
+        cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec),
+        wasted_cost = ifelse(job_status == 'Success' & procs == 1, mem_wasted_cost, wasted_cost)
       ) %>%
-      select(accounting_name, cpu_avail_hrs, cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost) %>%
-      rename_group_column() -> dt
+      generate_efficiency_stats() %>%
+      select(cpu_avail_hrs, cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost)
 
-    ranks <- generate_ranks(dt) %>% select(accounting_name, awesomeness)
-    dt %>%
-      left_join(ranks, by = 'accounting_name') -> dt
-
-    make_dt(dt, all_rows = params$static)
+    make_dt(dt, table_view_opts = 't')
   })
 }
 
