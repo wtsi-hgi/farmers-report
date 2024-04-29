@@ -30,9 +30,9 @@ team_map <- tibble::enframe(
   value = 'team_name'
 )
 
-rename_group_column <- function(df) {
+rename_group_column <- function(df, mapping = team_map) {
   df %>%
-    left_join(team_map, by = c('accounting_name' = 'team_code')) %>%
+    left_join(mapping, by = c('accounting_name' = 'team_code')) %>%
     mutate(accounting_name = ifelse(is.na(team_name), accounting_name, team_name)) %>%
     select(-team_name)
 }
