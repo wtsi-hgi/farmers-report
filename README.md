@@ -13,5 +13,10 @@ You can now knit report or serve an app.
 ## Development
 To run tests simply execute within an environment
 ```bash
-Rscript tests/testthat.R 
+Rscript tests/testthat.R
+```
+
+To run the app, run the following command in the directory that your app is in
+```bash
+shiny::runApp('path/to/your/directory')
 ```
