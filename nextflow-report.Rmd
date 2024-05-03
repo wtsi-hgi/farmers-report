@@ -1,0 +1,189 @@
+---
+title: "Nextflow efficiency report"
+output: html_document
+params:
+  pipeline_prefix: MAIN_YASCP
+  elastic_host: dummy
+  elastic_username: dummy
+  elastic_password: dummy
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This document will guide you through the steps you need to answer the question which yascp steps are efficient and which are not.
+
+## Download data
+
+First we need to establish the connection with Elastic
+```{r}
+library(elastic)
+elastic_con <- connect(
+  host = params$elastic_host,
+  path = "", 
+  user = params$elastic_username,
+  pwd = params$elastic_password,
+  port = 19200, 
+  transport_schema = "http"
+)
+```
+
+Now we can build a request. Refer here for help: https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
+```{r}
+b = list(
+  "query" = list(
+    "bool" = list(
+      "filter" = list(
+        list(
+          "range" = list(
+            "START_TIME" = list(
+              "lte" = "now/d",
+              "gte" = "now-5d/d"
+            )
+          )
+        ),
+        list(
+          "term" = list("CLUSTER_NAME" = "farm5")
+        ),
+        list(
+          "term" = list("Job" = "Success")
+        ),
+        list(
+          "prefix" = list("JOB_NAME" = "nf")
+        )
+      )
+    )
+  ),
+  "sort" = list("_doc")
+)
+```
+
+Let's get the data out of there. We need to paginate (scroll) through all results.
+```{r download, message=F}
+library(data.table)
+library(dplyr)
+res <- Search(
+  elastic_con, 
+  index = "user-data-ssg-isg-lsf-analytics-*", 
+  time_scroll="1m",
+  source = c('MAX_MEM_EFFICIENCY_PERCENT', 'Job_Efficiency_Percent', 'USER_NAME', 'START_TIME',
+             "JOB_NAME", "MEM_REQUESTED_MB", 'MAX_MEM_USAGE_MB' ,'NUM_EXEC_PROCS'),
+  body = b, 
+  asdf = T,
+  size = 10000
+)
+
+extract_df_from_elastic_response <- function(x){
+  x$hits$hits %>%
+    select(-c('_index', '_type', '_id', '_score', 'sort')) %>%
+    rename_with(~ gsub("^_source\\.", "", .x)) %>%
+    as.data.table()
+}
+
+dt <- extract_df_from_elastic_response(res)
+hits <- 1
+c <- 0
+while(hits != 0){
+  res <- scroll(elastic_con, res$`_scroll_id`, asdf = T)
+  hits <- length(res$hits$hits)
+  if(hits > 0){
+    df <- extract_df_from_elastic_response(res)
+    dt <- rbind(dt, df)
+  }
+  c <- c + 1  
+}
+
+rm(df)
+dt$timestamp <- lubridate::as_datetime(dt$START_TIME/1e3)
+dt$START_TIME <- NULL
+```
+
+Let's filter jobs of yascp
+```{r}
+dt <- dt[grepl(paste0('^nf-', params$pipeline_prefix), JOB_NAME)]
+```
+
+
+Let's parse Job_name to get a nextflow step
+```{r}
+dt$step <- gsub(paste0('^nf-', params$pipeline_prefix, '_'), '', dt$JOB_NAME) %>% gsub(pattern = '_\\(.*\\)?$', replacement = '')
+DT::datatable( head(dt) )
+```
+
+
+## Plot data
+
+How many different steps?
+```{r}
+dt %>%
+  group_by(step) %>%
+  tally() %>%
+  arrange(desc(n)) %>%
+  DT::datatable()
+```
+
+
+### CPU
+
+Let's plot CPU statistics for 20 most frequent steps
+```{r fig.height=10, fig.width=10}
+library(ggplot2)
+dt %>%
+  group_by(step) %>%
+  mutate(N = n()) %>%
+  ungroup() %>%
+  filter(N >= unique(N) %>% sort(decreasing = T) %>% nth(20)) %>%
+  ggplot(aes(x = NUM_EXEC_PROCS, group=NUM_EXEC_PROCS, y=Job_Efficiency_Percent)) + 
+    geom_boxplot() + 
+    facet_wrap(. ~ step, ncol = 4, scales = 'free_x') + 
+    theme_bw()
+```
+
+Max CPU consumption for each step
+```{r message=FALSE, warning=FALSE}
+# TODO add median run time (median because I expect high outliers due to lustre glitches)
+dt %>%
+  group_by(step, NUM_EXEC_PROCS) %>%
+  summarise(N = n(),
+            best_eff = max(Job_Efficiency_Percent))%>%
+  DT::datatable(filter = 'top')
+```
+
+
+### RAM
+
+Let's plot RAM statistics for 20 most frequent steps
+```{r fig.height=8, fig.width=10}
+dt %>%
+  group_by(step) %>%
+  mutate(N = n()) %>%
+  ungroup() %>%
+  filter(N >= unique(N) %>% sort(decreasing = T) %>% nth(20)) %>%
+  ggplot(aes(x = step, y=MAX_MEM_EFFICIENCY_PERCENT)) + 
+    geom_boxplot() + 
+    coord_flip() +
+    theme_bw()
+```
+
+Max MEM consumption for each step
+```{r}
+dt %>%
+  group_by(step) %>%
+  summarise(max_mem_used = max(MAX_MEM_USAGE_MB),
+            max_mem_requested = max(MEM_REQUESTED_MB),
+            min_mem_requested = min(MEM_REQUESTED_MB),
+            best_efficiency = max(MAX_MEM_EFFICIENCY_PERCENT),
+            N = n()) %>%
+  DT::datatable()
+```
+
+More granular MEM consumption
+```{r message=FALSE, warning=FALSE}
+dt %>%
+  group_by(step, NUM_EXEC_PROCS, MEM_REQUESTED_MB) %>%
+  summarise(N = n(),
+            best_efficiency = max(MAX_MEM_EFFICIENCY_PERCENT),
+            max_mem_used = max(MAX_MEM_USAGE_MB)) %>%
+  DT::datatable(filter = 'top')
+```
