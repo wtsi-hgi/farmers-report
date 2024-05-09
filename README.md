@@ -16,7 +16,9 @@ To run tests simply execute within an environment
 Rscript tests/testthat.R
 ```
 
-To run the app, run the following command in the directory that your app is in
+To calculate your coverage
 ```bash
-shiny::runApp('path/to/your/directory')
+Rscript tests/covr.R
 ```
+The coverage reports can be found in reports/ directory.
+
