@@ -156,6 +156,13 @@ server <- function(input, output, session) {
 
     df <- parse_elastic_multi_agg(res, column_names = c('procs', 'job_status')) %>%
       select(-doc_count)
+    
+    # cat("res:", jsonlite::toJSON(res), "\n")
+    # cat("custom_aggs:", jsonlite::toJSON(custom_aggs), "\n")
+    # cat("index:", index, "\n")
+    # cat("df:", "\n")
+    # print(as.character(df))
+    # print(colnames(df))
 
     dt <- df %>%
       mutate(
@@ -163,10 +170,32 @@ server <- function(input, output, session) {
         cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec),
         wasted_cost = ifelse(job_status == 'Success' & procs == 1, mem_wasted_cost, wasted_cost)
       ) %>%
+      group_by(job_status) %>%
       generate_efficiency_stats() %>%
-      select(cpu_avail_hrs, cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost)
+      select(job_status, cpu_avail_hrs, cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost)
+    
+    dt_total <- dt %>%
+      summarise(
+        across(where(is.numeric), sum)
+      ) %>%
+      mutate(
+        cpu_wasted_frac = cpu_wasted_hrs / cpu_avail_hrs,
+        mem_wasted_frac = mem_wasted_gb_hrs / mem_avail_gb_hrs,
+        job_status = "Total"
+      )
+    
+    dt <- rbind(dt, dt_total)
 
-    make_dt(dt, table_view_opts = 't')
+    # cat("dt after mutate:", "\n")
+    # print(as.character(dt))
+    # cat("dt colnames after mutate:", "\n")
+    # print(colnames(dt))
+
+    specify_wastage_reason(dt) %>%
+      make_dt(table_view_opts = 't')
+
+    # cat("dt after table transform:", "\n")
+    # print(dt)
   })
 }
 

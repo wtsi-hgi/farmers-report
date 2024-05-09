@@ -37,6 +37,14 @@ rename_group_column <- function(df, mapping = team_map) {
     select(-team_name)
 }
 
+specify_wastage_reason <- function(df) {
+  df %>%
+    rename(Reason = job_status) %>%
+    mutate(
+      Reason = stringr::str_replace_all(Reason, c("Success" = "Due to over-requesting", "Failed" = "Due to job failure"))
+    )
+}
+
 make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
   if('wasted_cost' %in% colnames(df))
     df <- dplyr::arrange(df, desc(wasted_cost))
