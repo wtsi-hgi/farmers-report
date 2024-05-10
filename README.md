@@ -16,9 +16,8 @@ To run tests simply execute within an environment
 Rscript tests/testthat.R
 ```
 
-To calculate your coverage
+To calculate the coverage
 ```bash
 Rscript tests/covr.R
 ```
 The coverage reports can be found in reports/ directory.
-
