@@ -45,6 +45,30 @@ specify_wastage_reason <- function(df) {
     )
 }
 
+generate_total_wastage_dt <- function(dt) {
+  dt %>%
+    summarise(
+      across(where(is.numeric), sum)
+    ) %>%
+    mutate(
+      cpu_wasted_frac = cpu_wasted_hrs / cpu_avail_hrs,
+      mem_wasted_frac = mem_wasted_gb_hrs / mem_avail_gb_hrs,
+      job_status = "Total"
+    )
+}
+
+generate_app_wastage_statistics <- function(df) {
+  df %>%
+    mutate(
+      mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
+      cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec),
+      wasted_cost = ifelse(job_status == 'Success' & procs == 1, mem_wasted_cost, wasted_cost)
+    ) %>%
+    group_by(job_status) %>%
+    generate_efficiency_stats() %>%
+    select(job_status, cpu_avail_hrs, cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost)
+}
+
 make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
   if('wasted_cost' %in% colnames(df))
     df <- dplyr::arrange(df, desc(wasted_cost))
