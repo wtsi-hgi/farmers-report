@@ -16,6 +16,16 @@ fake_config <- list(
   )
 )
 
+test_that("read_config throws an error if the config file does not exist", {
+  config_file <- "non-existent-config.yaml"
+  withr::local_file(
+    setNames(list(file.create(config_file)), config_file),
+    {
+      expect_error(read_config(config_file))
+    }
+  )
+})
+
 test_that("read_config produces expected result", {
   withr::local_file(
     setNames(list(yaml::write_yaml(fake_config, test_config_name)), test_config_name)
@@ -24,7 +34,7 @@ test_that("read_config produces expected result", {
   expect_equal(config, fake_config)
 })
 
-test_that("read_config throws an error if not all elastic credentials preseknt", {
+test_that("read_config throws an error if not all elastic credentials present", {
   fake_config$elastic$host <- NULL
   withr::local_file(
     setNames(list(yaml::write_yaml(fake_config, test_config_name)), test_config_name)
