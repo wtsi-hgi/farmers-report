@@ -5,6 +5,7 @@ context("Test helper functions to work with tables")
 if(basename(getwd()) == "testthat")
   setwd("../../")
 
+source("src/constants.R")
 source("src/table_helpers.R")
 
 test_that("rename_group_column function renames column appropriately", {
@@ -100,5 +101,93 @@ test_that("generate_efficiency_stats function produces correct efficiency statis
 
   result <- generate_efficiency_stats(df)
 
+  expect_equal(result, expected_result)
+})
+
+test_that("specify_wastage_reason works", {
+  input_df <- data.frame(
+    job_status = c("Success", "Failed", "total")
+  )
+
+  expected_df <- data.frame(
+    Reason = c("Due to over-requesting", "Due to job failure", "total")
+  )
+
+  df <- specify_wastage_reason(input_df)
+
+  expect_named(df, "Reason")
+  expect_equal(df, expected_df)
+})
+
+test_that("generate_total_wastage_dt works", {
+  input_dt <- data.frame(
+    cpu_wasted_hrs = c(3, 4, 3),
+    cpu_avail_hrs = c(12, 6, 2),
+    mem_wasted_gb_hrs = c(12, 3, 5),
+    mem_avail_gb_hrs = c(18, 25, 7),
+    status = c("True", "False", "False")
+  )
+
+  expected_df <- data.frame(
+    cpu_wasted_hrs = sum(input_dt$cpu_wasted_hrs),
+    cpu_avail_hrs = sum(input_dt$cpu_avail_hrs),
+    mem_wasted_gb_hrs = sum(input_dt$mem_wasted_gb_hrs),
+    mem_avail_gb_hrs = sum(input_dt$mem_avail_gb_hrs),
+    cpu_wasted_frac = sum(input_dt$cpu_wasted_hrs) / sum(input_dt$cpu_avail_hrs),
+    mem_wasted_frac = sum(input_dt$mem_wasted_gb_hrs) / sum(input_dt$mem_avail_gb_hrs),
+    job_status = c("Total")
+  )
+
+  df <- generate_total_wastage_dt(input_dt)
+
+  expect_equal(df, expected_df)
+})
+
+test_that("generate_app_wastage_statistics function produces correct app wastage statistics", {
+  df <- data.frame(
+    job_status = c('Success', 'Success', 'Failure', 'Success', 'Failure'),
+    mem_avail_mb_sec = c(36864, 36864, 73728, 2048, 2560),
+    mem_wasted_mb_sec = c(1024000, 512, 768, 1024000, 1280),
+    cpu_avail_sec = c(3600, 7200, 10800, 4000, 5000),
+    cpu_wasted_sec = c(600, 1000, 1500, 2000, 2500),
+    procs = c(1, 2, 1, 1, 1),
+    wasted_cost = c(10, 20, 30, 40, 50)
+  )
+
+  failing_jobs <- c(3, 5)
+  success_jobs <- c(1, 2, 4)
+  wasting_jobs <- c(2)  # success jobs with procs > 1
+  
+  expected_result <- tibble::tibble(
+    job_status = c('Failure', 'Success'),
+    cpu_avail_hrs = c(
+      sum(df$cpu_avail_sec[failing_jobs]), 
+      sum(df$cpu_avail_sec[success_jobs])
+    ) / 3600,
+    cpu_wasted_hrs = c(
+      sum(df$cpu_wasted_sec[failing_jobs]), 
+      sum(df$cpu_wasted_sec[wasting_jobs])
+    ) / 3600,
+    mem_avail_gb_hrs = c(
+      sum(df$mem_avail_mb_sec[failing_jobs]), 
+      sum(df$mem_avail_mb_sec[success_jobs])
+    ) / 3600 / 1024,
+    mem_wasted_gb_hrs =  c(
+      sum(df$mem_wasted_mb_sec[failing_jobs]), 
+      sum(df$mem_wasted_mb_sec[success_jobs])
+    ) / 3600 / 1024,
+    wasted_cost = c(
+      sum(df$wasted_cost[failing_jobs]), 
+      sum(df$wasted_cost[wasting_jobs]) + sum(df$mem_wasted_mb_sec[setdiff(success_jobs, wasting_jobs)]) * ram_mb_second
+    )
+  )
+
+  expected_result$cpu_wasted_frac = expected_result$cpu_wasted_hrs / expected_result$cpu_avail_hrs
+  expected_result$mem_wasted_frac = expected_result$mem_wasted_gb_hrs / expected_result$mem_avail_gb_hrs
+
+  expected_result <- expected_result[c(1, 2, 3, 7, 4, 5, 8, 6)]
+  
+  result <- generate_app_wastage_statistics(df)
+  
   expect_equal(result, expected_result)
 })

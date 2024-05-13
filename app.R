@@ -157,16 +157,14 @@ server <- function(input, output, session) {
     df <- parse_elastic_multi_agg(res, column_names = c('procs', 'job_status')) %>%
       select(-doc_count)
 
-    dt <- df %>%
-      mutate(
-        mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
-        cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec),
-        wasted_cost = ifelse(job_status == 'Success' & procs == 1, mem_wasted_cost, wasted_cost)
-      ) %>%
-      generate_efficiency_stats() %>%
-      select(cpu_avail_hrs, cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost)
+    dt <- generate_app_wastage_statistics(df)
+    
+    dt_total <- generate_total_wastage_dt(dt)
+    
+    dt <- rbind(dt, dt_total)
 
-    make_dt(dt, table_view_opts = 't')
+    specify_wastage_reason(dt) %>%
+      make_dt(table_view_opts = 't')
   })
 }
 
