@@ -38,18 +38,6 @@ elastic_con <- connect(
 table_view_opts <- ifelse(params$static, 't', 'ftp')
 ```
 
-
-`r if(!params$static){"## Cluster usage"}`
-```{r farm usage, echo=FALSE, fig.height=1.5}
-b <- build_agg_query("CLUSTER_NAME")
-
-res <- Search(elastic_con, index = index, body = b, asdf = T)
-
-df <- parse_elastic_single_agg(res)
-
-make_farm_job_count_plot(df)
-```
-
 ## Number of failed jobs
 ```{r pie chart, echo=FALSE, fig.height=3, fig.width=3, include=!params$static}
 b <- build_agg_query("Job")
