@@ -2,13 +2,8 @@ library(dplyr)
 
 source("src/constants.R")
 
-build_humgen_filters <- function (custom_filters = NULL) {
+build_humgen_filters <- function (BOM = "Human Genetics", custom_filters = NULL) {
   filters <- list(
-    list(
-      "match_phrase" = list(
-        "BOM" = "Human Genetics"
-      )
-    ),
     list(
       "match_phrase" = list(
         "META_CLUSTER_NAME" = "farm"
@@ -23,6 +18,15 @@ build_humgen_filters <- function (custom_filters = NULL) {
       )
     )
   )
+
+  if (!is.null(BOM)) {
+    bom_filter <- list(
+      "match_phrase" = list(
+        "BOM" = BOM
+      )
+    )
+    filters <- c(filters, list(bom_filter))
+  }
 
   if (!is.null(custom_filters))
     filters <- c(filters, list(custom_filters))
