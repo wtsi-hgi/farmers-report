@@ -18,12 +18,7 @@ fake_config <- list(
 
 test_that("read_config throws an error if the config file does not exist", {
   config_file <- "non-existent-config.yaml"
-  withr::local_file(
-    setNames(list(file.create(config_file)), config_file),
-    {
-      expect_error(read_config(config_file))
-    }
-  )
+  expect_error(read_config(config_file), "No config file found!")
 })
 
 test_that("read_config produces expected result", {
