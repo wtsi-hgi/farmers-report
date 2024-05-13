@@ -13,5 +13,11 @@ You can now knit report or serve an app.
 ## Development
 To run tests simply execute within an environment
 ```bash
-Rscript tests/testthat.R 
+Rscript tests/testthat.R
 ```
+
+To calculate the coverage
+```bash
+Rscript tests/covr.R
+```
+The coverage reports can be found in reports/ directory.
