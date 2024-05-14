@@ -7,19 +7,16 @@ library(dplyr)
 source('src/table_helpers.R')
 source('src/elastic_helpers.R')
 source('src/plot_helpers.R')
-source("src/constants.R")
+source('src/constants.R')
+source('src/config.R')
 
-params <- list(
-  elastic_host = "",
-  elastic_username = "",
-  elastic_password = ""
-)
+config <- read_config("config.yaml")
 
 elastic_con <- connect(
-  host = params$elastic_host,
+  host = config$elastic$host,
   path = "",
-  user = params$elastic_username,
-  pwd = params$elastic_password,
+  user = config$elastic$username,
+  pwd = config$elastic$password,
   port = 19200,
   transport_schema = "http"
 )
