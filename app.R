@@ -91,10 +91,6 @@ ui <- page_sidebar(
   ),
   accordion(
     accordion_panel(
-      "Farm Usage",
-      plotOutput("farm_usage")
-    ),
-    accordion_panel(
       "Job failure statistics",
       plotOutput("job_failure")
     ),
@@ -134,17 +130,6 @@ server <- function(input, output, session) {
         )
       )
     )
-  })
-
-  output$farm_usage <- renderPlot({
-    b <- build_agg_query("CLUSTER_NAME", query = humgen_user_query())
-
-    res <- Search(elastic_con, index = index, body = b, asdf = T)
-
-    df <- parse_elastic_single_agg(res) %>%
-      mutate_for_piechart()
-
-    piechart(df, count_field = 'doc_count', key_field = 'key', legend_name = 'Farm')
   })
 
   output$job_failure <- renderPlot({
