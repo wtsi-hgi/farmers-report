@@ -5,10 +5,14 @@ output:
   html_document: default
 params:
   config_path: "config.yaml"
+  bom: "Human Genetics"
+  leading_teams:
+  - "hgi"
+  - "mercury"
   static: FALSE
 ---
 
-This is a report for farm efficiency among HumGen teams for the last week.
+This is a report for farm efficiency among `r params$bom` teams for the last week.
 
 ```{r setup, include=FALSE}
 library(dplyr)
@@ -41,7 +45,7 @@ table_view_opts <- ifelse(params$static, 't', 'ftp')
 
 ## Number of failed jobs
 ```{r pie chart, echo=FALSE, fig.height=3, fig.width=3, include=!params$static}
-b <- build_agg_query("Job")
+b <- build_agg_query("Job", query = build_humgen_query(filters = build_humgen_filters(BOM = params$bom)))
 
 res <- Search(elastic_con, index = index, body = b, asdf = T)
 
@@ -53,7 +57,7 @@ piechart(df, count_field = 'doc_count', key_field = 'key', legend_name = 'Job st
 
 ### per team
 ```{r failed stats, echo=FALSE, fig.height=4, fig.width=9}
-b <- build_terms_query(fields = c("ACCOUNTING_NAME", "Job"))
+b <- build_terms_query(fields = c("ACCOUNTING_NAME", "Job"), query = build_humgen_query(filters = build_humgen_filters(BOM = params$bom)))
 
 res <- Search(elastic_con, index = index, body = b, asdf = T)
 
@@ -85,7 +89,8 @@ custom_aggs <- list(
 
 b <- build_terms_query(
   fields = c("ACCOUNTING_NAME", "NUM_EXEC_PROCS", "Job"),
-  aggs = custom_aggs
+  aggs = custom_aggs,
+  query = build_humgen_query(filters = build_humgen_filters(BOM = params$bom))
 )
 
 res <- Search(elastic_con, index = index, body = b, asdf = T)
@@ -165,7 +170,7 @@ dt %>%
   first() -> leading_team
 ```
 
-Let's see per user statistics for the leading non-HGI team: `r leading_team`
+Let's see per user statistics for the leading team other than the primary leading team(s): `r leading_team`
 ```{r per user stat, echo=FALSE}
 if(leading_team %in% team_map$team_name){
   leading_team <- filter(team_map, team_name == leading_team)[['team_code']]
@@ -174,6 +179,7 @@ if(leading_team %in% team_map$team_name){
 b <- list(
   query = build_humgen_query(
     filters = build_humgen_filters(
+      BOM = params$bom,
       custom_filters = list(
         "match_phrase" = list(
           "ACCOUNTING_NAME" = leading_team
