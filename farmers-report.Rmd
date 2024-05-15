@@ -6,9 +6,9 @@ output:
 params:
   config_path: "config.yaml"
   bom: "Human Genetics"
-  leading_teams:
+  informatics_teams:
   - "hgi"
-  - "mercury"
+  - "mercury-grp"
   static: FALSE
 ---
 
@@ -162,15 +162,14 @@ make_dt(dt, all_rows = params$static, table_view_opts = table_view_opts)
 ```
 
 ```{r get leading team, echo=FALSE}
-hgi_groups <- c('hgi', 'mercury-grp')
 dt %>%
   arrange(desc(wasted_cost)) %>%
   pull(accounting_name) %>%
-  setdiff(hgi_groups) %>%
+  setdiff(params$informatics_teams) %>%
   first() -> leading_team
 ```
 
-Let's see per user statistics for the leading team other than the primary leading team(s): `r leading_team`
+Let's see per user statistics for the leading team other than the informatics team(s) (`r params$informatics_teams`): `r leading_team`
 ```{r per user stat, echo=FALSE}
 if(leading_team %in% team_map$team_name){
   leading_team <- filter(team_map, team_name == leading_team)[['team_code']]
