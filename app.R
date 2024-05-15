@@ -7,6 +7,7 @@ library(dplyr)
 source('src/table_helpers.R')
 source('src/elastic_helpers.R')
 source('src/plot_helpers.R')
+source('src/stat_helpers.R')
 source('src/constants.R')
 source('src/config.R')
 
@@ -42,11 +43,7 @@ get_user_names <- function(con, bom, accounting_name) {
     query = build_humgen_query(
       filters = build_humgen_filters(
         BOM = bom,
-        custom_filters = list(
-          "match_phrase" = list(
-            "ACCOUNTING_NAME" = accounting_name
-          )
-        )
+        custom_filters = build_match_phrase_filter("ACCOUNTING_NAME", accounting_name)
       )
     )
   )
@@ -113,28 +110,34 @@ server <- function(input, output, session) {
 
   observeEvent(input$accounting_name, {
     req(input$bom, input$accounting_name)
+    user_names <- get_user_names(elastic_con, input$bom, input$accounting_name)
+    if (length(user_names) > 1){
+      user_names <- c('all', user_names)
+    }
     updateSelectInput(
       inputId = "user_name",
-      choices = get_user_names(elastic_con, input$bom, input$accounting_name)
+      choices = user_names
     )
   })
 
-  humgen_user_query <- eventReactive(input$user_name, {
-    req(input$bom, input$user_name)
+  elastic_query <- eventReactive(c(input$user_name, input$accounting_name), {
+    req(input$bom, input$accounting_name, input$user_name)
+
+    if(input$user_name == 'all'){
+      custom_filters <- build_match_phrase_filter("ACCOUNTING_NAME", input$accounting_name)
+    } else {
+      custom_filters <- build_match_phrase_filter("USER_NAME", input$user_name)
+    }
+
     build_humgen_query(
       filters = build_humgen_filters(
         BOM = input$bom,
-        custom_filters = list(
-          "match_phrase" = list(
-            "USER_NAME" = input$user_name
-          )
-        )
-      )
+        custom_filters = custom_filters)
     )
   })
 
   output$job_failure <- renderPlot({
-    b <- build_agg_query("Job", query = humgen_user_query())
+    b <- build_agg_query("Job", query = elastic_query())
 
     res <- Search(elastic_con, index = index, body = b, asdf = T)
 
@@ -145,33 +148,19 @@ server <- function(input, output, session) {
   })
 
   output$efficiency <- DT::renderDT({
-    custom_aggs <- list(
-      "cpu_avail_sec" = build_elastic_sub_agg("AVAIL_CPU_TIME_SEC", "sum"),
-      "cpu_wasted_sec" = build_elastic_sub_agg("WASTED_CPU_SECONDS", "sum"),
-      "mem_avail_mb_sec" = build_elastic_sub_agg("MEM_REQUESTED_MB_SEC", "sum"),
-      "mem_wasted_mb_sec" = build_elastic_sub_agg("WASTED_MB_SECONDS", "sum"),
-      "wasted_cost" = wasted_cost_agg
-    )
+    req(input$accounting_name, input$user_name)
 
-    b <- build_terms_query(
-      fields = c("NUM_EXEC_PROCS", "Job"),
-      aggs = custom_aggs,
-      query = humgen_user_query()
-    )
-
-    res <- Search(elastic_con, index = index, body = b, asdf = T)
-
-    df <- parse_elastic_multi_agg(res, column_names = c('procs', 'job_status')) %>%
-      select(-doc_count)
-
-    dt <- generate_app_wastage_statistics(df)
-    
-    dt_total <- generate_total_wastage_dt(dt)
-    
-    dt <- rbind(dt, dt_total)
-
-    specify_wastage_reason(dt) %>%
-      make_dt(table_view_opts = 't')
+    if(input$user_name == 'all') {
+      if(input$accounting_name == 'all') {
+        DT::datatable(data.frame())
+      } else {
+        dt <- get_team_statistics(elastic_con, query = elastic_query())
+        make_dt(dt, table_view_opts = 'ftp')
+      }
+    } else {
+      dt <- get_user_statistics(elastic_con, query = elastic_query())
+      make_dt(dt, table_view_opts = 't')
+    }
   })
 }
 

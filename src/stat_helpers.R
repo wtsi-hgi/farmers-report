@@ -1,0 +1,72 @@
+library(elastic)
+library(dplyr)
+
+source("src/elastic_helpers.R")
+source("src/table_helpers.R")
+
+get_user_statistics <- function (con, query) {
+  custom_aggs <- list(
+      "cpu_avail_sec" = build_elastic_sub_agg("AVAIL_CPU_TIME_SEC", "sum"),
+      "cpu_wasted_sec" = build_elastic_sub_agg("WASTED_CPU_SECONDS", "sum"),
+      "mem_avail_mb_sec" = build_elastic_sub_agg("MEM_REQUESTED_MB_SEC", "sum"),
+      "mem_wasted_mb_sec" = build_elastic_sub_agg("WASTED_MB_SECONDS", "sum"),
+      "wasted_cost" = wasted_cost_agg
+    )
+
+    b <- build_terms_query(
+      fields = c("NUM_EXEC_PROCS", "Job"),
+      aggs = custom_aggs,
+      query = query
+    )
+
+    res <- Search(con, index = index, body = b, asdf = T)
+
+    df <- parse_elastic_multi_agg(res, column_names = c('procs', 'job_status')) %>%
+      select(-doc_count)
+
+    dt <- generate_app_wastage_statistics(df)
+
+    dt_total <- generate_total_wastage_dt(dt)
+
+    dt <- rbind(dt, dt_total)
+
+    specify_wastage_reason(dt)
+}
+
+get_team_statistics <- function (con, query) {
+  b <- list(query = query)
+
+  res <- Search(
+    con,
+    index = index,
+    time_scroll="1m",
+    source = c('USER_NAME', 'Job',
+               'NUM_EXEC_PROCS', 'AVAIL_CPU_TIME_SEC', 'WASTED_CPU_SECONDS',
+               'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS'),
+    body = b,
+    asdf = T,
+    size = 10000
+  )
+
+  df <- pull_everything(con, res)
+  df %>%
+    rename(
+      cpu_avail_sec = AVAIL_CPU_TIME_SEC,
+      mem_avail_mb_sec = MEM_REQUESTED_MB_SEC,
+      mem_wasted_mb_sec = WASTED_MB_SECONDS
+    ) %>%
+    group_by(USER_NAME) %>%
+    mutate(
+      cpu_wasted_sec = ifelse(Job == 'Success' & NUM_EXEC_PROCS == 1, 0, WASTED_CPU_SECONDS),
+      cpu_wasted_cost = cpu_wasted_sec * cpu_second,
+      mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
+      wasted_cost = pmax(cpu_wasted_cost, mem_wasted_cost)
+    ) %>%
+    generate_efficiency_stats(
+      extra_stats = list(
+        number_of_jobs = quote(n()),
+        wasted_cost = quote(sum(wasted_cost)),
+        fail_rate = quote(sum(Job == 'Failed') / number_of_jobs)
+      )
+    )
+}
