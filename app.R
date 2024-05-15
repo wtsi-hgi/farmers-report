@@ -104,9 +104,10 @@ ui <- page_sidebar(
 
 server <- function(input, output, session) {
   observeEvent(input$bom, {
+    accounting_names <- get_accounting_names(elastic_con, input$bom)
     updateSelectInput(
       inputId = "accounting_name",
-      choices = get_accounting_names(elastic_con, input$bom)
+      choices = set_team_names(accounting_names, mapping = team_map)
     )
   })
 

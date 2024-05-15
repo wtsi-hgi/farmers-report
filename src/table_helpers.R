@@ -37,6 +37,13 @@ rename_group_column <- function(df, mapping = team_map) {
     select(-team_name)
 }
 
+set_team_names <- function (teams, mapping) {
+  data.frame(accounting_name = teams) %>%
+    rename_group_column(mapping = mapping) %>%
+    mutate(team_name = teams) %>%
+    tibble::deframe()
+}
+
 specify_wastage_reason <- function(df) {
   df %>%
     rename(Reason = job_status) %>%
