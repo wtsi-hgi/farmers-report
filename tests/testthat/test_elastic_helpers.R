@@ -73,15 +73,28 @@ test_that("build_elastic_sub_agg works", {
 })
 
 test_that('build_humgen_filters works', {
+  # no parameters
   f1 <- build_humgen_filters()
   expect_length(f1, 3)
   expect_named(f1, NULL)
 
+  # with custom filters
   f2 <- build_humgen_filters(
     custom_filters = list("match_phrase" = list("field" = 'value'))
   )
   expect_length(f2, 4)
   expect_named(f2, NULL)
+
+  # with BOM parameter as NULL
+  f3 <- build_humgen_filters(BOM = NULL)
+  expect_length(f3, 2)
+  expect_named(f3, NULL)
+  
+  # with BOM parameter with value
+  f4 <- build_humgen_filters(BOM = "CASM")
+  expect_length(f4, 3)
+  expect_named(f4, NULL)
+  expect_equal(f4[[3]], list(match_phrase = list(BOM = "CASM")))
 })
 
 test_that('build_humgen_query works', {

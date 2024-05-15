@@ -21,18 +21,27 @@ elastic_con <- connect(
   transport_schema = "http"
 )
 
-get_accounting_names <- function(con) {
-  b <- build_agg_query("ACCOUNTING_NAME")
+get_bom_names <- function(con) {
+  b <- build_agg_query("BOM", query = build_humgen_query(filters = build_humgen_filters(BOM = NULL)))
 
   res <- Search(con, index = index, body = b, asdf = T)
 
   parse_elastic_single_agg(res)$key
 }
 
-get_user_names <- function(con, accounting_name) {
+get_accounting_names <- function(con, bom) {
+  b <- build_agg_query("ACCOUNTING_NAME", query = build_humgen_query(filters = build_humgen_filters(BOM = bom)))
+
+  res <- Search(con, index = index, body = b, asdf = T)
+
+  parse_elastic_single_agg(res)$key
+}
+
+get_user_names <- function(con, bom, accounting_name) {
   b <- list(
     query = build_humgen_query(
       filters = build_humgen_filters(
+        BOM = bom,
         custom_filters = list(
           "match_phrase" = list(
             "ACCOUNTING_NAME" = accounting_name
@@ -61,8 +70,13 @@ ui <- page_sidebar(
   title = "HGI Farm Dashboard",
   sidebar = sidebar(
     selectInput(
+      "bom", "BOM",
+      selected = "Human Genetics",
+      choices = get_bom_names(elastic_con)
+    ),
+    selectInput(
       "accounting_name", "LSF Group",
-      choices = get_accounting_names(elastic_con)
+      choices = NULL
     ),
     selectInput(
       "user_name", "User",
@@ -77,10 +91,6 @@ ui <- page_sidebar(
   ),
   accordion(
     accordion_panel(
-      "Farm Usage",
-      plotOutput("farm_usage")
-    ),
-    accordion_panel(
       "Job failure statistics",
       plotOutput("job_failure")
     ),
@@ -93,16 +103,26 @@ ui <- page_sidebar(
 )
 
 server <- function(input, output, session) {
+  observeEvent(input$bom, {
+    updateSelectInput(
+      inputId = "accounting_name",
+      choices = get_accounting_names(elastic_con, input$bom)
+    )
+  })
+
   observeEvent(input$accounting_name, {
+    req(input$bom, input$accounting_name)
     updateSelectInput(
       inputId = "user_name",
-      choices = get_user_names(elastic_con, input$accounting_name)
+      choices = get_user_names(elastic_con, input$bom, input$accounting_name)
     )
   })
 
   humgen_user_query <- eventReactive(input$user_name, {
+    req(input$bom, input$user_name)
     build_humgen_query(
       filters = build_humgen_filters(
+        BOM = input$bom,
         custom_filters = list(
           "match_phrase" = list(
             "USER_NAME" = input$user_name
@@ -110,17 +130,6 @@ server <- function(input, output, session) {
         )
       )
     )
-  })
-
-  output$farm_usage <- renderPlot({
-    b <- build_agg_query("CLUSTER_NAME", query = humgen_user_query())
-
-    res <- Search(elastic_con, index = index, body = b, asdf = T)
-
-    df <- parse_elastic_single_agg(res) %>%
-      mutate_for_piechart()
-
-    piechart(df, count_field = 'doc_count', key_field = 'key', legend_name = 'Farm')
   })
 
   output$job_failure <- renderPlot({
