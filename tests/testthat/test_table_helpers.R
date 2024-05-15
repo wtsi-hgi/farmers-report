@@ -203,7 +203,7 @@ test_that("function generates named lists for accounting names", {
 
   expected_output <- c("Team A" = "A", "B" = "B", "Team C" = "C")
 
-  converted_team_names <- set_team_names(team_names)
+  converted_team_names <- set_team_names(team_code, team_map)
 
   expect_equal(converted_team_names, expected_output)
   expect_named(converted_team_names, team_name)
