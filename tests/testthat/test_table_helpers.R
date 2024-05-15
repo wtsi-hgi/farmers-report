@@ -191,3 +191,20 @@ test_that("generate_app_wastage_statistics function produces correct app wastage
   
   expect_equal(result, expected_result)
 })
+
+test_that("function generates named lists for accounting names", {
+  team_code <- c("A", "B", "C")
+  team_name <- c("Team A", "B", "Team C")
+
+  team_map <- data.frame(
+    team_code = c("A", "C"),
+    team_name = c("Team A", "Team C")
+  )
+
+  expected_output <- c("Team A" = "A", "B" = "B", "Team C" = "C")
+
+  converted_team_names <- set_team_names(team_names)
+
+  expect_equal(converted_team_names, expected_output)
+  expect_named(converted_team_names, team_name)
+})
