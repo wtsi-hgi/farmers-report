@@ -101,32 +101,46 @@ ui <- page_sidebar(
 
 server <- function(input, output, session) {
   observeEvent(input$bom, {
+    req(input$bom)
     accounting_names <- get_accounting_names(elastic_con, input$bom)
+    team_names <- set_team_names(accounting_names, mapping = team_map)
+
     updateSelectInput(
       inputId = "accounting_name",
-      choices = set_team_names(accounting_names, mapping = team_map)
+      choices = c('all', team_names)
     )
   })
 
   observeEvent(input$accounting_name, {
     req(input$bom, input$accounting_name)
-    user_names <- get_user_names(elastic_con, input$bom, input$accounting_name)
-    if (length(user_names) > 1){
-      user_names <- c('all', user_names)
+    if (input$accounting_name == 'all') {
+       user_names <- ""
+    } else {
+      user_names <- get_user_names(elastic_con, input$bom, input$accounting_name)
+      if (length(user_names) > 1){
+        user_names <- c('all', user_names)
+      }
     }
+
     updateSelectInput(
       inputId = "user_name",
       choices = user_names
     )
   })
 
-  elastic_query <- eventReactive(c(input$user_name, input$accounting_name), {
-    req(input$bom, input$accounting_name, input$user_name)
+  elastic_query <- eventReactive(c(input$bom, input$user_name, input$accounting_name), {
+    req(input$bom, input$accounting_name)
+    if (input$accounting_name != 'all'){
+      req(input$user_name)
+    }
 
-    if(input$user_name == 'all'){
-      custom_filters <- build_match_phrase_filter("ACCOUNTING_NAME", input$accounting_name)
-    } else {
-      custom_filters <- build_match_phrase_filter("USER_NAME", input$user_name)
+    custom_filters = NULL
+    if(input$accounting_name != 'all'){
+      if(input$user_name == 'all'){
+        custom_filters <- build_match_phrase_filter("ACCOUNTING_NAME", input$accounting_name)
+      } else {
+        custom_filters <- build_match_phrase_filter("USER_NAME", input$user_name)
+      }
     }
 
     build_humgen_query(
@@ -148,18 +162,22 @@ server <- function(input, output, session) {
   })
 
   output$efficiency <- DT::renderDT({
-    req(input$accounting_name, input$user_name)
+    req(input$accounting_name)
+    if (input$accounting_name != 'all') {
+      req(input$user_name)
+    }
 
-    if(input$user_name == 'all') {
-      if(input$accounting_name == 'all') {
-        DT::datatable(data.frame())
-      } else {
+    if (input$accounting_name == 'all') {
+      dt <- get_bom_statistics(elastic_con, query = elastic_query())
+      make_dt(dt, all_rows = FALSE, table_view_opts = 'ftp')
+    } else {
+      if (input$user_name == 'all') {
         dt <- get_team_statistics(elastic_con, query = elastic_query())
         make_dt(dt, table_view_opts = 'ftp')
+      } else {
+        dt <- get_user_statistics(elastic_con, query = elastic_query())
+        make_dt(dt, table_view_opts = 't')
       }
-    } else {
-      dt <- get_user_statistics(elastic_con, query = elastic_query())
-      make_dt(dt, table_view_opts = 't')
     }
   })
 }

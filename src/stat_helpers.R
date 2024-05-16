@@ -70,3 +70,40 @@ get_team_statistics <- function (con, query) {
       )
     )
 }
+
+get_bom_statistics <- function (con, query) {
+  custom_aggs <- list(
+    "cpu_avail_sec" = build_elastic_sub_agg("AVAIL_CPU_TIME_SEC", "sum"),
+    "cpu_wasted_sec" = build_elastic_sub_agg("WASTED_CPU_SECONDS", "sum"),
+    "mem_avail_mb_sec" = build_elastic_sub_agg("MEM_REQUESTED_MB_SEC", "sum"),
+    "mem_wasted_mb_sec" = build_elastic_sub_agg("WASTED_MB_SECONDS", "sum"),
+    "wasted_cost" = wasted_cost_agg
+  )
+
+  b <- build_terms_query(
+    fields = c("ACCOUNTING_NAME", "NUM_EXEC_PROCS", "Job"),
+    aggs = custom_aggs,
+    query = query
+  )
+
+  res <- Search(con, index = index, body = b, asdf = T)
+
+  df <- parse_elastic_multi_agg(res, column_names = c('accounting_name', 'procs', 'job_status')) %>%
+    select(-doc_count)
+
+  df %>%
+    mutate(
+      mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
+      cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec),
+      wasted_cost = ifelse(job_status == 'Success' & procs == 1, mem_wasted_cost, wasted_cost)
+    ) %>%
+    group_by(accounting_name) %>%
+    generate_efficiency_stats() %>%
+    select(accounting_name, cpu_avail_hrs, cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost) %>%
+    rename_group_column() -> dt
+
+  ranks <- generate_ranks(dt) %>% select(accounting_name, awesomeness)
+
+  dt %>%
+    left_join(ranks, by = 'accounting_name') -> dt
+}
