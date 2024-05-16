@@ -71,7 +71,7 @@ get_team_statistics <- function (con, query) {
     )
 }
 
-get_bom_statistics <- function (con, query) {
+do_bom_aggregation <- function(con, query) {
   custom_aggs <- list(
     "cpu_avail_sec" = build_elastic_sub_agg("AVAIL_CPU_TIME_SEC", "sum"),
     "cpu_wasted_sec" = build_elastic_sub_agg("WASTED_CPU_SECONDS", "sum"),
@@ -90,7 +90,9 @@ get_bom_statistics <- function (con, query) {
 
   df <- parse_elastic_multi_agg(res, column_names = c('accounting_name', 'procs', 'job_status')) %>%
     select(-doc_count)
+}
 
+do_bom_transformation <- function(df) {
   df %>%
     mutate(
       mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
@@ -106,4 +108,9 @@ get_bom_statistics <- function (con, query) {
 
   dt %>%
     left_join(ranks, by = 'accounting_name') -> dt
+}
+
+get_bom_statistics <- function (con, query) {
+  df <- do_bom_aggregation(con, query)
+  do_bom_transformation(df)
 }

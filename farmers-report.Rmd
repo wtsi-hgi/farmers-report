@@ -80,24 +80,11 @@ make_dt(dt, table_view_opts = table_view_opts)
 Resource is considered to be wasted if it is not used or its job failed.
 For memory we assume that memory consumption under the peak value is not wasted.
 ```{r elastic agg query, echo=FALSE}
-custom_aggs <- list(
-  "cpu_avail_sec" = build_elastic_sub_agg("AVAIL_CPU_TIME_SEC", "sum"),
-  "cpu_wasted_sec" = build_elastic_sub_agg("WASTED_CPU_SECONDS", "sum"),
-  "mem_avail_mb_sec" = build_elastic_sub_agg("MEM_REQUESTED_MB_SEC", "sum"),
-  "mem_wasted_mb_sec" = build_elastic_sub_agg("WASTED_MB_SECONDS", "sum"),
-  "wasted_cost" = wasted_cost_agg
-)
 
-b <- build_terms_query(
-  fields = c("ACCOUNTING_NAME", "NUM_EXEC_PROCS", "Job"),
-  aggs = custom_aggs,
+df <- do_bom_aggregation(
+  con = elastic_con, 
   query = build_humgen_query(filters = build_humgen_filters(BOM = params$bom))
 )
-
-res <- Search(elastic_con, index = index, body = b, asdf = T)
-
-df <- parse_elastic_multi_agg(res, column_names = c('accounting_name', 'procs', 'job_status')) %>%
-  select(-doc_count)
 ```
 
 ```{r echo=FALSE, include=!params$static}
@@ -114,21 +101,7 @@ If process allocates only 1 cpu and uses a fraction of it, we still consider it 
 However it would be difficult to optimize that process.
 Let's assume that successful processes requiring 1 cpu do not waste cpu.
 ```{r echo=FALSE, fig.width=10}
-df %>%
-  mutate(
-    mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
-    cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec),
-    wasted_cost = ifelse(job_status == 'Success' & procs == 1, mem_wasted_cost, wasted_cost)
-  ) %>%
-  group_by(accounting_name) %>%
-  generate_efficiency_stats() %>%
-  select(accounting_name, cpu_avail_hrs, cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost) %>%
-  rename_group_column() -> dt
-
-ranks <- generate_ranks(dt) %>% select(accounting_name, awesomeness)
-
-dt %>%
-  left_join(ranks, by = 'accounting_name') -> dt
+dt <- do_bom_transformation(df)
 
 dt %>%
   tidyr::pivot_longer(cols = c('cpu_wasted_hrs', 'mem_wasted_gb_hrs')) %>%
