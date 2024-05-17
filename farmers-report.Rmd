@@ -80,11 +80,14 @@ make_dt(dt, table_view_opts = table_view_opts)
 Resource is considered to be wasted if it is not used or its job failed.
 For memory we assume that memory consumption under the peak value is not wasted.
 ```{r elastic agg query, echo=FALSE}
-
-df <- do_bom_aggregation(
-  con = elastic_con, 
+b <- build_bom_aggregation(
   query = build_humgen_query(filters = build_humgen_filters(BOM = params$bom))
 )
+
+res <- Search(elastic_con, index = index, body = b, asdf = T)
+
+df <- parse_elastic_multi_agg(res, column_names = c('accounting_name', 'procs', 'job_status')) %>%
+  select(-doc_count)
 ```
 
 ```{r echo=FALSE, include=!params$static}
