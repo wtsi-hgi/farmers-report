@@ -4,7 +4,7 @@ src_to_exclude <- c("src/constants.R")
 
 src_code <- list.files("src", full.names = T)
 src_code <- setdiff(src_code, src_to_exclude)
-test_code <- list.files("tests/testthat", full.names = T)
+test_code <- list.files("tests/testthat", full.names = T, pattern = "*.R")
 
 cov <- covr::file_coverage(source_files = src_code, test_files = test_code)
 dir.create("reports", showWarnings = F)

@@ -104,8 +104,16 @@ build_elastic_sub_agg <- function (field, agg_fun) {
   )
 }
 
+build_match_phrase_filter <- function (field, value) {
+  list(
+    "match_phrase" = as.list(setNames(value, field))
+  )
+}
+
 extract_hits_from_elastic_response <- function(x) {
   garbage_columns <- c('_index', '_type', '_id', '_score', 'sort')
+  if (length(x$hits$hits) == 0) 
+    return(data.frame())
   x$hits$hits %>%
     select(-any_of(garbage_columns)) %>%
     rename_with(~ gsub("^_source\\.", "", .x)) %>%
