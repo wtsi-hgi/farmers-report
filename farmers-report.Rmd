@@ -101,7 +101,7 @@ If process allocates only 1 cpu and uses a fraction of it, we still consider it 
 However it would be difficult to optimize that process.
 Let's assume that successful processes requiring 1 cpu do not waste cpu.
 ```{r echo=FALSE, fig.width=10}
-dt <- do_bom_transformation(df)
+dt <- generate_bom_statistics(df)
 
 dt %>%
   tidyr::pivot_longer(cols = c('cpu_wasted_hrs', 'mem_wasted_gb_hrs')) %>%
