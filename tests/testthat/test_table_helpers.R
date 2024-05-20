@@ -133,14 +133,34 @@ test_that("generate_total_wastage_dt works", {
     cpu_avail_hrs = sum(input_dt$cpu_avail_hrs),
     mem_wasted_gb_hrs = sum(input_dt$mem_wasted_gb_hrs),
     mem_avail_gb_hrs = sum(input_dt$mem_avail_gb_hrs),
+    job_status = c("Total"),
     cpu_wasted_frac = sum(input_dt$cpu_wasted_hrs) / sum(input_dt$cpu_avail_hrs),
-    mem_wasted_frac = sum(input_dt$mem_wasted_gb_hrs) / sum(input_dt$mem_avail_gb_hrs),
-    job_status = c("Total")
+    mem_wasted_frac = sum(input_dt$mem_wasted_gb_hrs) / sum(input_dt$mem_avail_gb_hrs)
   )
 
   df <- generate_total_wastage_dt(input_dt)
 
   expect_equal(df, expected_df)
+})
+
+test_that("generate_total_failure_dt works", {
+  input_dt <- data.frame(
+    Failed = c(10, 15, 20),
+    Success = c(15, 20, 30)
+  )
+
+  expected_df <- data.frame(
+    Failed = sum(input_dt$Failed),
+    Success = sum(input_dt$Success),
+    accounting_name = c("Total"),
+    fail_rate = sum(input_dt$Failed) / sum(input_dt$Failed, input_dt$Success)
+    
+  )
+
+  df <- generate_total_failure_dt(input_dt)
+
+  expect_equal(df, expected_df)
+
 })
 
 test_that("generate_app_wastage_statistics function produces correct app wastage statistics", {
@@ -192,7 +212,7 @@ test_that("generate_app_wastage_statistics function produces correct app wastage
   expect_equal(result, expected_result)
 })
 
-test_that("function generates named lists for accounting names", {
+test_that("set_team_names generates named lists for accounting names", {
   team_code <- c("A", "B", "C")
   team_name <- c("Team A", "B", "Team C")
 
