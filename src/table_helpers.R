@@ -79,13 +79,21 @@ generate_total_wastage_dt <- function(dt) {
       )
 }
 
-generate_app_wastage_statistics <- function(df) {
+adjust_aggregated_statistics <- function (df) {
   df %>%
     mutate(
       mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
       cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec),
       wasted_cost = ifelse(job_status == 'Success' & procs == 1, mem_wasted_cost, wasted_cost)
-    ) %>%
+    )
+}
+
+generate_app_wastage_statistics <- function(df, adjust = TRUE) {
+  if (adjust) {
+    df <- adjust_aggregated_statistics(df)
+  }
+
+  df %>%
     group_by(job_status) %>%
     generate_efficiency_stats() %>%
     select(job_status, cpu_avail_hrs, cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost)

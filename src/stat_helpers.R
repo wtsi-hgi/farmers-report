@@ -4,10 +4,10 @@ library(dplyr)
 source("src/elastic_helpers.R")
 source("src/table_helpers.R")
 
-get_user_statistics <- function (con, query) {
+get_user_statistics <- function (con, query, adjust = TRUE) {
   b <- build_user_statistics_query(query)
   res <- Search(con, index = index, body = b, asdf = T)
-  dt <- generate_user_statistics(res)
+  dt <- generate_user_statistics(res, adjust = adjust)
 }
 
 build_bucket_aggregation_query <- function(fields, query) {
@@ -33,11 +33,11 @@ build_user_statistics_query <- function(query) {
   )
 }
 
-generate_user_statistics <- function(res) {
+generate_user_statistics <- function(res, adjust = TRUE) {
   df <- parse_elastic_multi_agg(res, column_names = c('procs', 'job_status')) %>%
     select(-doc_count)
 
-  dt <- generate_app_wastage_statistics(df)
+  dt <- generate_app_wastage_statistics(df, adjust = adjust)
 
   dt_total <- generate_total_wastage_dt(dt)
 
@@ -46,7 +46,7 @@ generate_user_statistics <- function(res) {
   specify_wastage_reason(dt)
 }
 
-get_team_statistics <- function(con, query) {
+get_team_statistics <- function(con, query, adjust = TRUE) {
   b <- list(query = query)
   res <- Search(
     con,
@@ -60,23 +60,29 @@ get_team_statistics <- function(con, query) {
     size = 10000
   )
   df <- pull_everything(con, res)
-  dt <- generate_team_statistics(df)
+  dt <- generate_team_statistics(df, adjust = adjust)
 }
 
-generate_team_statistics <- function (df) {
+generate_team_statistics <- function (df, adjust = TRUE) {
+  if (adjust) {
+    df <- df %>%
+      mutate(
+        cpu_wasted_sec = ifelse(Job == 'Success' & NUM_EXEC_PROCS == 1, 0, WASTED_CPU_SECONDS)
+      )
+  }
+
   df %>%
     rename(
       cpu_avail_sec = AVAIL_CPU_TIME_SEC,
       mem_avail_mb_sec = MEM_REQUESTED_MB_SEC,
       mem_wasted_mb_sec = WASTED_MB_SECONDS
     ) %>%
-    group_by(USER_NAME) %>%
     mutate(
-      cpu_wasted_sec = ifelse(Job == 'Success' & NUM_EXEC_PROCS == 1, 0, WASTED_CPU_SECONDS),
       cpu_wasted_cost = cpu_wasted_sec * cpu_second,
       mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
       wasted_cost = pmax(cpu_wasted_cost, mem_wasted_cost)
     ) %>%
+    group_by(USER_NAME) %>%
     generate_efficiency_stats(
       extra_stats = list(
         number_of_jobs = quote(n()),
@@ -96,13 +102,12 @@ build_bom_aggregation <- function(query) {
   )
 }
 
-generate_bom_statistics <- function(df) {
+generate_bom_statistics <- function(df, adjust = TRUE) {
+  if (adjust) {
+    df <- adjust_aggregated_statistics(df)
+  }
+
   df %>%
-    mutate(
-      mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
-      cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec),
-      wasted_cost = ifelse(job_status == 'Success' & procs == 1, mem_wasted_cost, wasted_cost)
-    ) %>%
     group_by(accounting_name) %>%
     generate_efficiency_stats() %>%
     select(accounting_name, cpu_avail_hrs, cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost) %>%
@@ -114,12 +119,12 @@ generate_bom_statistics <- function(df) {
     left_join(ranks, by = 'accounting_name') -> dt
 }
 
-get_bom_statistics <- function (con, query) {
+get_bom_statistics <- function (con, query, adjust = TRUE) {
   b <- build_bom_aggregation(query)
   res <- Search(con, index = index, body = b, asdf = T)
 
   df <- parse_elastic_multi_agg(res, column_names = c('accounting_name', 'procs', 'job_status')) %>%
     select(-doc_count)
 
-  generate_bom_statistics(df)
+  generate_bom_statistics(df, adjust = adjust)
 }

@@ -63,6 +63,29 @@ get_user_names <- function(con, bom, accounting_name) {
   unique(df$USER_NAME)
 }
 
+generate_efficiency <- function (input, con, query, adjust, team_statistics) {
+  req(input$accounting_name)
+  if (input$accounting_name != 'all') {
+    req(input$user_name)
+  }
+
+  if (input$accounting_name == 'all') {
+    dt <- get_bom_statistics(con, query = query, adjust = adjust)
+  } else {
+    if (input$user_name == 'all') {
+      if (adjust){
+        dt <- team_statistics()
+      } else {
+        dt <- get_team_statistics(con, query = query, adjust = FALSE)
+      }
+    } else {
+      dt <- get_user_statistics(con, query = query, adjust = adjust)
+    }
+  }
+
+  make_dt(dt, table_view_opts = 'ftp')
+}
+
 ui <- page_sidebar(
   title = "HGI Farm Dashboard",
   sidebar = sidebar(
@@ -93,6 +116,10 @@ ui <- page_sidebar(
       plotOutput("per_bucket_job_failure"),
       DT::DTOutput("per_bucket_job_failure_table"),
       value = "job_failure_panel"
+    ),
+    accordion_panel(
+      "Unadjusted Efficiency",
+      DT::DTOutput("unadjusted_efficiency")
     ),
     accordion_panel(
       "Efficiency",
@@ -225,28 +252,16 @@ server <- function(input, output, session) {
     }
   })
 
+  output$unadjusted_efficiency <-  DT::renderDT({
+    generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), team_statistics = team_statistics)
+  })
+
   output$adjustments_explanation <- renderText({
     adjustments_explanation
   })
 
   output$efficiency <- DT::renderDT({
-    req(input$accounting_name)
-    if (input$accounting_name != 'all') {
-      req(input$user_name)
-    }
-
-    if (input$accounting_name == 'all') {
-      dt <- get_bom_statistics(elastic_con, query = elastic_query())
-      make_dt(dt, all_rows = FALSE, table_view_opts = 'ftp')
-    } else {
-      if (input$user_name == 'all') {
-        dt <- team_statistics()
-        make_dt(dt, table_view_opts = 'ftp')
-      } else {
-        dt <- get_user_statistics(elastic_con, query = elastic_query())
-        make_dt(dt, table_view_opts = 't')
-      }
-    }
+     generate_efficiency(input, elastic_con, adjust = TRUE, query = elastic_query(), team_statistics = team_statistics)
   })
 
   output$awesomeness_formula <- renderUI({
