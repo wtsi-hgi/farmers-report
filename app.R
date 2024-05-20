@@ -93,11 +93,6 @@ ui <- page_sidebar(
       plotOutput("per_bucket_job_failure"),
       value = "job_failure_panel"
     ),
-    # accordion_panel(
-    #   "All fail statistics",
-    #   plotOutput("per_bucket_job_failure"),
-    #   value = "all_fail_panel"
-    # ),
     accordion_panel(
       "Efficiency",
       DT::DTOutput("efficiency")
@@ -137,12 +132,10 @@ server <- function(input, output, session) {
   })
 
   elastic_query <- reactive({
-    cat("in the beginning of elastic_query()\n", file=stderr())
     req(input$bom, input$accounting_name)
     if (input$accounting_name != 'all'){
       req(input$user_name)
     }
-    cat("after reqs of elastic_query()\n", file=stderr())
 
     custom_filters = NULL
     if(input$accounting_name != 'all'){
@@ -227,28 +220,16 @@ server <- function(input, output, session) {
     }
   })
 
-  # observe({
-  #   accordion_panel_remove('myaccordion', target = 'all_fail_panel')
-  #   if (input$accounting_name == 'all' || input$user_name == 'all') {
-      
-  #     accordion_panel_insert('myaccordion', target = 'job_failure_panel', accordion_panel(
-  #       "All fail statistics",
-  #       plotOutput("per_bucket_job_failure"),
-  #       value = "all_fail_panel")
-  #     ) 
-  #   }
-  # })
-
   observe({
     if (input$accounting_name == 'all' || input$user_name == 'all') {
-      accordion_panel_update('myaccordion', target = 'job_failure_panel', {
-        plotOutput("job_failure")
+      accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
+        plotOutput("job_failure"),
         plotOutput("per_bucket_job_failure")
-      }) 
+      ) 
     } else {
-      accordion_panel_update('myaccordion', target = 'job_failure_panel', {
+      accordion_panel_update('myaccordion', target = 'job_failure_panel',
         plotOutput("job_failure")
-      }) 
+      ) 
     }
   })
 
