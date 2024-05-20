@@ -80,11 +80,14 @@ make_dt(dt, table_view_opts = table_view_opts)
 Resource is considered to be wasted if it is not used or its job failed.
 For memory we assume that memory consumption under the peak value is not wasted.
 ```{r elastic agg query, echo=FALSE}
-
-df <- do_bom_aggregation(
-  con = elastic_con, 
+b <- build_bom_aggregation(
   query = build_humgen_query(filters = build_humgen_filters(BOM = params$bom))
 )
+
+res <- Search(elastic_con, index = index, body = b, asdf = T)
+
+df <- parse_elastic_multi_agg(res, column_names = c('accounting_name', 'procs', 'job_status')) %>%
+  select(-doc_count)
 ```
 
 ```{r echo=FALSE, include=!params$static}
@@ -97,9 +100,10 @@ df %>%
 make_dt(dt, table_view_opts = table_view_opts)
 ```
 
-If process allocates only 1 cpu and uses a fraction of it, we still consider it as wasting resources.
-However it would be difficult to optimize that process.
-Let's assume that successful processes requiring 1 cpu do not waste cpu.
+```{r adjustments explanation, results='asis', echo=FALSE}
+cat(adjustments_explanation)
+```
+
 ```{r echo=FALSE, fig.width=10}
 dt <- generate_bom_statistics(df)
 
@@ -109,21 +113,12 @@ dt %>%
 ```
 <div style="page-break-before: always;" />
 
-Awesome-ness is a 0-to-10 complex score representing a team performance. A team gets score 10 if it has the lowest fraction
-of wasted resources for both CPU and RAM. The more heavy jobs team submits the harder it is to be efficient and vice versa.
-For this reason teams get penalised if they consume very little resources.
+```{r awesomeness explanation, results='asis', echo=FALSE}
+cat(awesomeness_explanation)
+```
 
-```{asis awesomeness formula, echo=!params$static}
-$$
-awesomeness = 10 \times \frac{rank_{wasted\ CPU\ fraction} + rank_{wasted\ RAM\ fraction}}{ 2 \times numer\ of\ LSF\ groups}
-$$
-
-$$
-rank_{metric} = \begin{cases}
- metric \leq \dfrac {median(metric)} {2} ,& \dfrac {rank(-metric)} {2} \\
- otherwise  ,& rank(-metric)
-\end{cases}
-$$
+```{r awesomeness formula, results='asis', eval=!params$static, echo=FALSE}
+cat(awesomeness_formula)
 ```
 
 

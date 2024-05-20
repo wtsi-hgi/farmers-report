@@ -63,6 +63,29 @@ get_user_names <- function(con, bom, accounting_name) {
   unique(df$USER_NAME)
 }
 
+generate_efficiency <- function (input, con, query, adjust, team_statistics) {
+  req(input$accounting_name)
+  if (input$accounting_name != 'all') {
+    req(input$user_name)
+  }
+
+  if (input$accounting_name == 'all') {
+    dt <- get_bom_statistics(con, query = query, adjust = adjust)
+  } else {
+    if (input$user_name == 'all') {
+      if (adjust){
+        dt <- team_statistics()
+      } else {
+        dt <- get_team_statistics(con, query = query, adjust = FALSE)
+      }
+    } else {
+      dt <- get_user_statistics(con, query = query, adjust = adjust)
+    }
+  }
+
+  make_dt(dt, table_view_opts = 'ftp')
+}
+
 ui <- page_sidebar(
   title = "HGI Farm Dashboard",
   sidebar = sidebar(
@@ -88,13 +111,23 @@ ui <- page_sidebar(
   ),
   accordion(
     accordion_panel(
-      "Job failure statistics",
-      plotOutput("job_failure")
+      "Job failure statistics", 
+      plotOutput("job_failure"),
+      plotOutput("per_bucket_job_failure"),
+      DT::DTOutput("per_bucket_job_failure_table"),
+      value = "job_failure_panel"
+    ),
+    accordion_panel(
+      "Unadjusted Efficiency",
+      DT::DTOutput("unadjusted_efficiency")
     ),
     accordion_panel(
       "Efficiency",
-      DT::DTOutput("efficiency")
+      textOutput("adjustments_explanation"),
+      DT::DTOutput("efficiency"),
+      htmlOutput("awesomeness_formula")
     ),
+    id = "myaccordion",
     open = FALSE
   )
 )
@@ -128,7 +161,7 @@ server <- function(input, output, session) {
     )
   })
 
-  elastic_query <- eventReactive(c(input$bom, input$user_name, input$accounting_name), {
+  elastic_query <- reactive({
     req(input$bom, input$accounting_name)
     if (input$accounting_name != 'all'){
       req(input$user_name)
@@ -150,6 +183,38 @@ server <- function(input, output, session) {
     )
   })
 
+  team_statistics <- reactive({
+    get_team_statistics(elastic_con, query = elastic_query())
+  })
+
+  per_bucket_job_failure_df <- reactive({
+    if (input$accounting_name == 'all') {
+
+      b <- build_terms_query(fields = c("ACCOUNTING_NAME", "Job"), query = elastic_query())
+
+      res <- Search(elastic_con, index = index, body = b, asdf = T)
+
+      parse_elastic_multi_agg(res, column_names = c('accounting_name', 'job_status')) %>%
+        rename_group_column() -> df
+
+    } else {
+      req(input$user_name)
+      if (input$user_name == 'all') {
+        # statistics for only one team
+        df <- team_statistics()
+
+        # transform df
+        df <- df %>%
+          rename(accounting_name = USER_NAME) %>%
+          mutate(Failed = number_of_jobs * fail_rate,
+                Success = number_of_jobs - Failed) %>%
+          tidyr::pivot_longer(cols = c('Success', 'Failed'), names_to = 'job_status', values_to = 'doc_count')
+
+        # we need by this point: c('accounting_name', 'job_status', 'doc_count')
+      }
+    }
+  })
+
   output$job_failure <- renderPlot({
     b <- build_agg_query("Job", query = elastic_query())
 
@@ -161,25 +226,63 @@ server <- function(input, output, session) {
     piechart(df, count_field = 'doc_count', key_field = 'key', legend_name = 'Job status')
   })
 
-  output$efficiency <- DT::renderDT({
-    req(input$accounting_name)
-    if (input$accounting_name != 'all') {
-      req(input$user_name)
-    }
-
-    if (input$accounting_name == 'all') {
-      dt <- get_bom_statistics(elastic_con, query = elastic_query())
-      make_dt(dt, all_rows = FALSE, table_view_opts = 'ftp')
-    } else {
-      if (input$user_name == 'all') {
-        dt <- get_team_statistics(elastic_con, query = elastic_query())
-        make_dt(dt, table_view_opts = 'ftp')
-      } else {
-        dt <- get_user_statistics(elastic_con, query = elastic_query())
-        make_dt(dt, table_view_opts = 't')
-      }
+  output$per_bucket_job_failure <- renderPlot({
+    if (input$accounting_name == 'all' || input$user_name == 'all') {
+      df <- per_bucket_job_failure_df()
+      make_per_team_job_plot(df)
     }
   })
+
+  output$per_bucket_job_failure_table <- DT::renderDT({
+    if (input$accounting_name == 'all' || input$user_name == 'all') {
+      df <- per_bucket_job_failure_df()
+      df %>%
+        tidyr::pivot_wider(id_cols = 'accounting_name', names_from = 'job_status', values_from = 'doc_count', values_fill = 0) %>%
+        mutate(fail_rate = Failed / (Failed + Success)) %>%
+        arrange(desc(Failed)) -> dt
+      total_dt <- generate_total_failure_dt(dt)
+      dt <- rbind(dt, total_dt)
+      dt <- dt %>%
+        mutate(
+          Total = Success + Failed
+        ) %>%
+        select(accounting_name, Total, Success, Failed, fail_rate) %>%
+        arrange(desc(Total))
+      make_dt(dt, table_view_opts = 'ftp')
+    }
+  })
+
+  output$unadjusted_efficiency <-  DT::renderDT({
+    generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), team_statistics = team_statistics)
+  })
+
+  output$adjustments_explanation <- renderText({
+    adjustments_explanation
+  })
+
+  output$efficiency <- DT::renderDT({
+     generate_efficiency(input, elastic_con, adjust = TRUE, query = elastic_query(), team_statistics = team_statistics)
+  })
+
+  output$awesomeness_formula <- renderUI({
+    if (input$accounting_name == 'all') {
+      withMathJax(awesomeness_explanation, awesomeness_formula)
+    }
+  })
+
+  observe({
+    if (input$accounting_name == 'all' || input$user_name == 'all') {
+      accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
+        plotOutput("per_bucket_job_failure"),
+        DT::DTOutput("per_bucket_job_failure_table")
+      ) 
+    } else {
+      accordion_panel_update('myaccordion', target = 'job_failure_panel',
+        plotOutput("job_failure")
+      ) 
+    }
+  })
+
 }
 
 shinyApp(ui = ui, server = server)
