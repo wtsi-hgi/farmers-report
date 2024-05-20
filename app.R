@@ -91,6 +91,7 @@ ui <- page_sidebar(
       "Job failure statistics", 
       plotOutput("job_failure"),
       plotOutput("per_bucket_job_failure"),
+      DT::DTOutput("per_bucket_job_failure_table"),
       value = "job_failure_panel"
     ),
     accordion_panel(
@@ -157,19 +158,7 @@ server <- function(input, output, session) {
     get_team_statistics(elastic_con, query = elastic_query())
   })
 
-  output$job_failure <- renderPlot({
-    b <- build_agg_query("Job", query = elastic_query())
-
-    res <- Search(elastic_con, index = index, body = b, asdf = T)
-
-    df <- parse_elastic_single_agg(res) %>%
-      mutate_for_piechart()
-
-    piechart(df, count_field = 'doc_count', key_field = 'key', legend_name = 'Job status')
-  })
-
-  output$per_bucket_job_failure <- renderPlot({
-
+  per_bucket_job_failure_df <- reactive({
     if (input$accounting_name == 'all') {
 
       b <- build_terms_query(fields = c("ACCOUNTING_NAME", "Job"), query = elastic_query())
@@ -180,6 +169,7 @@ server <- function(input, output, session) {
         rename_group_column() -> df
 
     } else {
+      req(input$user_name)
       if (input$user_name == 'all') {
         # statistics for only one team
         df <- team_statistics()
@@ -194,9 +184,42 @@ server <- function(input, output, session) {
         # we need by this point: c('accounting_name', 'job_status', 'doc_count')
       }
     }
+  })
 
+  output$job_failure <- renderPlot({
+    b <- build_agg_query("Job", query = elastic_query())
+
+    res <- Search(elastic_con, index = index, body = b, asdf = T)
+
+    df <- parse_elastic_single_agg(res) %>%
+      mutate_for_piechart()
+
+    piechart(df, count_field = 'doc_count', key_field = 'key', legend_name = 'Job status')
+  })
+
+  output$per_bucket_job_failure <- renderPlot({
     if (input$accounting_name == 'all' || input$user_name == 'all') {
+      df <- per_bucket_job_failure_df()
       make_per_team_job_plot(df)
+    }
+  })
+
+  output$per_bucket_job_failure_table <- DT::renderDT({
+    if (input$accounting_name == 'all' || input$user_name == 'all') {
+      df <- per_bucket_job_failure_df()
+      df %>%
+        tidyr::pivot_wider(id_cols = 'accounting_name', names_from = 'job_status', values_from = 'doc_count', values_fill = 0) %>%
+        mutate(fail_rate = Failed / (Failed + Success)) %>%
+        arrange(desc(Failed)) -> dt
+      total_dt <- generate_total_failure_dt(dt)
+      dt <- rbind(dt, total_dt)
+      dt <- dt %>%
+        mutate(
+          Total = Success + Failed
+        ) %>%
+        select(accounting_name, Total, Success, Failed, fail_rate) %>%
+        arrange(desc(Total))
+      make_dt(dt, table_view_opts = 'ftp')
     }
   })
 
@@ -223,8 +246,8 @@ server <- function(input, output, session) {
   observe({
     if (input$accounting_name == 'all' || input$user_name == 'all') {
       accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
-        plotOutput("job_failure"),
-        plotOutput("per_bucket_job_failure")
+        plotOutput("per_bucket_job_failure"),
+        DT::DTOutput("per_bucket_job_failure_table")
       ) 
     } else {
       accordion_panel_update('myaccordion', target = 'job_failure_panel',

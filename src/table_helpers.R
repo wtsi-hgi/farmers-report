@@ -52,16 +52,31 @@ specify_wastage_reason <- function(df) {
     )
 }
 
-generate_total_wastage_dt <- function(dt) {
+generate_total_stats_dt <- function(dt, col_name) {
   dt %>%
     summarise(
       across(where(is.numeric), sum)
     ) %>%
     mutate(
-      cpu_wasted_frac = cpu_wasted_hrs / cpu_avail_hrs,
-      mem_wasted_frac = mem_wasted_gb_hrs / mem_avail_gb_hrs,
-      job_status = "Total"
+      !!col_name := "Total"
     )
+}
+
+generate_total_failure_dt <- function(dt) {
+  dt %>%
+    generate_total_stats_dt(col_name = 'accounting_name') %>%
+    mutate(
+      fail_rate = Failed / (Failed + Success)
+    )
+}
+
+generate_total_wastage_dt <- function(dt) {
+  dt %>%
+    generate_total_stats_dt(col_name = 'job_status') %>%
+      mutate(
+        cpu_wasted_frac = cpu_wasted_hrs / cpu_avail_hrs,
+        mem_wasted_frac = mem_wasted_gb_hrs / mem_avail_gb_hrs
+      )
 }
 
 generate_app_wastage_statistics <- function(df) {
