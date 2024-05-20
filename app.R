@@ -96,7 +96,9 @@ ui <- page_sidebar(
     ),
     accordion_panel(
       "Efficiency",
-      DT::DTOutput("efficiency")
+      textOutput("adjustments_explanation"),
+      DT::DTOutput("efficiency"),
+      htmlOutput("awesomeness_formula")
     ),
     id = "myaccordion",
     open = FALSE
@@ -223,6 +225,10 @@ server <- function(input, output, session) {
     }
   })
 
+  output$adjustments_explanation <- renderText({
+    adjustments_explanation
+  })
+
   output$efficiency <- DT::renderDT({
     req(input$accounting_name)
     if (input$accounting_name != 'all') {
@@ -240,6 +246,12 @@ server <- function(input, output, session) {
         dt <- get_user_statistics(elastic_con, query = elastic_query())
         make_dt(dt, table_view_opts = 't')
       }
+    }
+  })
+
+  output$awesomeness_formula <- renderUI({
+    if (input$accounting_name == 'all') {
+      withMathJax(awesomeness_explanation, awesomeness_formula)
     }
   })
 
