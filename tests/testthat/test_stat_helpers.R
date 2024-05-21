@@ -22,13 +22,20 @@ test_that("generate_bom_statistics works", {
     procs = c(1, 2, 6)
   )
 
-  dt <- generate_bom_statistics(df)
+  expected_columns <- c(
+    'accounting_name', 'cpu_avail_hrs', 'cpu_wasted_hrs', 'cpu_wasted_frac', 
+    'mem_avail_gb_hrs', 'mem_wasted_gb_hrs', 'mem_wasted_frac', 'wasted_cost', 'awesomeness'
+  )
 
+  # with adjustment
+  dt <- generate_bom_statistics(df)
   expect_s3_class(dt,'data.frame')
-  expect_named(dt, c('accounting_name',
-                     'cpu_avail_hrs', 'cpu_wasted_hrs', 'cpu_wasted_frac',
-                     'mem_avail_gb_hrs', 'mem_wasted_gb_hrs', 'mem_wasted_frac', 
-                     'wasted_cost', 'awesomeness'))
+  expect_named(dt, expected_columns)
+
+  # without adjustment
+  dt <- generate_bom_statistics(df, adjust = FALSE)
+  expect_s3_class(dt,'data.frame')
+  expect_named(dt, expected_columns)
 })
 
 test_that("build_user_statistics_query works", {
@@ -65,12 +72,21 @@ test_that("generate_user_statistics works", {
     )
   )
 
-  dt <- generate_user_statistics(fake_elastic_response)
+  expected_columns <- c(
+    'Reason', 'cpu_avail_hrs', 'cpu_wasted_hrs', 'cpu_wasted_frac', 
+    'mem_avail_gb_hrs', 'mem_wasted_gb_hrs', 'mem_wasted_frac', 'wasted_cost'
+  )
 
+  # with adjustment
+  dt <- generate_user_statistics(fake_elastic_response)
   expect_s3_class(dt, 'data.frame')
-  expect_named(dt, c('Reason', 'cpu_avail_hrs', 'cpu_wasted_hrs', 'cpu_wasted_frac', 
-                     'mem_avail_gb_hrs', 'mem_wasted_gb_hrs', 'mem_wasted_frac', 'wasted_cost'))
+  expect_named(dt, expected_columns)
   expect_true('Total' %in% dt$Reason)
+
+  # without adjustment
+  dt <- generate_user_statistics(fake_elastic_response, adjust = FALSE)
+  expect_s3_class(dt, 'data.frame')
+  expect_named(dt, expected_columns)
 })
 
 test_that("generate_team_statistics works", {
@@ -85,12 +101,20 @@ test_that("generate_team_statistics works", {
     WASTED_MB_SECONDS = c(5000, 20000, 10000)
   )
 
+  expected_columns <- c(
+    'USER_NAME', 'number_of_jobs', 'fail_rate','cpu_avail_hrs', 'cpu_wasted_hrs', 
+    'cpu_wasted_frac','mem_avail_gb_hrs', 'mem_wasted_gb_hrs', 'mem_wasted_frac', 'wasted_cost'
+  )
+
+  # with adjustment
   dt <- generate_team_statistics(fake_data_frame)
-  
   expect_s3_class(dt, 'data.frame')
-  expect_named(dt, c('USER_NAME', 'number_of_jobs', 'fail_rate',
-                     'cpu_avail_hrs', 'cpu_wasted_hrs', 'cpu_wasted_frac',
-                     'mem_avail_gb_hrs', 'mem_wasted_gb_hrs', 'mem_wasted_frac', 'wasted_cost'))
+  expect_named(dt, expected_columns)
+  
+  # without adjustment
+  dt <- generate_team_statistics(fake_data_frame, adjust = FALSE)
+  expect_s3_class(dt, 'data.frame')
+  expect_named(dt, expected_columns)
 })
 
 test_that("build_bom_aggregation works", {
