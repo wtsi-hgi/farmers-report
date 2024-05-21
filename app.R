@@ -89,6 +89,7 @@ generate_efficiency <- function (input, con, query, adjust, team_statistics) {
 ui <- page_sidebar(
   title = "HGI Farm Dashboard",
   sidebar = sidebar(
+    width = 270,
     selectInput(
       "bom", "BOM",
       selected = "Human Genetics",
