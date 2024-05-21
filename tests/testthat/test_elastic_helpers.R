@@ -95,6 +95,14 @@ test_that('build_humgen_filters works', {
   expect_length(f4, 3)
   expect_named(f4, NULL)
   expect_equal(f4[[3]], list(match_phrase = list(BOM = "CASM")))
+
+  # with date_range parameter with value
+  test_date_range <- c(Sys.Date()-7, Sys.Date())
+  f5 <- build_humgen_filters(date_range = test_date_range)
+  expect_length(f5, 3)
+  expect_named(f5, NULL)
+  expect_equal(f5[[2]]$range$timestamp$gte, format_elastic_date_range(test_date_range)[1])
+  expect_equal(f5[[2]]$range$timestamp$lte, format_elastic_date_range(test_date_range)[2])
 })
 
 test_that('build_humgen_query works', {
@@ -120,4 +128,13 @@ test_that('parse_elastic_multi_agg works', {
   expect_s3_class(df,'data.frame')
   expect_named(df, field_names)
   expect_equal(nrow(df), 3)
+})
+
+test_that('format_elastic_date_range works', {
+  test_date_range <- as.Date(c("2024-01-01", "2024-01-05"))
+
+  formatted_date_range <- format_elastic_date_range(test_date_range)
+  expected_data_range <- c("2024-01-01T00:00:00Z", "2024-01-06T00:00:00Z")
+
+  expect_equal(formatted_date_range, expected_data_range)
 })
