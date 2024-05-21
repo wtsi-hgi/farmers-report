@@ -179,7 +179,9 @@ server <- function(input, output, session) {
     build_humgen_query(
       filters = build_humgen_filters(
         BOM = input$bom,
-        custom_filters = custom_filters)
+        custom_filters = custom_filters,
+        date_range = input$period
+      )
     )
   })
 
