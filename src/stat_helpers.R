@@ -69,6 +69,8 @@ generate_team_statistics <- function (df, adjust = TRUE) {
       mutate(
         cpu_wasted_sec = ifelse(Job == 'Success' & NUM_EXEC_PROCS == 1, 0, WASTED_CPU_SECONDS)
       )
+  } else {
+    df <- rename(df, cpu_wasted_sec = WASTED_CPU_SECONDS)
   }
 
   df %>%
