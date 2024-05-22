@@ -63,7 +63,7 @@ get_user_names <- function(con, bom, accounting_name) {
   unique(df$USER_NAME)
 }
 
-generate_efficiency <- function (input, con, query, adjust, team_statistics) {
+generate_efficiency <- function (input, values, con, query, adjust, team_statistics) {
   req(input$accounting_name)
   if (input$accounting_name != 'all') {
     req(input$user_name)
@@ -73,6 +73,18 @@ generate_efficiency <- function (input, con, query, adjust, team_statistics) {
     dt <- get_bom_statistics(con, query = query, adjust = adjust)
   } else {
     if (input$user_name == 'all') {
+      values$modal = TRUE
+      # showModal(
+      #   modalDialog(
+      #     title = 'Long query warning',
+      #     "This request is going to take over 9000 seconds. Are you sure you want to execute it?",
+      #     easyClose = FALSE,
+      #     footer = tagList(
+      #       modalButton('Cancel'), 
+      #       actionButton('execute', 'Run it')
+      #     )
+      #   )
+      # )
       if (adjust){
         dt <- team_statistics()
       } else {
@@ -83,7 +95,8 @@ generate_efficiency <- function (input, con, query, adjust, team_statistics) {
     }
   }
 
-  make_dt(dt, table_view_opts = 'ftp')
+  if(!is.null(dt))
+    make_dt(dt, table_view_opts = 'ftp')
 }
 
 ui <- page_sidebar(
@@ -134,6 +147,8 @@ ui <- page_sidebar(
 )
 
 server <- function(input, output, session) {
+  values <- reactiveValues(modal = NULL, execute = FALSE)
+  
   observeEvent(input$bom, {
     req(input$bom)
     accounting_names <- get_accounting_names(elastic_con, input$bom)
@@ -186,8 +201,35 @@ server <- function(input, output, session) {
     )
   })
 
+  observeEvent(input$execute, {
+    values$execute = TRUE
+    values$modal <- NULL
+    removeModal()
+  })
+
+  observeEvent(values$modal, {
+    showModal(modalDialog(
+      title = 'test',
+      'this is a message',
+      easyClose = F,
+      footer = tagList(
+        actionButton('execute', 'Run anyway'),
+        actionButton('close', 'Close me'),
+        modalButton('Close Modal')
+      )
+    ))
+  }, ignoreNULL = TRUE)
+
+  observeEvent(input$close, {
+    values$modal = NULL
+    removeModal()
+  })
+
   team_statistics <- reactive({
-    get_team_statistics(elastic_con, query = elastic_query())
+    if (isolate(values$execute)) {
+      get_team_statistics(elastic_con, query = elastic_query())
+      values$execute = FALSE
+    }
   })
 
   per_bucket_job_failure_df <- reactive({
@@ -256,7 +298,7 @@ server <- function(input, output, session) {
   })
 
   output$unadjusted_efficiency <-  DT::renderDT({
-    generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), team_statistics = team_statistics)
+    generate_efficiency(input, values, elastic_con, adjust = FALSE, query = elastic_query(), team_statistics = team_statistics)
   })
 
   output$adjustments_explanation <- renderText({
@@ -264,7 +306,7 @@ server <- function(input, output, session) {
   })
 
   output$efficiency <- DT::renderDT({
-     generate_efficiency(input, elastic_con, adjust = TRUE, query = elastic_query(), team_statistics = team_statistics)
+     generate_efficiency(input, values, elastic_con, adjust = TRUE, query = elastic_query(), team_statistics = team_statistics)
   })
 
   output$awesomeness_formula <- renderUI({
