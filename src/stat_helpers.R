@@ -46,7 +46,21 @@ generate_user_statistics <- function(res, adjust = TRUE) {
   specify_wastage_reason(dt)
 }
 
-get_team_statistics <- function(con, query, adjust = TRUE) {
+too_slow_request <- function(sec) {
+  msg <- glue::glue("Request will take {sec} seconds")
+  
+  rlang::signal("request_too_slow", 
+        message = msg,
+        sec = sec
+  )
+}
+
+get_team_statistics <- function(con, query, adjust = TRUE, force = FALSE) {
+  if(!force){
+    too_slow_request(9000)
+    return (NULL)
+  }
+
   b <- list(query = query)
   res <- Search(
     con,

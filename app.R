@@ -73,18 +73,6 @@ generate_efficiency <- function (input, values, con, query, adjust, team_statist
     dt <- get_bom_statistics(con, query = query, adjust = adjust)
   } else {
     if (input$user_name == 'all') {
-      values$modal = TRUE
-      # showModal(
-      #   modalDialog(
-      #     title = 'Long query warning',
-      #     "This request is going to take over 9000 seconds. Are you sure you want to execute it?",
-      #     easyClose = FALSE,
-      #     footer = tagList(
-      #       modalButton('Cancel'), 
-      #       actionButton('execute', 'Run it')
-      #     )
-      #   )
-      # )
       if (adjust){
         dt <- team_statistics()
       } else {
@@ -226,11 +214,16 @@ server <- function(input, output, session) {
   })
 
   team_statistics <- reactive({
+    input$execute
+
     if (isolate(values$execute)) {
-      get_team_statistics(elastic_con, query = elastic_query())
-      values$execute = FALSE
+      df = get_team_statistics(elastic_con, query = elastic_query(), force = TRUE)
+      isolate({values$execute = FALSE})
+    } else {
+      df = get_team_statistics(elastic_con, query = elastic_query())
     }
-  })
+    df
+  }) 
 
   per_bucket_job_failure_df <- reactive({
     if (input$accounting_name == 'all') {
@@ -306,7 +299,15 @@ server <- function(input, output, session) {
   })
 
   output$efficiency <- DT::renderDT({
-     generate_efficiency(input, values, elastic_con, adjust = TRUE, query = elastic_query(), team_statistics = team_statistics)
+    withCallingHandlers({
+      cat('about to call gen_eff\n')
+      dt <- generate_efficiency(input, values, elastic_con, adjust = TRUE, query = elastic_query(), team_statistics = team_statistics)
+      cat('after gen_eff call\n')
+    }, request_too_slow = function(s) {
+      cat('inside try\n')
+      values$modal = TRUE
+    })
+    dt
   })
 
   output$awesomeness_formula <- renderUI({
