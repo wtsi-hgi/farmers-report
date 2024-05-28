@@ -3,8 +3,36 @@ library(dplyr)
 
 source("src/elastic_helpers.R")
 source("src/table_helpers.R")
+source("src/constants.R")
 
-get_user_statistics <- function (con, query, adjust = TRUE) {
+too_slow_request <- function(sec) {
+  sec <- round(sec)
+  msg <- glue::glue("Request will take {sec} seconds")
+  
+  rlang::signal("request_too_slow", 
+        message = msg,
+        sec = sec
+  )
+}
+
+get_record_count <- function(con, query) {
+  b <- list(query = query, size = 0)
+  res <- Search(con, index = index, body = b)
+  count <- res$hits$total$value
+}
+
+is_heavy_request <- function(con, query, threshold = 5 * elastic_max_response_size) {
+  count <- get_record_count(con, query)
+  if (count > threshold) {
+    number_of_requests <- ceiling(count / elastic_max_response_size)
+    too_slow_request(number_of_requests * elastic_single_request_time)
+    return(TRUE)
+  } else {
+    return(FALSE)
+  }
+}
+
+get_user_statistics <- function(con, query, adjust = TRUE) {
   b <- build_user_statistics_query(query)
   res <- Search(con, index = index, body = b, asdf = T)
   dt <- generate_user_statistics(res, adjust = adjust)
@@ -46,19 +74,10 @@ generate_user_statistics <- function(res, adjust = TRUE) {
   specify_wastage_reason(dt)
 }
 
-too_slow_request <- function(sec) {
-  msg <- glue::glue("Request will take {sec} seconds")
-  
-  rlang::signal("request_too_slow", 
-        message = msg,
-        sec = sec
-  )
-}
-
-get_team_statistics <- function(con, query, adjust = TRUE, force = FALSE) {
+get_team_statistics <- function(con, query, adjust = TRUE, force = TRUE) {
   if(!force){
-    too_slow_request(9000)
-    return (NULL)
+    if(is_heavy_request(con, query))
+      return(NULL)
   }
 
   b <- list(query = query)
@@ -71,7 +90,7 @@ get_team_statistics <- function(con, query, adjust = TRUE, force = FALSE) {
               'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS'),
     body = b,
     asdf = T,
-    size = 10000
+    size = elastic_max_response_size
   )
   df <- pull_everything(con, res)
   dt <- generate_team_statistics(df, adjust = adjust)

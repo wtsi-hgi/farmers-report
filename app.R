@@ -11,6 +11,8 @@ source('src/stat_helpers.R')
 source('src/constants.R')
 source('src/config.R')
 
+options(shiny.reactlog = TRUE)
+
 config <- read_config("config.yaml")
 
 elastic_con <- connect(
@@ -135,7 +137,7 @@ ui <- page_sidebar(
 )
 
 server <- function(input, output, session) {
-  values <- reactiveValues(modal = NULL, execute = FALSE)
+  values <- reactiveValues(modal = NULL, execute = FALSE, trigger = FALSE)
   
   observeEvent(input$bom, {
     req(input$bom)
@@ -191,6 +193,7 @@ server <- function(input, output, session) {
 
   observeEvent(input$execute, {
     values$execute = TRUE
+    values$trigger = !values$trigger
     values$modal <- NULL
     removeModal()
   })
@@ -214,13 +217,14 @@ server <- function(input, output, session) {
   })
 
   team_statistics <- reactive({
-    input$execute
+    values$trigger
+    # browser()
 
     if (isolate(values$execute)) {
       df = get_team_statistics(elastic_con, query = elastic_query(), force = TRUE)
       isolate({values$execute = FALSE})
     } else {
-      df = get_team_statistics(elastic_con, query = elastic_query())
+      df = get_team_statistics(elastic_con, query = elastic_query(), force = FALSE)
     }
     df
   }) 
@@ -240,15 +244,16 @@ server <- function(input, output, session) {
       if (input$user_name == 'all') {
         # statistics for only one team
         df <- team_statistics()
+        if(!is.null(df)){
+          # transform df
+          df <- df %>%
+            rename(accounting_name = USER_NAME) %>%
+            mutate(Failed = number_of_jobs * fail_rate,
+                  Success = number_of_jobs - Failed) %>%
+            tidyr::pivot_longer(cols = c('Success', 'Failed'), names_to = 'job_status', values_to = 'doc_count')
 
-        # transform df
-        df <- df %>%
-          rename(accounting_name = USER_NAME) %>%
-          mutate(Failed = number_of_jobs * fail_rate,
-                Success = number_of_jobs - Failed) %>%
-          tidyr::pivot_longer(cols = c('Success', 'Failed'), names_to = 'job_status', values_to = 'doc_count')
-
-        # we need by this point: c('accounting_name', 'job_status', 'doc_count')
+          # we need by this point: c('accounting_name', 'job_status', 'doc_count')
+        }
       }
     }
   })
@@ -267,26 +272,29 @@ server <- function(input, output, session) {
   output$per_bucket_job_failure <- renderPlot({
     if (input$accounting_name == 'all' || input$user_name == 'all') {
       df <- per_bucket_job_failure_df()
-      make_per_team_job_plot(df)
+      if(!is.null(df))
+        make_per_team_job_plot(df)
     }
   })
 
   output$per_bucket_job_failure_table <- DT::renderDT({
     if (input$accounting_name == 'all' || input$user_name == 'all') {
       df <- per_bucket_job_failure_df()
-      df %>%
-        tidyr::pivot_wider(id_cols = 'accounting_name', names_from = 'job_status', values_from = 'doc_count', values_fill = 0) %>%
-        mutate(fail_rate = Failed / (Failed + Success)) %>%
-        arrange(desc(Failed)) -> dt
-      total_dt <- generate_total_failure_dt(dt)
-      dt <- rbind(dt, total_dt)
-      dt <- dt %>%
-        mutate(
-          Total = Success + Failed
-        ) %>%
-        select(accounting_name, Total, Success, Failed, fail_rate) %>%
-        arrange(desc(Total))
-      make_dt(dt, table_view_opts = 'ftp')
+      if(!is.null(df)){
+        df %>%
+          tidyr::pivot_wider(id_cols = 'accounting_name', names_from = 'job_status', values_from = 'doc_count', values_fill = 0) %>%
+          mutate(fail_rate = Failed / (Failed + Success)) %>%
+          arrange(desc(Failed)) -> dt
+        total_dt <- generate_total_failure_dt(dt)
+        dt <- rbind(dt, total_dt)
+        dt <- dt %>%
+          mutate(
+            Total = Success + Failed
+          ) %>%
+          select(accounting_name, Total, Success, Failed, fail_rate) %>%
+          arrange(desc(Total))
+        make_dt(dt, table_view_opts = 'ftp')
+      }
     }
   })
 
@@ -298,7 +306,7 @@ server <- function(input, output, session) {
     adjustments_explanation
   })
 
-  output$efficiency <- DT::renderDT({
+  efficiency <- reactive({
     withCallingHandlers({
       cat('about to call gen_eff\n')
       dt <- generate_efficiency(input, values, elastic_con, adjust = TRUE, query = elastic_query(), team_statistics = team_statistics)
@@ -307,7 +315,13 @@ server <- function(input, output, session) {
       cat('inside try\n')
       values$modal = TRUE
     })
+    
     dt
+  # }) %>% bindEvent(elastic_query(), team_statistics(), ignoreNULL = FALSE)
+  }) %>% bindEvent(elastic_query, team_statistics)
+
+  output$efficiency <- DT::renderDT({
+    efficiency()
   })
 
   output$awesomeness_formula <- renderUI({

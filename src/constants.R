@@ -6,6 +6,9 @@ cpu_second <- cpu_hour / 60 / 60
 ram_gb_hour <- 0.000217  # in £
 ram_mb_second <- ram_gb_hour / 1024 / 60 / 60
 
+elastic_max_response_size <- 10000
+elastic_single_request_time <- 1.45  # in seconds
+
 awesomeness_explanation <- "
 Awesome-ness is a 0-to-10 complex score representing a team performance. 
 A team gets score 10 if it has the lowest fraction of wasted resources for both CPU and RAM. 
