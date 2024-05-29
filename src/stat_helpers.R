@@ -130,3 +130,46 @@ get_bom_statistics <- function (con, query, adjust = TRUE) {
 
   generate_bom_statistics(df, adjust = adjust)
 }
+
+get_job_statistics <- function (con, query) {
+  b <- list(query = query)
+  res <- Search(
+    con,
+    index = index,
+    time_scroll="1m",
+    source = c('JOB_NAME',
+              'NUM_EXEC_PROCS', 'AVAIL_CPU_TIME_SEC', 'WASTED_CPU_SECONDS',
+              'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS'),
+    body = b,
+    asdf = T,
+    size = 10000
+  )
+  df <- pull_everything(con, res)
+  dt <- generate_job_statistics(df)
+}
+
+generate_job_statistics <- function (df) {
+  dt <- df %>%
+    rename(
+      cpu_avail_sec = AVAIL_CPU_TIME_SEC,
+      mem_avail_mb_sec = MEM_REQUESTED_MB_SEC,
+      mem_wasted_mb_sec = WASTED_MB_SECONDS
+    ) %>%
+    mutate(job_type = sapply(JOB_NAME, parse_job_type)) %>%
+    group_by(job_type) %>%
+    generate_efficiency_stats()
+}
+
+parse_job_type <- function (job_name) {
+  type <- 'other'
+  if (startsWith(job_name, "nf-"))
+    type <- 'nextflow'
+
+  if (startsWith(job_name, 'wrp'))
+    type <- 'wr'
+
+  if (startsWith(job_name, 'bsub rstudio'))
+    type <- 'interactive'
+
+  return(type)
+}

@@ -144,6 +144,8 @@ pull_everything <- function(connection, response) {
     }
   }
 
+  scroll_clear(connection, response$`_scroll_id`)
+
   return(dt)
 }
 
