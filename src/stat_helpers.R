@@ -137,7 +137,7 @@ get_job_statistics <- function (con, query) {
     con,
     index = index,
     time_scroll="1m",
-    source = c('JOB_NAME',
+    source = c('JOB_NAME', 'Job',
               'NUM_EXEC_PROCS', 'AVAIL_CPU_TIME_SEC', 'WASTED_CPU_SECONDS',
               'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS'),
     body = b,
@@ -154,6 +154,14 @@ generate_job_statistics <- function (df) {
       cpu_avail_sec = AVAIL_CPU_TIME_SEC,
       mem_avail_mb_sec = MEM_REQUESTED_MB_SEC,
       mem_wasted_mb_sec = WASTED_MB_SECONDS
+    ) %>%
+    mutate(
+        cpu_wasted_sec = ifelse(Job == 'Success' & NUM_EXEC_PROCS == 1, 0, WASTED_CPU_SECONDS)
+      ) %>%
+    mutate(
+      cpu_wasted_cost = cpu_wasted_sec * cpu_second,
+      mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
+      wasted_cost = pmax(cpu_wasted_cost, mem_wasted_cost)
     ) %>%
     mutate(job_type = sapply(JOB_NAME, parse_job_type)) %>%
     group_by(job_type) %>%

@@ -278,7 +278,8 @@ server <- function(input, output, session) {
   })
 
   output$job_breakdown <- DT::renderDT({
-
+    dt <- get_job_statistics(elastic_con, query = elastic_query())
+    make_dt(dt, table_view_opts = 'ftp')
   })
 
   observe({
