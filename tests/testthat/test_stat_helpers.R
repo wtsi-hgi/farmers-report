@@ -46,9 +46,9 @@ test_that("build_user_statistics_query works", {
   expect_named(b$aggs$stats$aggs, c('cpu_avail_sec', 'cpu_wasted_sec', 'mem_avail_mb_sec', 'mem_wasted_mb_sec', 'wasted_cost'))
 
   expect_equal(
-    b$aggs$stats$multi_terms$terms, 
+    b$aggs$stats$multi_terms$terms,
     list(
-      list("field" = "NUM_EXEC_PROCS"), 
+      list("field" = "NUM_EXEC_PROCS"),
       list("field" = "Job")
     )
   )

@@ -12,7 +12,17 @@ column_rename <- c(
   'Wasted money' = 'wasted_cost',
   'Accounting name' = 'accounting_name',
   'User name' = 'USER_NAME',
-  'Awesome-ness' = 'awesomeness'
+  'Awesome-ness' = 'awesomeness',
+  'Job type' = 'job_type'
+)
+
+elastic_column_map <- c(
+  'cpu_avail_sec' = 'AVAIL_CPU_TIME_SEC',
+  'mem_avail_mb_sec' = 'MEM_REQUESTED_MB_SEC',
+  'mem_wasted_mb_sec' = 'WASTED_MB_SECONDS',
+  'cpu_wasted_sec' = 'WASTED_CPU_SECONDS',
+  'procs' = 'NUM_EXEC_PROCS',
+  'job_status' = 'Job'
 )
 
 team_map <- tibble::enframe(
@@ -79,24 +89,41 @@ generate_total_wastage_dt <- function(dt) {
       )
 }
 
-adjust_aggregated_statistics <- function (df) {
-  df %>%
+adjust_statistics <- function (df) {
+  df <- df %>%
     mutate(
       mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
-      cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec),
-      wasted_cost = ifelse(job_status == 'Success' & procs == 1, mem_wasted_cost, wasted_cost)
+      cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec)
     )
+
+  if('wasted_cost' %in% names(df))
+    df <- mutate(df, wasted_cost = ifelse(job_status == 'Success' & procs == 1, mem_wasted_cost, wasted_cost))
+
+  return(df)
 }
 
 generate_app_wastage_statistics <- function(df, adjust = TRUE) {
   if (adjust) {
-    df <- adjust_aggregated_statistics(df)
+    df <- adjust_statistics(df)
   }
 
   df %>%
     group_by(job_status) %>%
     generate_efficiency_stats() %>%
     select(job_status, cpu_avail_hrs, cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost)
+}
+
+rename_raw_elastic_fields <- function (df, map = elastic_column_map) {
+  rename(df, !!!map)
+}
+
+generate_wasted_cost <- function (df) {
+  df %>%
+    mutate(
+      cpu_wasted_cost = cpu_wasted_sec * cpu_second,
+      mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
+      wasted_cost = pmax(cpu_wasted_cost, mem_wasted_cost)
+    )
 }
 
 make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
@@ -134,7 +161,7 @@ make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
     dt <- DT::formatPercentage(dt, 'Wasted CPU fraction', 2)
 
   if('wasted_cost' %in% colnames(df))
-    dt <- DT::formatCurrency(dt, 'Wasted money', currency = '£', digits = 1)
+    dt <- DT::formatCurrency(dt, 'Wasted money', currency = '£', digits = 2)
 
   if('fail_rate' %in% colnames(df))
     dt <- DT::formatPercentage(dt, 'Fail rate', 1)
@@ -181,11 +208,12 @@ generate_efficiency_stats <- function(df, extra_stats = list()) {
     ) %>%
     mutate(
       cpu_avail_hrs = cpu_avail_sec / 60 / 60,
-      cpu_wasted_frac = cpu_wasted_sec / cpu_avail_sec,
       cpu_wasted_hrs = cpu_wasted_sec / 60 / 60,
+      cpu_wasted_frac = cpu_wasted_sec / cpu_avail_sec,
       mem_avail_gb_hrs = mem_avail_mb_sec / 1024 / 60 / 60,
-      mem_wasted_frac = mem_wasted_mb_sec / mem_avail_mb_sec,
       mem_wasted_gb_hrs = mem_wasted_mb_sec / 1024 / 60 / 60,
+      mem_wasted_frac = mem_wasted_mb_sec / mem_avail_mb_sec,
     ) %>%
+    relocate(wasted_cost, .after = last_col()) %>%
     select(-setdiff(fields, 'wasted_cost'))
 }
