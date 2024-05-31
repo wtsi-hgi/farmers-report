@@ -4,6 +4,11 @@ library(dplyr)
 source("src/elastic_helpers.R")
 source("src/table_helpers.R")
 
+generate_efficiency_extra_stats <- list(
+  number_of_jobs = quote(n()),
+  fail_rate = quote(sum(job_status == 'Failed') / number_of_jobs)
+)
+
 get_user_statistics <- function (con, query, adjust = TRUE) {
   b <- build_user_statistics_query(query)
   res <- Search(con, index = index, body = b, asdf = T)
@@ -64,37 +69,17 @@ get_team_statistics <- function(con, query, adjust = TRUE) {
 }
 
 generate_team_statistics <- function (df, adjust = TRUE) {
-  if (adjust) {
-    df <- df %>%
-      mutate(
-        cpu_wasted_sec = ifelse(Job == 'Success' & NUM_EXEC_PROCS == 1, 0, WASTED_CPU_SECONDS)
-      )
-  } else {
-    df <- rename(df, cpu_wasted_sec = WASTED_CPU_SECONDS)
-  }
+  df <- rename_raw_elastic_fields(df)
+
+  if (adjust)
+    df <- adjust_statistics(df)
 
   df %>%
-    rename(
-      cpu_avail_sec = AVAIL_CPU_TIME_SEC,
-      mem_avail_mb_sec = MEM_REQUESTED_MB_SEC,
-      mem_wasted_mb_sec = WASTED_MB_SECONDS
-    ) %>%
-    mutate(
-      cpu_wasted_cost = cpu_wasted_sec * cpu_second,
-      mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
-      wasted_cost = pmax(cpu_wasted_cost, mem_wasted_cost)
-    ) %>%
+    generate_wasted_cost() %>%
     group_by(USER_NAME) %>%
     generate_efficiency_stats(
-      extra_stats = list(
-        number_of_jobs = quote(n()),
-        wasted_cost = quote(sum(wasted_cost)),
-        fail_rate = quote(sum(Job == 'Failed') / number_of_jobs)
-      )
-    ) %>%
-    select(USER_NAME, number_of_jobs, fail_rate, cpu_avail_hrs,
-           cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs,
-           mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost)
+      extra_stats = generate_efficiency_extra_stats
+    )
 }
 
 build_bom_aggregation <- function(query) {
@@ -106,7 +91,7 @@ build_bom_aggregation <- function(query) {
 
 generate_bom_statistics <- function(df, adjust = TRUE) {
   if (adjust) {
-    df <- adjust_aggregated_statistics(df)
+    df <- adjust_statistics(df)
   }
 
   df %>%
@@ -129,4 +114,47 @@ get_bom_statistics <- function (con, query, adjust = TRUE) {
     select(-doc_count)
 
   generate_bom_statistics(df, adjust = adjust)
+}
+
+get_job_statistics <- function (con, query) {
+  b <- list(query = query)
+  res <- Search(
+    con,
+    index = index,
+    time_scroll="1m",
+    source = c('JOB_NAME', 'Job',
+              'NUM_EXEC_PROCS', 'AVAIL_CPU_TIME_SEC', 'WASTED_CPU_SECONDS',
+              'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS'),
+    body = b,
+    asdf = T,
+    size = 10000
+  )
+  df <- pull_everything(con, res)
+  dt <- generate_job_statistics(df)
+}
+
+generate_job_statistics <- function (df) {
+  dt <- df %>%
+    rename_raw_elastic_fields() %>%
+    adjust_statistics() %>%
+    generate_wasted_cost() %>%
+    mutate(job_type = sapply(JOB_NAME, parse_job_type)) %>%
+    group_by(job_type) %>%
+    generate_efficiency_stats(
+      extra_stats = generate_efficiency_extra_stats
+    )
+}
+
+parse_job_type <- function (job_name) {
+
+  if (startsWith(job_name, "nf-"))
+    return('nextflow')
+
+  if (startsWith(job_name, 'wrp_'))
+    return('wr')
+
+  if (startsWith(job_name, 'bsub rstudio'))
+    return('interactive')
+
+  return('other')
 }

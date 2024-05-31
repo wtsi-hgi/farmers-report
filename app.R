@@ -128,6 +128,10 @@ ui <- page_sidebar(
       DT::DTOutput("efficiency"),
       htmlOutput("awesomeness_formula")
     ),
+    accordion_panel(
+      "Job Breakdown",
+      DT::DTOutput("job_breakdown")
+    ),
     id = "myaccordion",
     open = FALSE
   )
@@ -271,6 +275,11 @@ server <- function(input, output, session) {
     if (input$accounting_name == 'all') {
       withMathJax(awesomeness_explanation, awesomeness_formula)
     }
+  })
+
+  output$job_breakdown <- DT::renderDT({
+    dt <- get_job_statistics(elastic_con, query = elastic_query())
+    make_dt(dt, table_view_opts = 'ftp')
   })
 
   observe({

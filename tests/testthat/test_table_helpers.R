@@ -90,13 +90,13 @@ test_that("generate_efficiency_stats function produces correct efficiency statis
   )
 
   expected_result <- data.frame(
-    wasted_cost = sum(df$wasted_cost),
     cpu_avail_hrs = 6,
-    cpu_wasted_frac = 0.5,
     cpu_wasted_hrs = 3,
+    cpu_wasted_frac = 0.5,
     mem_avail_gb_hrs = 0.04,
+    mem_wasted_gb_hrs = 0.01,
     mem_wasted_frac = 0.25,
-    mem_wasted_gb_hrs = 0.01
+    wasted_cost = sum(df$wasted_cost)
   )
 
   result <- generate_efficiency_stats(df)
@@ -227,4 +227,30 @@ test_that("set_team_names generates named lists for accounting names", {
 
   expect_equal(converted_team_names, expected_output)
   expect_named(converted_team_names, team_name)
+})
+
+test_that("rename_raw_elastic_fields works", {
+  df <- as.data.frame(as.list(seq_along(elastic_column_map)))
+  names(df) <- elastic_column_map
+
+  result <- rename_raw_elastic_fields(df)
+
+  expect_s3_class(result,'data.frame')
+  expect_named(result, names(elastic_column_map))
+})
+
+test_that("generate_wasted_cost works", {
+  df <- data.frame(
+    cpu_wasted_sec = c(100, 200, 300),
+    mem_wasted_mb_sec = c(1000, 2000, 3000)
+  )
+
+  expected_df <- df
+  expected_df$cpu_wasted_cost <- df$cpu_wasted_sec * cpu_second
+  expected_df$mem_wasted_cost <- df$mem_wasted_mb_sec * ram_mb_second
+  expected_df$wasted_cost <- pmax(expected_df$cpu_wasted_cost, expected_df$mem_wasted_cost)
+
+  result <- generate_wasted_cost(df)
+
+  expect_equal(result, expected_df)
 })
