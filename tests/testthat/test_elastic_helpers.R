@@ -138,3 +138,12 @@ test_that('format_elastic_date_range works', {
 
   expect_equal(formatted_date_range, expected_data_range)
 })
+
+test_that("build_match_phrase_filter works", {
+  object <- build_match_phrase_filter("BOM", "Human Genetics")
+  expected_object <- list(
+    "match_phrase" = list("BOM" = "Human Genetics")
+  )
+
+  expect_equal(object, expected_object)
+})

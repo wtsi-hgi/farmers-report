@@ -102,7 +102,7 @@ test_that("generate_team_statistics works", {
   )
 
   expected_columns <- c(
-    'USER_NAME', 'number_of_jobs', 'fail_rate','cpu_avail_hrs', 'cpu_wasted_hrs', 
+    'USER_NAME', 'number_of_jobs', 'fail_rate', 'cpu_avail_hrs', 'cpu_wasted_hrs', 
     'cpu_wasted_frac','mem_avail_gb_hrs', 'mem_wasted_gb_hrs', 'mem_wasted_frac', 'wasted_cost'
   )
 
@@ -132,4 +132,33 @@ test_that("build_bom_aggregation works", {
       list("field" = "Job")
     )
   )
+})
+
+test_that("generate_job_statistics works", {
+  fake_data_frame <- data.frame(
+    Job = c('Success', 'Success', 'Failed'),
+    NUM_EXEC_PROCS = c(1, 1, 3),
+    AVAIL_CPU_TIME_SEC = c(800, 1000, 1200),
+    WASTED_CPU_SECONDS = c(600, 500, 700),
+    MEM_REQUESTED_MB = c(1200, 2400, 3600), 
+    MEM_REQUESTED_MB_SEC = c(12000, 42000, 60000),
+    WASTED_MB_SECONDS = c(5000, 20000, 10000),
+    JOB_NAME = c('nf-hello', 'wrp_job', 'another_job')
+  )
+
+  expected_columns <- c(
+    'job_type', 'number_of_jobs', 'fail_rate', 'cpu_avail_hrs', 'cpu_wasted_hrs', 
+    'cpu_wasted_frac','mem_avail_gb_hrs', 'mem_wasted_gb_hrs', 'mem_wasted_frac', 'wasted_cost'
+  )
+
+  dt <- generate_job_statistics(fake_data_frame)
+  expect_s3_class(dt, 'data.frame')
+  expect_named(dt, expected_columns)
+})
+
+test_that("parse_job_type works", {
+  expect_equal(parse_job_type("nf-NFCORE-HELLOWORLD"), "nextflow")
+  expect_equal(parse_job_type("wrp_c842dac"), "wr")
+  expect_equal(parse_job_type("bsub rstudio user ip13"), "interactive")
+  expect_equal(parse_job_type(""), "other")
 })

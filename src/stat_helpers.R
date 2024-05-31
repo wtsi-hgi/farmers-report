@@ -4,6 +4,11 @@ library(dplyr)
 source("src/elastic_helpers.R")
 source("src/table_helpers.R")
 
+generate_efficiency_extra_stats <- list(
+  number_of_jobs = quote(n()),
+  fail_rate = quote(sum(job_status == 'Failed') / number_of_jobs)
+)
+
 get_user_statistics <- function (con, query, adjust = TRUE) {
   b <- build_user_statistics_query(query)
   res <- Search(con, index = index, body = b, asdf = T)
@@ -73,10 +78,7 @@ generate_team_statistics <- function (df, adjust = TRUE) {
     generate_wasted_cost() %>%
     group_by(USER_NAME) %>%
     generate_efficiency_stats(
-      extra_stats = list(
-        number_of_jobs = quote(n()),
-        fail_rate = quote(sum(job_status == 'Failed') / number_of_jobs)
-      )
+      extra_stats = generate_efficiency_extra_stats
     )
 }
 
@@ -138,20 +140,21 @@ generate_job_statistics <- function (df) {
     generate_wasted_cost() %>%
     mutate(job_type = sapply(JOB_NAME, parse_job_type)) %>%
     group_by(job_type) %>%
-    generate_efficiency_stats()
+    generate_efficiency_stats(
+      extra_stats = generate_efficiency_extra_stats
+    )
 }
 
 parse_job_type <- function (job_name) {
-  type <- 'other'
 
   if (startsWith(job_name, "nf-"))
-    type <- 'nextflow'
+    return('nextflow')
 
   if (startsWith(job_name, 'wrp_'))
-    type <- 'wr'
+    return('wr')
 
   if (startsWith(job_name, 'bsub rstudio'))
-    type <- 'interactive'
+    return('interactive')
 
-  return(type)
+  return('other')
 }
