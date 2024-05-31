@@ -13,7 +13,10 @@ column_rename <- c(
   'Accounting name' = 'accounting_name',
   'User name' = 'USER_NAME',
   'Awesome-ness' = 'awesomeness',
-  'Job type' = 'job_type'
+  'Job type' = 'job_type',
+  'Queue name' = 'QUEUE_NAME',
+  'Median Wait Time (sec)' = 'median_wait_time',
+  'Median Run Time (sec)' = 'median_run_time'
 )
 
 elastic_column_map <- c(

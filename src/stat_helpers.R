@@ -158,3 +158,35 @@ parse_job_type <- function (job_name) {
 
   return('other')
 }
+
+get_gpu_statistics <- function(con, query) {
+  queue_filter <- list(
+    "prefix" = list("QUEUE_NAME" = "gpu")
+  )
+  query$bool$filter <- c(query$bool$filter, list(queue_filter))
+  b <- list(query = query)
+  res <- Search(
+    con,
+    index = index,
+    time_scroll="1m",
+    source = c('USER_NAME', 'QUEUE_NAME', 'Job', 'PENDING_TIME_SEC', 'RUN_TIME_SEC'),
+    body = b,
+    asdf = T,
+    size = 10000
+  )
+  df <- pull_everything(con, res)
+  dt <- generate_gpu_statistics(df)
+}
+
+generate_gpu_statistics <- function(df) {
+  # FIXME currently produces an error if input dataframe is empty
+  dt <- df %>%
+    group_by(USER_NAME, QUEUE_NAME) %>%
+    summarise(
+      number_of_jobs = n(),
+      fail_rate = sum(Job == 'Failed')/number_of_jobs,
+      median_wait_time = median(PENDING_TIME_SEC),
+      median_run_time = median(RUN_TIME_SEC),
+      .groups = 'drop'
+    )
+}
