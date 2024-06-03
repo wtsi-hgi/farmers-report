@@ -293,16 +293,17 @@ server <- function(input, output, session) {
   })
 
   observe({
+    if (input$user_name == 'all') {
+      accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
+        DT::DTOutput("gpu_statistics")
+      )
+    } else {
+      accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
+        "To see user-by-user GPU statistics please pick a LSF Group and select User='all' in the left panel"
+      )
+    }
+
     if (input$accounting_name == 'all' || input$user_name == 'all') {
-      if (input$user_name == 'all') {
-        accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
-          DT::DTOutput("gpu_statistics")
-        )
-      } else {
-        accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
-          "To see user-by-user GPU statistics please pick a LSF Group and select User='all' in the left panel"
-        )
-      }
       accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
         plotOutput("per_bucket_job_failure"),
         DT::DTOutput("per_bucket_job_failure_table")

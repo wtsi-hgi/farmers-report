@@ -164,3 +164,21 @@ parse_elastic_multi_agg <- function (response, column_names) {
     tidyr::hoist(.col = key, !!!rule) %>%
     rename_all(~gsub('.value', '', .))
 }
+
+scroll_elastic <- function (con, body, fields) {
+  res <- Search(
+    con,
+    index = index,
+    time_scroll="1m",
+    source = fields,
+    body = body,
+    asdf = T,
+    size = 10000
+  )
+  df <- pull_everything(con, res)
+
+  if(nrow(df) == 0)
+    df <- mutate(df, !!!sapply(fields, c))
+
+  return(df)
+}

@@ -52,19 +52,13 @@ generate_user_statistics <- function(res, adjust = TRUE) {
 }
 
 get_team_statistics <- function(con, query, adjust = TRUE) {
-  b <- list(query = query)
-  res <- Search(
-    con,
-    index = index,
-    time_scroll="1m",
-    source = c('USER_NAME', 'Job',
+  df <- scroll_elastic(
+    con = con,
+    body = list(query = query),
+    fields = c('USER_NAME', 'Job',
               'NUM_EXEC_PROCS', 'AVAIL_CPU_TIME_SEC', 'WASTED_CPU_SECONDS',
-              'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS'),
-    body = b,
-    asdf = T,
-    size = 10000
+              'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS')
   )
-  df <- pull_everything(con, res)
   dt <- generate_team_statistics(df, adjust = adjust)
 }
 
@@ -117,19 +111,13 @@ get_bom_statistics <- function (con, query, adjust = TRUE) {
 }
 
 get_job_statistics <- function (con, query) {
-  b <- list(query = query)
-  res <- Search(
-    con,
-    index = index,
-    time_scroll="1m",
-    source = c('JOB_NAME', 'Job',
+  df <- scroll_elastic(
+    con = con,
+    body = list(query = query),
+    fields = c('JOB_NAME', 'Job',
               'NUM_EXEC_PROCS', 'AVAIL_CPU_TIME_SEC', 'WASTED_CPU_SECONDS',
-              'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS'),
-    body = b,
-    asdf = T,
-    size = 10000
+              'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS')
   )
-  df <- pull_everything(con, res)
   dt <- generate_job_statistics(df)
 }
 
@@ -164,27 +152,22 @@ get_gpu_statistics <- function(con, query) {
     "prefix" = list("QUEUE_NAME" = "gpu")
   )
   query$bool$filter <- c(query$bool$filter, list(queue_filter))
-  b <- list(query = query)
-  res <- Search(
-    con,
-    index = index,
-    time_scroll="1m",
-    source = c('USER_NAME', 'QUEUE_NAME', 'Job', 'PENDING_TIME_SEC', 'RUN_TIME_SEC'),
-    body = b,
-    asdf = T,
-    size = 10000
+
+  df <- scroll_elastic(
+    con = con,
+    body = list(query = query),
+    fields = c('USER_NAME', 'QUEUE_NAME', 'Job', 'PENDING_TIME_SEC', 'RUN_TIME_SEC')
   )
-  df <- pull_everything(con, res)
+
   dt <- generate_gpu_statistics(df)
 }
 
 generate_gpu_statistics <- function(df) {
-  # FIXME currently produces an error if input dataframe is empty
   dt <- df %>%
     group_by(USER_NAME, QUEUE_NAME) %>%
     summarise(
       number_of_jobs = n(),
-      fail_rate = sum(Job == 'Failed')/number_of_jobs,
+      fail_rate = sum(Job == 'Failed') / number_of_jobs,
       median_wait_time = median(PENDING_TIME_SEC),
       median_run_time = median(RUN_TIME_SEC),
       .groups = 'drop'
