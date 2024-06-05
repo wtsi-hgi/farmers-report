@@ -112,29 +112,42 @@ ui <- page_sidebar(
   ),
   accordion(
     accordion_panel(
-      "Job failure statistics", 
-      plotOutput("job_failure"),
-      plotOutput("per_bucket_job_failure"),
-      DT::DTOutput("per_bucket_job_failure_table"),
+      "Job failure statistics",
+      shinycssloaders::withSpinner(
+        tagList(
+          plotOutput("job_failure"),
+          plotOutput("per_bucket_job_failure"),
+          DT::DTOutput("per_bucket_job_failure_table")
+        )
+      ), 
       value = "job_failure_panel"
     ),
     accordion_panel(
       "Unadjusted Efficiency",
-      DT::DTOutput("unadjusted_efficiency")
+      shinycssloaders::withSpinner(
+        DT::DTOutput("unadjusted_efficiency")
+      )
     ),
     accordion_panel(
       "Efficiency",
-      textOutput("adjustments_explanation"),
-      DT::DTOutput("efficiency"),
-      htmlOutput("awesomeness_formula")
+      shinycssloaders::withSpinner(
+        tagList(
+          textOutput("adjustments_explanation"),
+          DT::DTOutput("efficiency"),
+          htmlOutput("awesomeness_formula"))
+      )
     ),
     accordion_panel(
       "Job Breakdown",
-      DT::DTOutput("job_breakdown")
+      shinycssloaders::withSpinner(
+        DT::DTOutput("job_breakdown")
+      )
     ),
     accordion_panel(
       "GPU Statistics",
-      DT::DTOutput("gpu_statistics"),
+      shinycssloaders::withSpinner(
+        DT::DTOutput("gpu_statistics")
+      ),
       value = "gpu_statistics_panel"
     ),
     id = "myaccordion",
