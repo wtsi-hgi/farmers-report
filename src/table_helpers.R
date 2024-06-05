@@ -1,4 +1,5 @@
 library(dplyr)
+loadNamespace('gt')
 
 column_rename <- c(
   'Fail rate' = 'fail_rate',
@@ -13,7 +14,10 @@ column_rename <- c(
   'Accounting name' = 'accounting_name',
   'User name' = 'USER_NAME',
   'Awesome-ness' = 'awesomeness',
-  'Job type' = 'job_type'
+  'Job type' = 'job_type',
+  'Queue name' = 'QUEUE_NAME',
+  'Median Wait Time' = 'median_wait_time',
+  'Median Run Time' = 'median_run_time'
 )
 
 elastic_column_map <- c(
@@ -133,6 +137,14 @@ make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
   if('awesomeness' %in% colnames(df))
     df <- dplyr::arrange(df, desc(awesomeness))
 
+  if(nrow(df) > 0){
+    if('median_wait_time' %in% colnames(df))
+      df <- mutate(df, median_wait_time = gt::vec_fmt_duration(median_wait_time, input_units = 'seconds', max_output_units = 2))
+
+    if('median_run_time' %in% colnames(df))
+      df <- mutate(df, median_run_time = gt::vec_fmt_duration(median_run_time, input_units = 'seconds', max_output_units = 2))
+  }
+
   page_length <- ifelse(all_rows, nrow(df), 10)
   dt <- DT::datatable(
     df,
@@ -140,13 +152,11 @@ make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
     colnames = column_rename[column_rename %in% colnames(df)]
   )
 
-  if('mem_avail_gb_hrs' %in% colnames(df)){
+  if('mem_avail_gb_hrs' %in% colnames(df))
     dt <- DT::formatRound(dt, 'Requested memory (GB x hrs)', 0)
-  }
 
-  if('mem_wasted_gb_hrs' %in% colnames(df)){
+  if('mem_wasted_gb_hrs' %in% colnames(df))
     dt <- DT::formatRound(dt, 'Wasted memory (GB x hrs)', 0)
-  }
 
   if('mem_wasted_frac' %in% colnames(df))
     dt <- DT::formatPercentage(dt, 'Wasted memory fraction', 2)

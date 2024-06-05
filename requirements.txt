@@ -4,6 +4,7 @@ DT==0.32
 elastic==1.2.0
 ggplot2==3.4.4
 ggrepel==0.9.5
+gt==0.10.1
 knitr==1.45
 rmarkdown==2.25
 shiny==1.8.1.1

@@ -132,6 +132,11 @@ ui <- page_sidebar(
       "Job Breakdown",
       DT::DTOutput("job_breakdown")
     ),
+    accordion_panel(
+      "GPU Statistics",
+      DT::DTOutput("gpu_statistics"),
+      value = "gpu_statistics_panel"
+    ),
     id = "myaccordion",
     open = FALSE
   )
@@ -282,7 +287,22 @@ server <- function(input, output, session) {
     make_dt(dt, table_view_opts = 'ftp')
   })
 
+  output$gpu_statistics <- DT::renderDT({
+    dt <- get_gpu_statistics(elastic_con, query = elastic_query())
+    make_dt(dt, table_view_opts = 'ftp')
+  })
+
   observe({
+    if (input$user_name == 'all') {
+      accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
+        DT::DTOutput("gpu_statistics")
+      )
+    } else {
+      accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
+        "To see user-by-user GPU statistics please pick a LSF Group and select User='all' in the left panel"
+      )
+    }
+
     if (input$accounting_name == 'all' || input$user_name == 'all') {
       accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
         plotOutput("per_bucket_job_failure"),

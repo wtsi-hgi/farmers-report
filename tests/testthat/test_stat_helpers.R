@@ -162,3 +162,29 @@ test_that("parse_job_type works", {
   expect_equal(parse_job_type("bsub rstudio user ip13"), "interactive")
   expect_equal(parse_job_type(""), "other")
 })
+
+test_that("generate_gpu_statistics works", {
+  fake_df <- data.frame(
+    USER_NAME = c('user1', 'user2', 'user2'),
+    Job = c('Success', 'Success', 'Failed'),
+    QUEUE_NAME = c('queue2', 'queue1', 'queue1'),
+    RUN_TIME_SEC = c(30, 60, 100),
+    PENDING_TIME_SEC = c(1, 2, 10)
+  )
+
+  expected_df <- tibble::tibble(
+    USER_NAME = c('user1', 'user2'),
+    QUEUE_NAME = c('queue2', 'queue1'),
+    number_of_jobs = c(1, 2),
+    fail_rate = c(0, 0.5),
+    median_wait_time = c(1, median(c(2, 10))),
+    median_run_time = c(30, median(c(60, 100)))
+  )
+  expected_columns = colnames(expected_df)
+
+  result <- generate_gpu_statistics(fake_df)
+
+  expect_s3_class(result, 'data.frame')
+  expect_named(result, expected_columns)
+  expect_equal(result, expected_df)
+})
