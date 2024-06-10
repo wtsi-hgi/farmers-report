@@ -3,6 +3,7 @@ library(bslib)
 library(elastic)
 library(ggplot2)
 library(dplyr)
+loadNamespace(shinycssloaders)
 
 source('src/table_helpers.R')
 source('src/elastic_helpers.R')
@@ -119,7 +120,7 @@ ui <- page_sidebar(
           plotOutput("per_bucket_job_failure"),
           DT::DTOutput("per_bucket_job_failure_table")
         )
-      ), 
+      ),
       value = "job_failure_panel"
     ),
     accordion_panel(
@@ -308,7 +309,9 @@ server <- function(input, output, session) {
   observe({
     if (input$user_name == 'all') {
       accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
-        DT::DTOutput("gpu_statistics")
+        shinycssloaders::withSpinner(
+          DT::DTOutput("gpu_statistics")
+        )
       )
     } else {
       accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
@@ -318,12 +321,18 @@ server <- function(input, output, session) {
 
     if (input$accounting_name == 'all' || input$user_name == 'all') {
       accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
-        plotOutput("per_bucket_job_failure"),
-        DT::DTOutput("per_bucket_job_failure_table")
+        shinycssloaders::withSpinner(
+          tagList(
+            plotOutput("per_bucket_job_failure"),
+            DT::DTOutput("per_bucket_job_failure_table")
+          )
+        )
       ) 
     } else {
       accordion_panel_update('myaccordion', target = 'job_failure_panel',
-        plotOutput("job_failure")
+        shinycssloaders::withSpinner(
+          plotOutput("job_failure")
+        )
       ) 
     }
   })
