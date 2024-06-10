@@ -31,20 +31,26 @@ get_bom_names <- function(con) {
   parse_elastic_single_agg(res)$key
 }
 
-get_accounting_names <- function(con, bom) {
-  b <- build_agg_query("ACCOUNTING_NAME", query = build_humgen_query(filters = build_humgen_filters(BOM = bom)))
+get_accounting_names <- function(con, bom, date_range) {
+  b <- build_agg_query("ACCOUNTING_NAME", query = build_humgen_query(
+    filters = build_humgen_filters(
+      BOM = bom,
+      date_range = date_range
+    )
+  ))
 
   res <- Search(con, index = index, body = b, asdf = T)
 
   parse_elastic_single_agg(res)$key
 }
 
-get_user_names <- function(con, bom, accounting_name) {
+get_user_names <- function(con, bom, accounting_name, date_range) {
   b <- list(
     query = build_humgen_query(
       filters = build_humgen_filters(
         BOM = bom,
-        custom_filters = build_match_phrase_filter("ACCOUNTING_NAME", accounting_name)
+        custom_filters = build_match_phrase_filter("ACCOUNTING_NAME", accounting_name),
+        date_range = date_range
       )
     )
   )
@@ -157,9 +163,9 @@ ui <- page_sidebar(
 )
 
 server <- function(input, output, session) {
-  observeEvent(input$bom, {
-    req(input$bom)
-    accounting_names <- get_accounting_names(elastic_con, input$bom)
+  observeEvent(c(input$bom, input$period), {
+    req(input$bom, input$period)
+    accounting_names <- get_accounting_names(elastic_con, input$bom, input$period)
     team_names <- set_team_names(accounting_names, mapping = team_map)
 
     updateSelectInput(
@@ -168,12 +174,12 @@ server <- function(input, output, session) {
     )
   })
 
-  observeEvent(input$accounting_name, {
-    req(input$bom, input$accounting_name)
+  observeEvent(c(input$accounting_name, input$period), {
+    req(input$bom, input$accounting_name, input$period)
     if (input$accounting_name == 'all') {
        user_names <- ""
     } else {
-      user_names <- get_user_names(elastic_con, input$bom, input$accounting_name)
+      user_names <- get_user_names(elastic_con, input$bom, input$accounting_name, input$period)
       if (length(user_names) > 1){
         user_names <- c('all', user_names)
       }
