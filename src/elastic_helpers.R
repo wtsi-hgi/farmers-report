@@ -3,6 +3,9 @@ library(dplyr)
 source("src/constants.R")
 
 format_elastic_date_range <- function(date_range) {
+  if (!isa(date_range, "Date")) {
+    stop("Please provide the date as a Date object")
+  }
   # adding a day to lte value to include the records from the last day
   date_range[2] <- date_range[2] + 1
   strftime(date_range, format = "%Y-%m-%dT%H:%M:%SZ")
