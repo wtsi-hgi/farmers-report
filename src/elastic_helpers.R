@@ -3,15 +3,16 @@ library(dplyr)
 source("src/constants.R")
 
 format_elastic_date_range <- function(date_range) {
+  if (!isa(date_range, "Date")) {
+    stop("Please provide the date as a Date object")
+  }
   # adding a day to lte value to include the records from the last day
   date_range[2] <- date_range[2] + 1
   strftime(date_range, format = "%Y-%m-%dT%H:%M:%SZ")
 }
 
-build_humgen_filters <- function (BOM = "Human Genetics", custom_filters = NULL, date_range = c("now-1w/d", "now/d")) {
-  if (all(!is.character(date_range))) {
-    date_range <- format_elastic_date_range(date_range)
-  }
+build_humgen_filters <- function (BOM = "Human Genetics", custom_filters = NULL, date_range = c(Sys.Date()-7, Sys.Date())) {
+  date_range <- format_elastic_date_range(date_range)
   
   filters <- list(
     list(

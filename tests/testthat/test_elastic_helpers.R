@@ -131,12 +131,19 @@ test_that('parse_elastic_multi_agg works', {
 })
 
 test_that('format_elastic_date_range works', {
+  # with valid input
   test_date_range <- as.Date(c("2024-01-01", "2024-01-05"))
 
   formatted_date_range <- format_elastic_date_range(test_date_range)
   expected_data_range <- c("2024-01-01T00:00:00Z", "2024-01-06T00:00:00Z")
 
   expect_equal(formatted_date_range, expected_data_range)
+
+  # with string date input
+  expect_error(
+    format_elastic_date_range(date_range = c("now-1w/d", "now/d")),
+    "Please provide the date as a Date object"
+  )
 })
 
 test_that("build_match_phrase_filter works", {
