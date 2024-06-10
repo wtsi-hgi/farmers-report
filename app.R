@@ -3,7 +3,7 @@ library(bslib)
 library(elastic)
 library(ggplot2)
 library(dplyr)
-loadNamespace(shinycssloaders)
+loadNamespace('shinycssloaders')
 
 source('src/table_helpers.R')
 source('src/elastic_helpers.R')
