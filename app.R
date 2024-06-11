@@ -106,6 +106,10 @@ ui <- page_sidebar(
       start = Sys.Date() - 30,
       end = NULL,
       weekstart = 1
+    ),
+    selectInput(
+      "time_bucket", "Time Bucket",
+      choices = c("none", "day", "week", "month")
     )
   ),
   accordion(
@@ -310,9 +314,18 @@ server <- function(input, output, session) {
     make_dt(dt, table_view_opts = 'ftp')
   })
 
+  gpu_records <- reactive({
+    get_gpu_records(elastic_con, query = elastic_query())
+  })
+
   output$gpu_statistics <- DT::renderDT({
-    dt <- get_gpu_statistics(elastic_con, query = elastic_query())
+    dt <- generate_gpu_statistics(gpu_records())
     make_dt(dt, table_view_opts = 'ftp')
+  })
+
+  output$gpu_plot <- renderPlot({
+    if(input$time_bucket != "none")
+      generate_gpu_plot(gpu_records(), time_bucket = input$time_bucket)
   })
 
   selected_user <- reactive({
@@ -323,7 +336,10 @@ server <- function(input, output, session) {
     if (selected_user() == 'all') {
       accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
         shinycssloaders::withSpinner(
-          DT::DTOutput("gpu_statistics")
+          tagList(
+            DT::DTOutput("gpu_statistics"),
+            plotOutput("gpu_plot")
+          )
         )
       )
     } else {

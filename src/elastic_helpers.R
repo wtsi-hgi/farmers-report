@@ -180,3 +180,7 @@ scroll_elastic <- function (con, body, fields) {
 
   return(df)
 }
+
+validate_time_bucket <- function(time_bucket) {
+  match.arg(time_bucket, choices = c(time_buckets, "none"))
+}

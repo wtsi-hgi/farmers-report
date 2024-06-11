@@ -1,5 +1,8 @@
 library(elastic)
 library(dplyr)
+library(tsibble)
+loadNamespace('lubridate')
+
 
 source("src/elastic_helpers.R")
 source("src/table_helpers.R")
@@ -147,7 +150,7 @@ parse_job_type <- function (job_name) {
   return('other')
 }
 
-get_gpu_statistics <- function(con, query) {
+get_gpu_records <- function(con, query) {
   queue_filter <- list(
     "prefix" = list("QUEUE_NAME" = "gpu")
   )
@@ -156,10 +159,12 @@ get_gpu_statistics <- function(con, query) {
   df <- scroll_elastic(
     con = con,
     body = list(query = query),
-    fields = c('USER_NAME', 'QUEUE_NAME', 'Job', 'PENDING_TIME_SEC', 'RUN_TIME_SEC')
+    fields = c('timestamp', 'JOB_ID', 'USER_NAME', 'QUEUE_NAME', 'Job', 'PENDING_TIME_SEC', 'RUN_TIME_SEC')
   )
 
-  dt <- generate_gpu_statistics(df)
+  df$timestamp = lubridate::as_datetime(df$timestamp)
+
+  return(df)
 }
 
 generate_gpu_statistics <- function(df) {
@@ -172,4 +177,32 @@ generate_gpu_statistics <- function(df) {
       median_run_time = median(RUN_TIME_SEC),
       .groups = 'drop'
     )
+}
+
+index_by_custom <- function(df, time_bucket) {
+  validate_time_bucket(time_bucket)
+
+  if(time_bucket == 'day')
+    dt <- index_by(df, date = ~ as.Date(.))
+  
+  if(time_bucket == 'week')
+    dt <- index_by(df, date = ~ yearweek(.))
+
+  if(time_bucket == 'month')
+    dt <- index_by(df, date = ~ yearmonth(.))
+  
+  return(dt)
+}
+
+generate_gpu_plot <- function(df, time_bucket, metric = PENDING_TIME_SEC) {
+  colname <- paste(rlang::enquo(metric), "median", sep = "_")[2]
+  # Warning: Error in validate_tsibble: A valid tsibble must have distinct rows identified by key and index.
+  dt <- df %>%
+    as_tsibble(key = JOB_ID, index = timestamp) %>%
+    # group_by_key() %>%
+    group_by(USER_NAME) %>%
+    index_by_custom(time_bucket = time_bucket) %>%
+    summarise(!!colname := median({{metric}}))
+
+  ggplot(dt, aes(x = date, y = .data[[colname]], fill = USER_NAME)) + geom_bar(stat = 'identity') + theme_bw()
 }

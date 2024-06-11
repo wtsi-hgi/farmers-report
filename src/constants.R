@@ -29,3 +29,5 @@ If process allocates only 1 cpu and uses a fraction of it, we still consider it 
 However it would be difficult to optimize that process.
 Let's assume that successful processes requiring 1 cpu do not waste cpu.
 "
+
+time_buckets <- c("day", "week", "month")
