@@ -183,7 +183,7 @@ server <- function(input, output, session) {
   observeEvent(c(input$accounting_name, input$period), {
     req(input$bom, input$accounting_name, input$period)
     if (input$accounting_name == 'all') {
-       user_names <- ""
+       user_names <- c("Select a group" = "")
     } else {
       user_names <- get_user_names(elastic_con, input$bom, input$accounting_name, input$period)
       if (length(user_names) > 1){
@@ -325,7 +325,7 @@ server <- function(input, output, session) {
   })
 
   observe({
-    if (input$user_name == 'all') {
+    if (selected_user() == 'all') {
       accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
         shinycssloaders::withSpinner(
           DT::DTOutput("gpu_statistics")
@@ -336,7 +336,9 @@ server <- function(input, output, session) {
         "To see user-by-user GPU statistics please pick a LSF Group and select User='all' in the left panel"
       )
     }
+  })
 
+  observe({
     if (input$accounting_name == 'all' || input$user_name == 'all') {
       accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
         shinycssloaders::withSpinner(
