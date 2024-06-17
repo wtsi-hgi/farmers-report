@@ -324,6 +324,10 @@ server <- function(input, output, session) {
     make_dt(dt, table_view_opts = 'ftp')
   })
 
+  selected_user <- reactive({
+    ifelse(input$accounting_name == 'all', '', input$user_name)
+  })
+
   observe({
     if (selected_user() == 'all') {
       accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
