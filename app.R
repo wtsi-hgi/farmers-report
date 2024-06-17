@@ -168,9 +168,15 @@ server <- function(input, output, session) {
     accounting_names <- get_accounting_names(elastic_con, input$bom, input$period)
     team_names <- set_team_names(accounting_names, mapping = team_map)
 
+    selected_accounting_name <- isolate(input$accounting_name)
+    if (!(selected_accounting_name %in% team_names)) {
+      selected_accounting_name = 'all'
+    }
+
     updateSelectInput(
       inputId = "accounting_name",
-      choices = c('all', team_names)
+      choices = c('all', team_names),
+      selected = selected_accounting_name
     )
   })
 
@@ -185,9 +191,15 @@ server <- function(input, output, session) {
       }
     }
 
+    selected_user_name <- isolate(input$user_name)
+    if (!(selected_user_name %in% user_names)) {
+      selected_user_name = user_names[1]
+    }
+
     updateSelectInput(
       inputId = "user_name",
-      choices = user_names
+      choices = user_names,
+      selected = selected_user_name
     )
   })
 
