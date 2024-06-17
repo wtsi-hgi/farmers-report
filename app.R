@@ -168,16 +168,22 @@ server <- function(input, output, session) {
     accounting_names <- get_accounting_names(elastic_con, input$bom, input$period)
     team_names <- set_team_names(accounting_names, mapping = team_map)
 
+    selected_accounting_name <- isolate(input$accounting_name)
+    if (!(selected_accounting_name %in% team_names)) {
+      selected_accounting_name = 'all'
+    }
+
     updateSelectInput(
       inputId = "accounting_name",
-      choices = c('all', team_names)
+      choices = c('all', team_names),
+      selected = selected_accounting_name
     )
   })
 
   observeEvent(c(input$accounting_name, input$period), {
     req(input$bom, input$accounting_name, input$period)
     if (input$accounting_name == 'all') {
-       user_names <- ""
+       user_names <- c("Select a group" = "")
     } else {
       user_names <- get_user_names(elastic_con, input$bom, input$accounting_name, input$period)
       if (length(user_names) > 1){
@@ -185,9 +191,15 @@ server <- function(input, output, session) {
       }
     }
 
+    selected_user_name <- isolate(input$user_name)
+    if (!(selected_user_name %in% user_names)) {
+      selected_user_name = user_names[1]
+    }
+
     updateSelectInput(
       inputId = "user_name",
-      choices = user_names
+      choices = user_names,
+      selected = selected_user_name
     )
   })
 
@@ -312,8 +324,12 @@ server <- function(input, output, session) {
     make_dt(dt, table_view_opts = 'ftp')
   })
 
+  selected_user <- reactive({
+    ifelse(input$accounting_name == 'all', '', input$user_name)
+  })
+
   observe({
-    if (input$user_name == 'all') {
+    if (selected_user() == 'all') {
       accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
         shinycssloaders::withSpinner(
           DT::DTOutput("gpu_statistics")
@@ -324,7 +340,9 @@ server <- function(input, output, session) {
         "To see user-by-user GPU statistics please pick a LSF Group and select User='all' in the left panel"
       )
     }
+  })
 
+  observe({
     if (input$accounting_name == 'all' || input$user_name == 'all') {
       accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
         shinycssloaders::withSpinner(
