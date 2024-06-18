@@ -30,7 +30,7 @@ get_bom_names <- function(con) {
 
   res <- Search(con, index = index, body = b, asdf = T)
 
-  parse_elastic_single_agg(res)$key
+  parse_elastic_agg(res, b)$key
 }
 
 get_accounting_names <- function(con, bom, date_range) {
@@ -43,7 +43,7 @@ get_accounting_names <- function(con, bom, date_range) {
 
   res <- Search(con, index = index, body = b, asdf = T)
 
-  parse_elastic_single_agg(res)$key
+  parse_elastic_agg(res, b)$key
 }
 
 get_user_names <- function(con, bom, accounting_name, date_range) {
@@ -61,14 +61,14 @@ get_user_names <- function(con, bom, accounting_name, date_range) {
   unique(df$USER_NAME)
 }
 
-generate_efficiency <- function (input, con, query, adjust, team_statistics) {
+generate_efficiency <- function (input, con, query, adjust, team_statistics, time_bucket) {
   req(input$accounting_name)
   if (input$accounting_name != 'all') {
     req(input$user_name)
   }
 
   if (input$accounting_name == 'all') {
-    dt <- get_bom_statistics(con, query = query, adjust = adjust)
+    dt <- get_bom_statistics(con, query = query, adjust = adjust, time_bucket)
   } else {
     if (input$user_name == 'all') {
       if (adjust){
@@ -82,6 +82,12 @@ generate_efficiency <- function (input, con, query, adjust, team_statistics) {
   }
 
   make_dt(dt, table_view_opts = 'ftp')
+}
+
+generate_efficiency_plot <- function(input, con, query, adjust, team_statistics) {
+  dt <- get_bom_statistics(con, query = query, adjust = adjust, time_bucket)
+  make_plot(dt)
+
 }
 
 ui <- page_sidebar(
@@ -233,7 +239,7 @@ server <- function(input, output, session) {
 
       res <- Search(elastic_con, index = index, body = b, asdf = T)
 
-      parse_elastic_multi_agg(res, column_names = c('accounting_name', 'job_status')) %>%
+      parse_elastic_agg(res, b) %>%
         rename_group_column() -> df
 
     } else {
@@ -259,7 +265,7 @@ server <- function(input, output, session) {
 
     res <- Search(elastic_con, index = index, body = b, asdf = T)
 
-    df <- parse_elastic_single_agg(res) %>%
+    df <- parse_elastic_agg(res, b) %>%
       mutate_for_piechart()
 
     piechart(df, count_field = 'doc_count', key_field = 'key', legend_name = 'Job status')
@@ -292,7 +298,16 @@ server <- function(input, output, session) {
   })
 
   output$unadjusted_efficiency <-  DT::renderDT({
-    generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), team_statistics = team_statistics)
+    summarise_time_buckets(df = unadjusted_efficiency_table())
+  })
+
+  unadjusted_efficiency_table <- reactive({
+    generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), team_statistics = team_statistics, time_bucket = input$time_bucket)
+  })
+
+  output$unadjusted_efficiency_plot <- renderPlot({
+    if(input$time_bucket != "none")
+      generate_efficiency_plot(df = unadjusted_efficiency_table())
   })
 
   output$adjustments_explanation <- renderText({

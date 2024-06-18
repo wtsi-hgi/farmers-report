@@ -31,3 +31,14 @@ Let's assume that successful processes requiring 1 cpu do not waste cpu.
 "
 
 time_buckets <- c("day", "week", "month")
+
+elastic_column_map <- c(
+  'cpu_avail_sec' = 'AVAIL_CPU_TIME_SEC',
+  'mem_avail_mb_sec' = 'MEM_REQUESTED_MB_SEC',
+  'mem_wasted_mb_sec' = 'WASTED_MB_SECONDS',
+  'cpu_wasted_sec' = 'WASTED_CPU_SECONDS',
+  'procs' = 'NUM_EXEC_PROCS',
+  'job_status' = 'Job',
+  'job_name' = 'JOB_NAME',
+  'accounting_name' = 'ACCOUNTING_NAME'
+)
