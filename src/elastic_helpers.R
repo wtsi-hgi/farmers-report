@@ -2,6 +2,10 @@ library(dplyr)
 
 source("src/constants.R")
 
+rename_raw_elastic_fields <- function (df, map = elastic_column_map) {
+  rename(df, any_of(map))
+}
+
 format_elastic_date_range <- function(date_range) {
   if (!isa(date_range, "Date")) {
     stop("Please provide the date as a Date object")
@@ -69,6 +73,24 @@ wasted_cost_agg <- list(
   )
 )
 
+new_elastic_agg_query <- function(x, nests){
+  structure(
+    x, 
+    class = c("list", "elastic_agg_query"), 
+    nest_levels = length(nests),
+    nests = nests
+  )
+}
+
+new_elastic_agg <- function(type, ...){
+  structure(
+    list(),
+    class = "elastic_agg",
+    type = type,
+    ...
+  )
+}
+
 # creates elastic query body object to aggregate over single field
 build_agg_query <- function(field, query = humgen_query) {
   b <- list(
@@ -83,11 +105,13 @@ build_agg_query <- function(field, query = humgen_query) {
     "size" = 0,
     "query" = query
   )
-  return(b)
+  return(
+    new_elastic_agg_query(b, nests = list(new_elastic_agg('terms', fields = field)))
+  )
 }
 
 # creates elastic query body object to aggregate over multiple fields
-build_terms_query <- function(fields, aggs = NULL, query = humgen_query) {
+build_terms_query <- function(fields, aggs = NULL, query = humgen_query, time_bucket) {
   terms <- lapply(fields, function(field){
     list("field" = field)
   })
@@ -105,6 +129,11 @@ build_terms_query <- function(fields, aggs = NULL, query = humgen_query) {
     "size" = 0,
     "query" = query
   )
+
+  nests = list(new_elastic_agg('multi_terms', fields = fields))
+  if(!is.null(aggs)) nests <- append(nests, list(new_elastic_agg('compute')))
+
+  new_elastic_agg_query(b, nests = nests)
 }
 
 build_elastic_sub_agg <- function (field, agg_fun) {
@@ -151,20 +180,83 @@ pull_everything <- function(connection, response) {
 }
 
 # returns data.frame from the elastic response object for single-field aggregation
-parse_elastic_single_agg <- function (response) {
-  response$aggregations$stats$buckets %>%
-    arrange(key)
-}
+# parse_elastic_single_agg <- function (response) {
+#   response$aggregations$stats$buckets %>%
+#     arrange(key)
+# }
 
 # returns data.frame from the elastic response object for multi-fields aggregation
 # column_names is a vector of column names corresponding to the aggregation fields
-parse_elastic_multi_agg <- function (response, column_names) {
-  rule <- setNames(seq_along(column_names), column_names)
-  response$aggregations$stats$buckets %>%
-    select(-key_as_string) %>%
-    tidyr::hoist(.col = key, !!!rule) %>%
-    rename_all(~gsub('.value', '', .))
+# parse_elastic_multi_agg <- function (response, column_names) {
+#   rule <- setNames(seq_along(column_names), column_names)
+#   response$aggregations$stats$buckets %>%
+#     select(-key_as_string) %>%
+#     tidyr::hoist(.col = key, !!!rule) %>%
+#     rename_all(~gsub('.value', '', .))
+# }
+
+parse_elastic_agg <- function(response, request, df = data.frame(), nest_level = 1) {
+  stopifnot(inherits(request, 'elastic_agg_query'))
+
+  levels <- attr(request, 'nest_levels')
+  nests <- attr(request, 'nests')
+
+  nest = nests[[nest_level]]
+
+  if(nest_level == 1){
+    df <- response$aggregations$stats$buckets 
+  }
+
+  if(attr(nest, 'type') == 'terms'){
+
+    df <- arrange(df, key)
+
+  } else if(attr(nest, 'type') == 'multi_terms') {
+
+    fields <- attr(nest, 'fields')
+    rule <- setNames(seq_along(fields), fields)
+    df <- df %>%
+      select(-key_as_string) %>%
+      tidyr::hoist(.col = key, !!!rule)
+
+  } else if(attr(nest, 'type') == 'compute'){
+
+    df <- df %>%
+      rename_all(~gsub('.value', '', .))
+
+  } else {
+
+    stop("Not implemented level1 except for terms and multi_terms and compute")
+
+  }
+  
+  if (nest_level < levels){
+
+    df <- parse_elastic_agg(response = NULL, request = request, df = df, nest_level = nest_level + 1)
+
+  } 
+
+  df <- rename_raw_elastic_fields(df)
+  return(df)
 }
+
+# parse_elastic_nested_agg <- function(parse_function, parse_function_nested) {
+
+#   level1_nest = ...
+#   level2_nest = ...
+
+#   parse_function(level1_nest)
+#   parse_function_nested(level2_nest)
+
+#   merge_nests...
+
+# }
+
+# parse_elastic_nested_agg(
+#   parse_function = ~parse_elastic_multi_agg(...),
+#   parse_function_nested = ~parse_elastic_single_agg(...)
+# )
+
 
 scroll_elastic <- function (con, body, fields) {
   res <- Search(

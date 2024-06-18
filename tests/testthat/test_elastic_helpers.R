@@ -20,8 +20,59 @@ fake_elastic_response <- list(
   )
 )
 
+fake_elastic_single_agg_request <- new_elastic_agg_query(
+  list(
+    "aggs" = list(
+        "stats" = list(
+          "terms" = list(
+            "field" = "Job",
+            "size" = 1000
+          )
+        )
+      ),
+      "size" = 0
+  ),
+  nests = list(new_elastic_agg('terms', fields = "Job"))
+)
+
+# fake_elastic_multi_agg_request <- new_elastic_agg_query(
+#   list(
+#     "aggs" = list(
+#         "stats" = list(
+#           "terms" = list(
+#             "field" = "Job",
+#             "size" = 1000
+#           ),
+#           "aggs" = list(
+#             "cpu_avail_sec" = list(
+#               "sum" = list(
+#                 "field" = "AVAIL_CPU_TIME_SEC"
+#               )
+#             )
+#           )
+#         )
+#       ),
+#       "size" = 0
+#   ),
+#   nests = list(new_elastic_agg('terms', fields = "Job"), new_elastic_agg('compute'))
+# )
+
 fake_elastic_single_agg_response <- list(
   aggregations = list(stats = list(buckets = data.frame(key = 1:3)))
+)
+
+fake_elastic_multi_agg_request <- new_elastic_agg_query(
+  list(
+    "aggs" = list(
+      "stats" = list(
+        "multi_terms" = list(
+          "terms" = terms,
+          "size" = 1000
+        )
+      )
+    )
+  ), 
+  nests = list(new_elastic_agg('multi_terms', fields = c("field1", "field2")))
 )
 
 fake_elastic_multi_agg_response <- list(
@@ -114,21 +165,30 @@ test_that('build_humgen_query works', {
   expect_named(q$bool$filter, NULL)
 })
 
-test_that('parse_elastic_single_agg works', {
-  df <- parse_elastic_single_agg(fake_elastic_single_agg_response)
+test_that('parse_elastic_agg works', {
+  # nest level 1
+  df <- parse_elastic_agg(fake_elastic_single_agg_response, fake_elastic_single_agg_request)
 
-  expect_s3_class(df,'data.frame')
+  expect_s3_class(df, 'data.frame')
   expect_named(df, "key")
-})
 
-test_that('parse_elastic_multi_agg works', {
+  # nest level 2
   field_names <- c('field1', 'field2')
-  df <- parse_elastic_multi_agg(fake_elastic_multi_agg_response, column_names = field_names)
+  df <- parse_elastic_agg(fake_elastic_multi_agg_response, fake_elastic_multi_agg_request)
 
   expect_s3_class(df,'data.frame')
   expect_named(df, field_names)
   expect_equal(nrow(df), 3)
 })
+
+# test_that('parse_elastic_multi_agg works', {
+#   field_names <- c('field1', 'field2')
+#   df <- parse_elastic_multi_agg(fake_elastic_multi_agg_response, column_names = field_names)
+
+#   expect_s3_class(df,'data.frame')
+#   expect_named(df, field_names)
+#   expect_equal(nrow(df), 3)
+# })
 
 test_that('format_elastic_date_range works', {
   # with valid input

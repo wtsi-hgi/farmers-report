@@ -20,15 +20,6 @@ column_rename <- c(
   'Median Run Time' = 'median_run_time'
 )
 
-elastic_column_map <- c(
-  'cpu_avail_sec' = 'AVAIL_CPU_TIME_SEC',
-  'mem_avail_mb_sec' = 'MEM_REQUESTED_MB_SEC',
-  'mem_wasted_mb_sec' = 'WASTED_MB_SECONDS',
-  'cpu_wasted_sec' = 'WASTED_CPU_SECONDS',
-  'procs' = 'NUM_EXEC_PROCS',
-  'job_status' = 'Job'
-)
-
 team_map <- tibble::enframe(
   c(
     'team152' = 'Anderson group',
@@ -115,10 +106,6 @@ generate_app_wastage_statistics <- function(df, adjust = TRUE) {
     group_by(job_status) %>%
     generate_efficiency_stats() %>%
     select(job_status, cpu_avail_hrs, cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost)
-}
-
-rename_raw_elastic_fields <- function (df, map = elastic_column_map) {
-  rename(df, !!!map)
 }
 
 generate_wasted_cost <- function (df) {
