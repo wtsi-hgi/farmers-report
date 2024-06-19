@@ -30,7 +30,7 @@ get_bom_names <- function(con) {
 
   res <- Search(con, index = index, body = b, asdf = T)
 
-  parse_elastic_agg(res, b)$key
+  parse_elastic_agg(res, b)$BOM
 }
 
 get_accounting_names <- function(con, bom, date_range) {
@@ -43,8 +43,7 @@ get_accounting_names <- function(con, bom, date_range) {
 
   res <- Search(con, index = index, body = b, asdf = T)
 
-  parse_elastic_agg(res, b)$key
-}
+  parse_elastic_agg(res, b)$accounting_name
 
 get_user_names <- function(con, bom, accounting_name, date_range) {
   b <- list(
