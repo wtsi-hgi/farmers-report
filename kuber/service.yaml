@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: farmer-service
+spec:
+  selector:
+    app.kubernetes.io/name: farmer-dashboard
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: farmer-port
+  type: LoadBalancer

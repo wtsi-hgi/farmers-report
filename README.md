@@ -31,3 +31,16 @@ To run tests inside a container
 ```bash
 docker run --rm -v $(pwd):/code -w /code mercury/farmers-report:latest Rscript /code/tests/testthat.R
 ```
+
+To deploy app on Kubernetes
+```bash
+kubectl apply -f kuber/deployment.yaml
+kubectl apply -f kuber/service.yaml
+aws s3 cp s3://my-secure-bucket/secrets.yaml ./secret.yaml
+kubectl apply -f secret.yaml
+```
+
+To update Kubernetes deployment
+```bash
+kubectl rollout restart deployment/my-deployment
+```
