@@ -90,16 +90,73 @@ new_elastic_agg <- function(type, fields = NULL, ...){
   )
 }
 
+build_terms_agg <- function(field, size = 1000) {
+  b <- list(
+    "terms" = list(
+      "field" = field,
+      "size" = size
+    )
+  )
+}
+
+build_multi_terms_agg <- function(fields, size = 1000) {
+  terms <- lapply(fields, function(field){
+    list("field" = field)
+  })
+
+  b <- list(
+    "multi_terms" = list(
+      "terms" = terms,
+      "size" = size
+    )
+  )
+}
+
+# build_elasic_agg(
+#   aggs = list(
+#     build_terms_agg('USER_NAME'),
+#     build_multi_terms_agg('BOM', 'Job')
+#   )
+# )
+
+build_elasic_agg <- function(aggs, query = humgen_query, b = list(), level = length(aggs)) {
+  stat_name <- paste0("stats", ifelse(level == 1, '', level))
+  agg <- aggs[[level]]
+
+  content <- list(append(agg, b))
+  names(content) <- stat_name
+  a <- list(
+    "aggs" = content
+  )
+
+  if (level == 1){
+
+    b <- append(
+      a, 
+      list(size = 0, query = query)
+    )
+
+  } else {
+
+    b <- build_elasic_agg(aggs, query = query, b = a, level = level - 1)
+
+  }
+
+  return(b)
+}
+
+build_elasic_agg(
+  aggs = list(
+    build_terms_agg('USER_NAME'),
+    build_multi_terms_agg('BOM', 'Job')
+  )
+)
+
 # creates elastic query body object to aggregate over single field
 build_agg_query <- function(field, query = humgen_query) {
   b <- list(
     "aggs" = list(
-      "stats" = list(
-        "terms" = list(
-          "field" = field,
-          "size" = 1000
-        )
-      )
+      "stats" = build_terms_agg(field)
     ),
     "size" = 0,
     "query" = query
@@ -110,19 +167,12 @@ build_agg_query <- function(field, query = humgen_query) {
 }
 
 # creates elastic query body object to aggregate over multiple fields
-build_terms_query <- function(fields, aggs = NULL, query = humgen_query, time_bucket) {
-  terms <- lapply(fields, function(field){
-    list("field" = field)
-  })
-
+build_terms_query <- function(fields, aggs = NULL, query = humgen_query, time_bucket = 'none') {
   b <- list(
     "aggs" = list(
-      "stats" = list(
-        "multi_terms" = list(
-          "terms" = terms,
-          "size" = 1000
-        ),
-        "aggs" = aggs
+      "stats" = append(
+        build_multi_terms_agg(fields),
+        list("aggs" = aggs)
       )
     ),
     "size" = 0,
