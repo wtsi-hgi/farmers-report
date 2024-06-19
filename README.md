@@ -21,3 +21,13 @@ To calculate the coverage
 Rscript tests/covr.R
 ```
 The coverage reports can be found in reports/ directory.
+
+To build a Docker image
+```bash
+docker build -t mercury/farmers-report:latest .
+```
+
+To run tests inside a container
+```bash
+docker run --rm -v $(pwd):/code -w /code mercury/farmers-report:latest Rscript /code/tests/testthat.R
+```
