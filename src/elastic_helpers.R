@@ -82,11 +82,12 @@ new_elastic_agg_query <- function(x, nests){
   )
 }
 
-new_elastic_agg <- function(type, fields = NULL, ...){
-  list(
+new_elastic_agg <- function(x, type, fields = NULL){
+  structure(
+    x,
+    class = c('list', 'elastic_agg'),
     type = type,
-    fields = fields,
-    ...
+    fields = fields
   )
 }
 
@@ -97,6 +98,7 @@ build_terms_agg <- function(field, size = 1000) {
       "size" = size
     )
   )
+  new_elastic_agg(b, type = 'terms', fields = field)
 }
 
 build_multi_terms_agg <- function(fields, size = 1000) {
@@ -110,47 +112,51 @@ build_multi_terms_agg <- function(fields, size = 1000) {
       "size" = size
     )
   )
+
+  new_elastic_agg(b, type = 'multi_terms', fields = fields)
 }
 
-# build_elasic_agg(
-#   aggs = list(
-#     build_terms_agg('USER_NAME'),
-#     build_multi_terms_agg('BOM', 'Job')
-#   )
-# )
+build_date_agg <- function(interval, field = 'timestamp') {
+  b <- list(
+    "date_histogram" = list(
+      "field" = field,
+      "calendar_interval" = interval,
+      "format" = "yyyy-MM-dd"
+    )
+  )
+  new_elastic_agg(b, type = 'date', fields = field)
+}
 
 build_elasic_agg <- function(aggs, query = humgen_query, b = list(), level = length(aggs)) {
   stat_name <- paste0("stats", ifelse(level == 1, '', level))
   agg <- aggs[[level]]
 
-  content <- list(append(agg, b))
-  names(content) <- stat_name
-  a <- list(
-    "aggs" = content
-  )
+  if (all(names(agg) %in% elastic_bucket_aggregations)) {
 
-  if (level == 1){
+    content <- list(append(agg, b))
+    names(content) <- stat_name
 
-    b <- append(
-      a, 
+  } else {
+    content <- append(agg, b)
+  }
+
+  b <- list("aggs" = content)
+
+  if (level == 1) {
+
+    result <- append(
+      b,
       list(size = 0, query = query)
     )
 
   } else {
-
-    b <- build_elasic_agg(aggs, query = query, b = a, level = level - 1)
-
+    result <- build_elasic_agg(aggs, query = query, b = b, level = level - 1)
   }
 
-  return(b)
-}
-
-build_elasic_agg(
-  aggs = list(
-    build_terms_agg('USER_NAME'),
-    build_multi_terms_agg('BOM', 'Job')
+  return(
+    new_elastic_agg_query(result, nests = aggs)
   )
-)
+}
 
 # creates elastic query body object to aggregate over single field
 build_agg_query <- function(field, query = humgen_query) {
@@ -162,7 +168,7 @@ build_agg_query <- function(field, query = humgen_query) {
     "query" = query
   )
   return(
-    new_elastic_agg_query(b, nests = list(new_elastic_agg('terms', fields = field)))
+    new_elastic_agg_query(b, nests = list(new_elastic_agg(list(), type = 'terms', fields = field)))
   )
 }
 
@@ -179,8 +185,8 @@ build_terms_query <- function(fields, aggs = NULL, query = humgen_query, time_bu
     "query" = query
   )
 
-  nests = list(new_elastic_agg('multi_terms', fields = fields))
-  if(!is.null(aggs)) nests <- append(nests, list(new_elastic_agg('compute')))
+  nests = list(new_elastic_agg(list(), type = 'multi_terms', fields = fields))
+  if(!is.null(aggs)) nests <- append(nests, list(new_elastic_agg(list(), type = 'compute')))
 
   new_elastic_agg_query(b, nests = nests)
 }
@@ -231,37 +237,38 @@ parse_elastic_agg <- function(response, request, df = data.frame(), nest_level =
   levels <- attr(request, 'nest_levels')
   nests <- attr(request, 'nests')
 
-  nest = nests[[nest_level]]
+  nest <- nests[[nest_level]]
+  nest_type <- attr(nest, 'type')
+  nest_field <- attr(nest, 'fields')
 
   if(nest_level == 1){
     df <- response$aggregations$stats$buckets 
   } else {
-    if (nest$type == 'multi_terms') {
+    if (nest_type == 'multi_terms') {
       stat_name <- paste0('stats', nest_level) 
       df <- tidyr::unnest(df, cols = all_of(stat_name))
     }
   }
 
-  if(nest$type == 'terms'){
+  if(nest_type == 'terms'){
 
-    field <- nest$fields
-    df <- arrange(df, key) %>% rename(!!field := key)
+    df <- arrange(df, key) %>% rename(!!nest_field := key)
 
-  } else if(nest$type == 'multi_terms') {
+  } else if(nest_type == 'multi_terms') {
 
-    rule <- setNames(seq_along(nest$fields), nest$fields)
+    rule <- setNames(seq_along(nest_field), nest_field)
     df <- df %>%
       select(-key_as_string) %>%
       tidyr::hoist(.col = key, !!!rule)
 
-  } else if(nest$type == 'compute'){
+  } else if(nest_type == 'compute'){
 
     df <- df %>%
       rename_all(~gsub('.value', '', .))
 
   } else {
 
-    stop("Not implemented level1 except for terms and multi_terms and compute")
+    stop("Parser for ", nest_type, " is not implemented. Use terms/multi_terms/compute")
 
   }
   

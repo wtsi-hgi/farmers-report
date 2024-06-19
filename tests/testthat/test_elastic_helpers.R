@@ -32,7 +32,7 @@ fake_elastic_single_agg_request <- new_elastic_agg_query(
       ),
       "size" = 0
   ),
-  nests = list(new_elastic_agg('terms', fields = "Job"))
+  nests = list(new_elastic_agg(list(), type = 'terms', fields = "Job"))
 )
 
 fake_elastic_single_agg_response <- list(
@@ -61,7 +61,10 @@ fake_elastic_nested_multi_agg_request <- new_elastic_agg_query(
       ),
       "size" = 0
   ),
-  nests = list(new_elastic_agg('multi_terms', fields = c("Job", "ACCOUNTING_NAME")), new_elastic_agg('compute'))
+  nests = list(
+    new_elastic_agg(list(), type = 'multi_terms', fields = c("Job", "ACCOUNTING_NAME")),
+    new_elastic_agg(list(), type = 'compute')
+  )
 )
 
 fake_elastic_nested_multi_agg_response <- list(
@@ -98,7 +101,10 @@ fake_elastic_nested_agg_request <- new_elastic_agg_query(
       ),
       "size" = 0
   ),
-  nests = list(new_elastic_agg('terms', fields = "BOM"), new_elastic_agg('multi_terms', fields = c("Job", "ACCOUNTING_NAME")))
+  nests = list(
+    new_elastic_agg(list(), type = 'terms', fields = "BOM"),
+    new_elastic_agg(list(), type = 'multi_terms', fields = c("Job", "ACCOUNTING_NAME"))
+  )
 )
 
 fake_elastic_nested_agg_response <- list(
@@ -122,7 +128,7 @@ fake_elastic_multi_agg_request <- new_elastic_agg_query(
       )
     )
   ), 
-  nests = list(new_elastic_agg('multi_terms', fields = c("field1", "field2")))
+  nests = list(new_elastic_agg(list(), type = 'multi_terms', fields = c("field1", "field2")))
 )
 
 fake_elastic_multi_agg_response <- list(

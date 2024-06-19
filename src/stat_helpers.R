@@ -31,9 +31,11 @@ build_bucket_aggregation_query <- function(fields, query) {
     "wasted_cost" = wasted_cost_agg
   )
 
-  b <- build_terms_query(
-    fields = fields,
-    aggs = custom_aggs,
+  b <- build_elasic_agg(
+    aggs = list(
+      build_multi_terms_agg(fields = fields),
+      new_elastic_agg(custom_aggs, type = 'compute')
+    ),
     query = query
   )
 }
