@@ -42,6 +42,7 @@ get_accounting_names <- function(con, bom, date_range) {
   res <- Search(con, index = index, body = b, asdf = T)
 
   parse_elastic_agg(res, b)$accounting_name
+}
 
 get_user_names <- function(con, bom, accounting_name, date_range) {
   b <- list(
@@ -276,7 +277,7 @@ server <- function(input, output, session) {
     df <- parse_elastic_agg(res, b) %>%
       mutate_for_piechart()
 
-    piechart(df, count_field = 'doc_count', key_field = 'key', legend_name = 'Job status')
+    piechart(df, count_field = 'doc_count', key_field = 'job_status', legend_name = 'Job status')
   })
 
   output$per_bucket_job_failure <- renderPlot({

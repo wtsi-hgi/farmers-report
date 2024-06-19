@@ -104,8 +104,8 @@ generate_bom_statistics <- function(df, adjust = TRUE) {
     left_join(ranks, by = 'accounting_name') -> dt
 }
 
-get_bom_statistics <- function (con, query, adjust = TRUE) {
-  b <- build_bom_aggregation(query)
+get_bom_statistics <- function (con, query, adjust = TRUE, time_bucket = 'none') {
+  b <- build_bom_aggregation(query, time_bucket)
   res <- Search(con, index = index, body = b, asdf = T)
 
   df <- parse_elastic_agg(res, b) %>%
