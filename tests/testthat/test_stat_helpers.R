@@ -55,21 +55,15 @@ test_that("build_user_statistics_query works", {
 })
 
 test_that("generate_user_statistics works", {
-  fake_elastic_response <- list(
-    aggregations = list(
-      stats = list(
-        buckets = tibble::tibble(
-          key = list(c("1", "Success"), c("2", "Failed")),
-          key_as_string = c('1|Success', '2|Failed'),
-          doc_count = c(10, 20),
-          mem_avail_mb_sec = c(500, 750),
-          mem_wasted_mb_sec = c(1000, 2000),
-          cpu_avail_sec = c (50, 75),
-          cpu_wasted_sec = c(100, 200),
-          wasted_cost = c(0.1, 0.2)
-        )
-      )
-    )
+  fake_df <- tibble::tibble(
+    procs = c(1, 2),
+    job_status = c("Success", "Failed"),
+    doc_count = c(10, 20),
+    mem_avail_mb_sec = c(500, 750),
+    mem_wasted_mb_sec = c(1000, 2000),
+    cpu_avail_sec = c (50, 75),
+    cpu_wasted_sec = c(100, 200),
+    wasted_cost = c(0.1, 0.2)
   )
 
   expected_columns <- c(
@@ -78,13 +72,13 @@ test_that("generate_user_statistics works", {
   )
 
   # with adjustment
-  dt <- generate_user_statistics(fake_elastic_response)
+  dt <- generate_user_statistics(fake_df)
   expect_s3_class(dt, 'data.frame')
   expect_named(dt, expected_columns)
   expect_true('Total' %in% dt$Reason)
 
   # without adjustment
-  dt <- generate_user_statistics(fake_elastic_response, adjust = FALSE)
+  dt <- generate_user_statistics(fake_df, adjust = FALSE)
   expect_s3_class(dt, 'data.frame')
   expect_named(dt, expected_columns)
 })

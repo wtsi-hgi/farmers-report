@@ -15,7 +15,11 @@ generate_efficiency_extra_stats <- list(
 get_user_statistics <- function (con, query, adjust = TRUE) {
   b <- build_user_statistics_query(query)
   res <- Search(con, index = index, body = b, asdf = T)
-  dt <- generate_user_statistics(res, adjust = adjust)
+
+  df <- parse_elastic_agg(res, b) %>%
+    select(-doc_count)
+
+  dt <- generate_user_statistics(df, adjust = adjust)
 }
 
 build_bucket_aggregation_query <- function(fields, query) {
@@ -41,10 +45,7 @@ build_user_statistics_query <- function(query) {
   )
 }
 
-generate_user_statistics <- function(res, adjust = TRUE) {
-  df <- parse_elastic_multi_agg(res, column_names = c('procs', 'job_status')) %>%
-    select(-doc_count)
-
+generate_user_statistics <- function(df, adjust = TRUE) {
   dt <- generate_app_wastage_statistics(df, adjust = adjust)
 
   dt_total <- generate_total_wastage_dt(dt)
@@ -107,7 +108,7 @@ get_bom_statistics <- function (con, query, adjust = TRUE) {
   b <- build_bom_aggregation(query)
   res <- Search(con, index = index, body = b, asdf = T)
 
-  df <- parse_elastic_multi_agg(res, column_names = c('accounting_name', 'procs', 'job_status')) %>%
+  df <- parse_elastic_agg(res, b) %>%
     select(-doc_count)
 
   generate_bom_statistics(df, adjust = adjust)
@@ -129,7 +130,7 @@ generate_job_statistics <- function (df) {
     rename_raw_elastic_fields() %>%
     adjust_statistics() %>%
     generate_wasted_cost() %>%
-    mutate(job_type = sapply(JOB_NAME, parse_job_type)) %>%
+    mutate(job_type = sapply(job_name, parse_job_type)) %>%
     group_by(job_type) %>%
     generate_efficiency_stats(
       extra_stats = generate_efficiency_extra_stats

@@ -82,11 +82,10 @@ new_elastic_agg_query <- function(x, nests){
   )
 }
 
-new_elastic_agg <- function(type, ...){
-  structure(
-    list(),
-    class = "elastic_agg",
+new_elastic_agg <- function(type, fields = NULL, ...){
+  list(
     type = type,
+    fields = fields,
     ...
   )
 }
@@ -179,22 +178,6 @@ pull_everything <- function(connection, response) {
   return(dt)
 }
 
-# returns data.frame from the elastic response object for single-field aggregation
-# parse_elastic_single_agg <- function (response) {
-#   response$aggregations$stats$buckets %>%
-#     arrange(key)
-# }
-
-# returns data.frame from the elastic response object for multi-fields aggregation
-# column_names is a vector of column names corresponding to the aggregation fields
-# parse_elastic_multi_agg <- function (response, column_names) {
-#   rule <- setNames(seq_along(column_names), column_names)
-#   response$aggregations$stats$buckets %>%
-#     select(-key_as_string) %>%
-#     tidyr::hoist(.col = key, !!!rule) %>%
-#     rename_all(~gsub('.value', '', .))
-# }
-
 parse_elastic_agg <- function(response, request, df = data.frame(), nest_level = 1) {
   stopifnot(inherits(request, 'elastic_agg_query'))
 
@@ -205,21 +188,26 @@ parse_elastic_agg <- function(response, request, df = data.frame(), nest_level =
 
   if(nest_level == 1){
     df <- response$aggregations$stats$buckets 
+  } else {
+    if (nest$type == 'multi_terms') {
+      stat_name <- paste0('stats', nest_level) 
+      df <- tidyr::unnest(df, cols = all_of(stat_name))
+    }
   }
 
-  if(attr(nest, 'type') == 'terms'){
+  if(nest$type == 'terms'){
 
-    df <- arrange(df, key)
+    field <- nest$fields
+    df <- arrange(df, key) %>% rename(!!field := key)
 
-  } else if(attr(nest, 'type') == 'multi_terms') {
+  } else if(nest$type == 'multi_terms') {
 
-    fields <- attr(nest, 'fields')
-    rule <- setNames(seq_along(fields), fields)
+    rule <- setNames(seq_along(nest$fields), nest$fields)
     df <- df %>%
       select(-key_as_string) %>%
       tidyr::hoist(.col = key, !!!rule)
 
-  } else if(attr(nest, 'type') == 'compute'){
+  } else if(nest$type == 'compute'){
 
     df <- df %>%
       rename_all(~gsub('.value', '', .))
@@ -239,24 +227,6 @@ parse_elastic_agg <- function(response, request, df = data.frame(), nest_level =
   df <- rename_raw_elastic_fields(df)
   return(df)
 }
-
-# parse_elastic_nested_agg <- function(parse_function, parse_function_nested) {
-
-#   level1_nest = ...
-#   level2_nest = ...
-
-#   parse_function(level1_nest)
-#   parse_function_nested(level2_nest)
-
-#   merge_nests...
-
-# }
-
-# parse_elastic_nested_agg(
-#   parse_function = ~parse_elastic_multi_agg(...),
-#   parse_function_nested = ~parse_elastic_single_agg(...)
-# )
-
 
 scroll_elastic <- function (con, body, fields) {
   res <- Search(
