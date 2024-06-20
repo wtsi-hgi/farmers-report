@@ -117,6 +117,7 @@ build_multi_terms_agg <- function(fields, size = 1000) {
 }
 
 build_date_agg <- function(interval, field = 'timestamp') {
+  validate_time_bucket(interval)
   b <- list(
     "date_histogram" = list(
       "field" = field,
@@ -244,13 +245,16 @@ parse_elastic_agg <- function(response, request, df = data.frame(), nest_level =
   if(nest_level == 1){
     df <- response$aggregations$stats$buckets 
   } else {
-    if (nest_type == 'multi_terms') {
-      stat_name <- paste0('stats', nest_level) 
-      df <- tidyr::unnest(df, cols = all_of(stat_name))
+    if (nest_type %in% elastic_bucket_aggregations) {
+      stat_name <- paste0('stats', nest_level, ".buckets") 
+      df <- df %>%
+        select(-doc_count) %>%
+        select(-`stats2.doc_count_error_upper_bound`, -`stats2.sum_other_doc_count`) %>%
+        tidyr::unnest(cols = all_of(stat_name))
     }
   }
 
-  if(nest_type == 'terms'){
+  if(nest_type == 'terms') {
 
     df <- arrange(df, key) %>% rename(!!nest_field := key)
 
@@ -261,14 +265,21 @@ parse_elastic_agg <- function(response, request, df = data.frame(), nest_level =
       select(-key_as_string) %>%
       tidyr::hoist(.col = key, !!!rule)
 
-  } else if(nest_type == 'compute'){
+  } else if(nest_type == 'compute') {
 
     df <- df %>%
       rename_all(~gsub('.value', '', .))
 
+  } else if (nest_type == 'date') {
+
+    df <- df %>%
+      select(-key_as_string) %>%
+      mutate(key = lubridate::as_datetime(key)) %>% 
+      rename(!!nest_field := key)
+
   } else {
 
-    stop("Parser for ", nest_type, " is not implemented. Use terms/multi_terms/compute")
+    stop("Parser for ", nest_type, " is not implemented. Use terms/multi_terms/compute/date")
 
   }
   

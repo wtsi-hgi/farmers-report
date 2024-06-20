@@ -22,7 +22,7 @@ get_user_statistics <- function (con, query, adjust = TRUE) {
   dt <- generate_user_statistics(df, adjust = adjust)
 }
 
-build_bucket_aggregation_query <- function(fields, query) {
+build_bucket_aggregation_query <- function(fields, query, time_bucket = 'none') {
   custom_aggs <- list(
     "cpu_avail_sec" = build_elastic_sub_agg("AVAIL_CPU_TIME_SEC", "sum"),
     "cpu_wasted_sec" = build_elastic_sub_agg("WASTED_CPU_SECONDS", "sum"),
@@ -31,11 +31,17 @@ build_bucket_aggregation_query <- function(fields, query) {
     "wasted_cost" = wasted_cost_agg
   )
 
-  b <- build_elasic_agg(
-    aggs = list(
+  aggs <- list(
       build_multi_terms_agg(fields = fields),
       new_elastic_agg(custom_aggs, type = 'compute')
-    ),
+  )
+
+  if (time_bucket != 'none') {
+    aggs <- append(aggs, list(build_date_agg(interval = time_bucket)), after = 0)
+  }
+
+  b <- build_elasic_agg(
+    aggs = aggs,
     query = query
   )
 }
@@ -82,9 +88,10 @@ generate_team_statistics <- function (df, adjust = TRUE) {
     )
 }
 
-build_bom_aggregation <- function(query) {
+build_bom_aggregation <- function(query, time_bucket = 'none') {
   build_bucket_aggregation_query(
     fields = c("ACCOUNTING_NAME", "NUM_EXEC_PROCS", "Job"),
+    time_bucket = time_bucket,
     query = query
   )
 }

@@ -110,9 +110,15 @@ fake_elastic_nested_agg_request <- new_elastic_agg_query(
 fake_elastic_nested_agg_response <- list(
   aggregations = list(stats = list(buckets = tibble::tibble(
     key = c('Humgen', 'CellGen'),
-    stats2 = list(
-      tibble::tribble(~key, ~key_as_string, c('value1', 'value2'), '', c('value3', 'value4'), ''),
-      tibble::tribble(~key, ~key_as_string, c('value5', 'value6'), '')
+    doc_count = c(100, 200),
+    stats2.doc_count_error_upper_bound = c(0, 0),
+    stats2.sum_other_doc_count = c(0, 0),
+    stats2.buckets = list(
+      tibble::tribble(~key, ~key_as_string, ~doc_count, 
+                      c('value1', 'value2'), '', c(300, 400), 
+                      c('value3', 'value4'), '', c(500, 600)),
+      tibble::tribble(~key, ~key_as_string, ~doc_count, 
+                      c('value5', 'value6'), '', c(700, 800))
     )
   )))
 )
@@ -138,6 +144,69 @@ fake_elastic_multi_agg_response <- list(
       c('value3', 'value4'),
       c('value5', 'value6')),
     key_as_string = character(3)
+  )))
+)
+
+fake_elastic_date_request <- new_elastic_agg_query(
+  list(
+    "aggs" = list(
+      "stats" = list(
+        "date_histogram" = list(
+          "field" = "timestamp",
+          "calendar_interval" = "day"
+        )
+      )
+    )
+  ),
+  nests = list(new_elastic_agg(list(), type = "date", fields = "timestamp"))
+)
+
+fake_elastic_date_response <- list(
+  aggregations = list(stats = list(buckets = tibble::tibble(
+    key = c(1.718237e+12, 1.718323e+12),
+    key_as_string = c('2024-06-13', '2024-06-14'),
+    doc_count = c(100, 200)
+  )))
+)
+
+fake_elastic_nested_date_request <- new_elastic_agg_query(
+  list(
+    "aggs" = list(
+      "stats" = list(
+        "date_histogram" = list(
+          "field" = "timestamp",
+          "calendar_interval" = "day"
+        ),
+        "aggs" = list(
+          "stats2" = list(
+            "multi_terms" = list(
+              "terms" = terms
+            )
+          )
+        )
+      )
+    )
+  ),
+  nests = list(
+    new_elastic_agg(list(), type = "date", fields = "timestamp"),
+    new_elastic_agg(list(), type = 'multi_terms', fields = c('BOM', 'Job'))
+  )
+)
+
+fake_elastic_nested_date_response <- list(
+  aggregations = list(stats = list(buckets = tibble::tibble(
+    key = c(1.718237e+12, 1.718323e+12),
+    key_as_string = c('2024-06-13', '2024-06-14'),
+    doc_count = c(100, 200),
+    stats2.doc_count_error_upper_bound = c(0, 0),
+    stats2.sum_other_doc_count = c(0, 0),
+    stats2.buckets = list(
+      tibble::tribble(~key, ~key_as_string, ~doc_count, 
+                      c('value1', 'value2'), '', c(300, 400), 
+                      c('value3', 'value4'), '', c(500, 600)),
+      tibble::tribble(~key, ~key_as_string, ~doc_count, 
+                      c('value5', 'value6'), '', c(700, 800))
+    )
   )))
 )
 
@@ -244,12 +313,26 @@ test_that('parse_elastic_agg works', {
   expect_named(df, field_names)
   expect_equal(nrow(df), 3)
 
-  # next level 2, test for 'terms' and 'multi_terms'
-  field_names <- c('BOM', 'job_status', 'accounting_name')
+  # nest level 2, test for 'terms' and 'multi_terms'
+  field_names <- c('BOM', 'job_status', 'accounting_name', 'doc_count')
   df <- parse_elastic_agg(fake_elastic_nested_agg_response, fake_elastic_nested_agg_request)
 
   expect_s3_class(df, 'data.frame')
   expect_named(df, field_names)
+  expect_equal(nrow(df), 3)
+
+  # nest level 1, test for 'date'
+  df <- parse_elastic_agg(fake_elastic_date_response, fake_elastic_date_request)
+
+  expect_s3_class(df, 'data.frame')
+  expect_named(df, c('timestamp', 'doc_count'))
+  expect_equal(nrow(df), 2)
+
+  # nest level 2, test for 'date' and 'multi_terms
+  df <- parse_elastic_agg(fake_elastic_nested_date_response, fake_elastic_nested_date_request)
+
+  expect_s3_class(df, 'data.frame')
+  expect_named(df, c('timestamp', 'BOM', 'job_status', 'doc_count'))
   expect_equal(nrow(df), 3)
 })
 
