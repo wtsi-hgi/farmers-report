@@ -54,3 +54,19 @@ make_wastage_plot <- function (df, renamer = c()) {
     theme_bw() +
     theme(legend.position="none", axis.title.x=element_blank(), axis.title.y=element_blank())
 }
+
+generate_efficiency_plot <- function(df, column_to_plot){
+  if(!endsWith(column_to_plot, '_frac')){
+    ggplot(df, aes(x = timestamp, y = .data[[column_to_plot]], fill = accounting_name)) +
+      geom_bar(stat = 'identity') + theme_bw()
+  } else {
+    if(column_to_plot == 'cpu_wasted_frac') {
+      df %>%
+        group_by(timestamp) %>%
+        summarise(across(c('cpu_avail_hrs', 'cpu_wasted_hrs'), sum)) %>%
+        mutate(cpu_efficiency = (cpu_avail_hrs - cpu_wasted_hrs)/cpu_avail_hrs) -> dt
+      ggplot(dt, aes(x = timestamp, y = cpu_efficiency)) +
+        geom_line() + theme_bw()
+    }
+  }
+}

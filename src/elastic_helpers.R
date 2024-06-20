@@ -274,7 +274,7 @@ parse_elastic_agg <- function(response, request, df = data.frame(), nest_level =
 
     df <- df %>%
       select(-key_as_string) %>%
-      mutate(key = lubridate::as_datetime(key)) %>% 
+      mutate(key = lubridate::as_datetime(key / 1e3)) %>% 
       rename(!!nest_field := key)
 
   } else {

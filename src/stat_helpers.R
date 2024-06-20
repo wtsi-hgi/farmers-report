@@ -96,21 +96,33 @@ build_bom_aggregation <- function(query, time_bucket = 'none') {
   )
 }
 
-generate_bom_statistics <- function(df, adjust = TRUE) {
+generate_bom_statistics <- function(df, timed = FALSE, adjust = TRUE) {
   if (adjust) {
     df <- adjust_statistics(df)
   }
 
+  groups <- c('accounting_name')
+  cols <- c('accounting_name', 'cpu_avail_hrs', 'cpu_wasted_hrs', 'cpu_wasted_frac', 
+             'mem_avail_gb_hrs', 'mem_wasted_gb_hrs', 'mem_wasted_frac', 'wasted_cost')
+  if(timed) {
+    groups <- append(groups, 'timestamp')
+    cols <- append(cols, 'timestamp', after = 0)
+  }
+
   df %>%
-    group_by(accounting_name) %>%
+    group_by(across(all_of(groups))) %>%
     generate_efficiency_stats() %>%
-    select(accounting_name, cpu_avail_hrs, cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost) %>%
+    select(all_of(cols)) %>%
     rename_group_column() -> dt
 
-  ranks <- generate_ranks(dt) %>% select(accounting_name, awesomeness)
+  if(!timed) {
+    ranks <- generate_ranks(dt) %>% select(accounting_name, awesomeness)
 
-  dt %>%
-    left_join(ranks, by = 'accounting_name') -> dt
+    dt %>%
+      left_join(ranks, by = 'accounting_name') -> dt
+  }
+
+  return(dt)
 }
 
 get_bom_statistics <- function (con, query, adjust = TRUE, time_bucket = 'none') {
@@ -120,7 +132,7 @@ get_bom_statistics <- function (con, query, adjust = TRUE, time_bucket = 'none')
   df <- parse_elastic_agg(res, b) %>%
     select(-doc_count)
 
-  generate_bom_statistics(df, adjust = adjust)
+  generate_bom_statistics(df, timed = time_bucket != 'none', adjust = adjust)
 }
 
 get_job_statistics <- function (con, query) {
