@@ -90,13 +90,8 @@ generate_efficiency <- function (input, con, query, adjust, team_statistics, tim
     }
   }
 
-  make_dt(dt, table_view_opts = 'ftp')
-}
-
-generate_efficiency_plot <- function(input, con, query, adjust, team_statistics) {
-  dt <- get_bom_statistics(con, query = query, adjust = adjust, time_bucket)
-  make_plot(dt)
-
+  # make_dt(dt, table_view_opts = 'ftp')
+  dt
 }
 
 ui <- page_sidebar(
@@ -142,7 +137,10 @@ ui <- page_sidebar(
     accordion_panel(
       "Unadjusted Efficiency",
       shinycssloaders::withSpinner(
-        DT::DTOutput("unadjusted_efficiency")
+        tagList(
+          DT::DTOutput("unadjusted_efficiency"),
+          plotOutput("unadjusted_efficiency_plot")
+        )
       )
     ),
     accordion_panel(
@@ -307,7 +305,8 @@ server <- function(input, output, session) {
   })
 
   output$unadjusted_efficiency <-  DT::renderDT({
-    summarise_time_buckets(df = unadjusted_efficiency_table())
+    # summarise_time_buckets(df = unadjusted_efficiency_table())
+    data.frame()
   })
 
   unadjusted_efficiency_table <- reactive({
@@ -316,7 +315,7 @@ server <- function(input, output, session) {
 
   output$unadjusted_efficiency_plot <- renderPlot({
     if(input$time_bucket != "none")
-      generate_efficiency_plot(df = unadjusted_efficiency_table())
+      generate_efficiency_plot(df = unadjusted_efficiency_table(), column_to_plot = 'cpu_wasted_frac')
   })
 
   output$adjustments_explanation <- renderText({

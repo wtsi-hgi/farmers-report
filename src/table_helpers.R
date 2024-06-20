@@ -201,7 +201,8 @@ generate_efficiency_stats <- function(df, extra_stats = list()) {
   df %>%
     summarise(
       across(all_of(fields), sum),
-      !!!extra_stats
+      !!!extra_stats,
+      .groups = 'drop'
     ) %>%
     mutate(
       cpu_avail_hrs = cpu_avail_sec / 60 / 60,
