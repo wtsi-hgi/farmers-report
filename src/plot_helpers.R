@@ -56,17 +56,23 @@ make_wastage_plot <- function (df, renamer = c()) {
 }
 
 generate_efficiency_plot <- function(df, column_to_plot){
-  if(!endsWith(column_to_plot, '_frac')){
+  if(endsWith(column_to_plot, '_frac')){
+    stopifnot(column_to_plot %in% c('cpu_wasted_frac', 'mem_wasted_frac'))
+
+    prefix <- strsplit(column_to_plot, split = "_")[[1]][1]
+    efficiency_col <- paste0(prefix, '_efficiency')
+    total_col <- paste0(prefix, '_avail_hrs')
+    wasted_col <- paste0(prefix, '_wasted_hrs')
+
+    df %>%
+      group_by(timestamp) %>%
+      summarise(across(c(total_col, wasted_col), sum)) %>%
+      mutate(!!efficiency_col := (.data[[total_col]] - .data[[wasted_col]]) / .data[[total_col]]) -> dt
+
+    ggplot(dt, aes(x = timestamp, y = .data[[efficiency_col]])) +
+      geom_line() + theme_bw()
+  } else {
     ggplot(df, aes(x = timestamp, y = .data[[column_to_plot]], fill = accounting_name)) +
       geom_bar(stat = 'identity') + theme_bw()
-  } else {
-    if(column_to_plot == 'cpu_wasted_frac') {
-      df %>%
-        group_by(timestamp) %>%
-        summarise(across(c('cpu_avail_hrs', 'cpu_wasted_hrs'), sum)) %>%
-        mutate(cpu_efficiency = (cpu_avail_hrs - cpu_wasted_hrs)/cpu_avail_hrs) -> dt
-      ggplot(dt, aes(x = timestamp, y = cpu_efficiency)) +
-        geom_line() + theme_bw()
-    }
   }
 }

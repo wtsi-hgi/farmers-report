@@ -103,7 +103,7 @@ generate_bom_statistics <- function(df, timed = FALSE, adjust = TRUE) {
 
   groups <- c('accounting_name')
   cols <- c('accounting_name', 'cpu_avail_hrs', 'cpu_wasted_hrs', 'cpu_wasted_frac', 
-             'mem_avail_gb_hrs', 'mem_wasted_gb_hrs', 'mem_wasted_frac', 'wasted_cost')
+            'mem_avail_gb_hrs', 'mem_wasted_gb_hrs', 'mem_wasted_frac', 'wasted_cost')
   if(timed) {
     groups <- append(groups, 'timestamp')
     cols <- append(cols, 'timestamp', after = 0)
