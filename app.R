@@ -71,6 +71,7 @@ get_user_names <- function(con, bom, accounting_name, date_range) {
 }
 
 generate_efficiency <- function (input, con, query, adjust, team_statistics, time_bucket) {
+  # browser()
   req(input$accounting_name)
   if (input$accounting_name != 'all') {
     req(input$user_name)
@@ -138,10 +139,15 @@ ui <- page_sidebar(
       "Unadjusted Efficiency",
       shinycssloaders::withSpinner(
         tagList(
-          DT::DTOutput("unadjusted_efficiency"),
+          DT::DTOutput("unadjusted_efficiency_table"),
+          selectInput(
+            "unadjusted_efficiency_column", "Column to plot",
+            choices = NULL
+          ),
           plotOutput("unadjusted_efficiency_plot")
         )
-      )
+      ),
+      value = 'unadjusted_efficiency_panel'
     ),
     accordion_panel(
       "Efficiency",
@@ -310,12 +316,27 @@ server <- function(input, output, session) {
   })
 
   unadjusted_efficiency_table <- reactive({
-    generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), team_statistics = team_statistics, time_bucket = input$time_bucket)
+    dt <- generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), team_statistics = team_statistics, time_bucket = input$time_bucket)
+    dt
+    # make_dt(dt, table_view_opts = 'ftp')
   })
+
+  unadjusted_efficiency_table_colnames <- reactive({
+    df <- unadjusted_efficiency_table()
+    cols <- colnames(df)
+    cols <- setdiff(cols, c('timestamp', 'accounting_name'))
+    cols <- column_rename[column_rename %in% cols]
+    names(cols)[grep('cpu_wasted_frac', cols)] = 'CPU Efficiency'
+    names(cols)[grep('mem_wasted_frac', cols)] = 'Memory Efficiency'
+    cols
+  }) 
 
   output$unadjusted_efficiency_plot <- renderPlot({
     if(input$time_bucket != "none")
-      generate_efficiency_plot(df = unadjusted_efficiency_table(), column_to_plot = 'cpu_wasted_frac')
+      generate_efficiency_plot(
+        df = unadjusted_efficiency_table(), 
+        column_to_plot = input$unadjusted_efficiency_column
+      )
   })
 
   output$adjustments_explanation <- renderText({
@@ -388,6 +409,30 @@ server <- function(input, output, session) {
           plotOutput("job_failure")
         )
       ) 
+    }
+  })
+
+  observe({
+    if (input$time_bucket == "none") {
+      accordion_panel_update('myaccordion', target = 'unadjusted_efficiency_panel',
+        shinycssloaders::withSpinner(
+          DT::DTOutput("unadjusted_efficiency_table")
+        )
+      )
+    } else {
+      accordion_panel_update('myaccordion', target = 'unadjusted_efficiency_panel',
+        shinycssloaders::withSpinner(
+          tagList(
+            DT::DTOutput("unadjusted_efficiency_table"),
+            selectInput(
+              "unadjusted_efficiency_column", "Column to plot",
+              choices = unadjusted_efficiency_table_colnames(),
+              selected = input$unadjusted_efficiency_column
+            ),
+            plotOutput("unadjusted_efficiency_plot")
+          )
+        )
+      )
     }
   })
 

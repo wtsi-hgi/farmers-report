@@ -60,9 +60,10 @@ generate_efficiency_plot <- function(df, column_to_plot){
     stopifnot(column_to_plot %in% c('cpu_wasted_frac', 'mem_wasted_frac'))
 
     prefix <- strsplit(column_to_plot, split = "_")[[1]][1]
+    gb <- ifelse(prefix == 'mem', '_gb', '')
     efficiency_col <- paste0(prefix, '_efficiency')
-    total_col <- paste0(prefix, '_avail_hrs')
-    wasted_col <- paste0(prefix, '_wasted_hrs')
+    total_col <- paste0(prefix, '_avail', gb, '_hrs')
+    wasted_col <- paste0(prefix, '_wasted', gb, '_hrs')
 
     df %>%
       group_by(timestamp) %>%
