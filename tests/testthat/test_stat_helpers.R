@@ -36,6 +36,16 @@ test_that("generate_bom_statistics works", {
   dt <- generate_bom_statistics(df, adjust = FALSE)
   expect_s3_class(dt,'data.frame')
   expect_named(dt, expected_columns)
+
+  # with timed = TRUE
+  df$timestamp <- as.Date(c('2024-06-22', '2024-06-23', '2024-06-24'))
+  dt <- generate_bom_statistics(df, timed = TRUE)
+
+  expected_columns <- append(expected_columns, 'timestamp', after = 0)
+  expected_columns <- setdiff(expected_columns, 'awesomeness')
+
+  expect_s3_class(dt,'data.frame')
+  expect_named(dt, expected_columns)
 })
 
 test_that("build_user_statistics_query works", {
@@ -181,4 +191,19 @@ test_that("generate_gpu_statistics works", {
   expect_s3_class(result, 'data.frame')
   expect_named(result, expected_columns)
   expect_equal(result, expected_df)
+})
+
+test_that("build_bucket_aggregation_query works", {
+  # with no time bucket
+  result <- build_bucket_aggregation_query(fields = c('x', 'y'), query = NULL, time_bucket = 'none')
+
+  expect_failure(expect_null(result$aggs$stats$aggs))
+  expect_null(result$aggs$stats$aggs$stats2)
+  expect_setequal(result$aggs$stats$multi_terms$terms, list(list(field = 'x'), list(field = 'y')))
+
+  # with given time bucket
+  result <- build_bucket_aggregation_query(fields = c('x', 'y'), query = NULL, time_bucket = 'day')
+
+  expect_failure(expect_null(result$aggs$stats$aggs$stats2))
+  expect_equal(result$aggs$stats$date_histogram$calendar_interval, 'day')
 })

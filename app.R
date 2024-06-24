@@ -71,7 +71,6 @@ get_user_names <- function(con, bom, accounting_name, date_range) {
 }
 
 generate_efficiency <- function (input, con, query, adjust, team_statistics, time_bucket) {
-  # browser()
   req(input$accounting_name)
   if (input$accounting_name != 'all') {
     req(input$user_name)
