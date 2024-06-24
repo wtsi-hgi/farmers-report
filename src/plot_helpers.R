@@ -1,5 +1,8 @@
 library(ggplot2)
+library(dplyr)
 loadNamespace('ggrepel')
+
+source('src/timeseries_helpers.R')
 
 # throw an error if not all colnames are in df
 assert_colnames <- function (df, colnames) {
@@ -76,4 +79,17 @@ generate_efficiency_plot <- function(df, column_to_plot){
     ggplot(df, aes(x = timestamp, y = .data[[column_to_plot]], fill = accounting_name)) +
       geom_bar(stat = 'identity') + theme_bw()
   }
+}
+
+generate_gpu_plot <- function(df, time_bucket, metric = 'PENDING_TIME_SEC') {
+  colname <- paste(metric, "median", sep = "_")
+  # Warning: Error in validate_tsibble: A valid tsibble must have distinct rows identified by key and index.
+  dt <- df %>%
+    as_tsibble(key = JOB_ID, index = timestamp) %>%
+    # group_by_key() %>%
+    group_by(USER_NAME) %>%
+    index_by_custom(time_bucket = time_bucket) %>%
+    summarise(!!colname := median(.data[[metric]]))
+
+  ggplot(dt, aes(x = date, y = .data[[colname]], fill = USER_NAME)) + geom_bar(stat = 'identity') + theme_bw()
 }

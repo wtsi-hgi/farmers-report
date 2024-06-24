@@ -1,6 +1,7 @@
 library(dplyr)
 
 source("src/constants.R")
+source('src/timeseries_helpers.R')
 
 rename_raw_elastic_fields <- function (df, map = elastic_column_map) {
   rename(df, any_of(map))
@@ -74,6 +75,12 @@ wasted_cost_agg <- list(
 )
 
 new_elastic_agg_query <- function(x, nests){
+  stopifnot("x should be list" = (typeof(x) == 'list'))
+  stopifnot("nests should be list" = typeof(nests) == 'list')
+  stopifnot("all nests elements should be of type elastic_agg" = all(
+    sapply(nests, function(x) inherits(x, 'elastic_agg'))
+  ))
+
   structure(
     x, 
     class = c("list", "elastic_agg_query"), 
@@ -83,6 +90,9 @@ new_elastic_agg_query <- function(x, nests){
 }
 
 new_elastic_agg <- function(x, type, fields = NULL){
+  stopifnot("x should be list" = typeof(x) == 'list')
+  match.arg(type, c('terms', 'multi_terms', 'date', 'compute'))
+
   structure(
     x,
     class = c('list', 'elastic_agg'),
@@ -311,6 +321,3 @@ scroll_elastic <- function (con, body, fields) {
   return(df)
 }
 
-validate_time_bucket <- function(time_bucket) {
-  match.arg(time_bucket, choices = c(time_buckets, "none"))
-}

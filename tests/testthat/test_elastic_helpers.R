@@ -7,6 +7,36 @@ if(basename(getwd()) == "testthat")
 
 source("src/elastic_helpers.R")
 
+test_that("new_elastic_agg works", {
+  # invalid x
+  expect_error(new_elastic_agg(x = character(), type = 'date', fields = NULL))
+
+  # invalid type
+  expect_error(new_elastic_agg(x = list(), type = 'year', fields = NULL))
+
+  # valid
+  elastic_agg <- new_elastic_agg(x = list(), type = 'compute', fields = c('x'))
+
+  expect_s3_class(elastic_agg, 'elastic_agg')
+  expect_contains(names(attributes(elastic_agg)), c('type', 'fields'))
+})
+
+test_that("new_elastic_agg_query works", {
+  # invalid x
+  expect_error(new_elastic_agg_query(x = character(), nests = NULL), "x should be list")
+
+  # invalid nests
+  fake_nests <- list('x', 'y')
+  expect_error(new_elastic_agg_query(x = list(), nests = fake_nests), "should be of type")
+
+  # valid
+  valid_nests <- list(new_elastic_agg(list(), type = 'terms', fields = NULL))
+  elastic_agg_query <- new_elastic_agg_query(x = list(), nests = valid_nests)
+
+  expect_s3_class(elastic_agg_query, 'elastic_agg_query')
+  expect_contains(names(attributes(elastic_agg_query)), c('nest_levels', 'nests'))
+})
+
 fake_elastic_response <- list(
   hits = list(
     hits = data.frame(
@@ -211,11 +241,17 @@ fake_elastic_nested_date_response <- list(
 )
 
 test_that("extract_hits_from_elastic_response works", {
+  # with records
   hits <- extract_hits_from_elastic_response(fake_elastic_response)
 
   expect_s3_class(hits,'data.frame')
   expect_length(names(hits), 1)
   expect_named(hits, "name")
+
+  # with empty response
+  fake_elastic_response$hits$hits <- data.frame()
+  hits <- extract_hits_from_elastic_response(fake_elastic_response)
+  expect_equal(hits, data.frame())
 })
 
 test_that("build_agg_query works", {
@@ -229,13 +265,24 @@ test_that("build_agg_query works", {
 })
 
 test_that("build_terms_query works", {
+  # without custom aggs
   field_names <- c('fieldname1', 'fieldname2')
   q <- build_terms_query(field = field_names)
 
   expect_type(q, "list")
+  expect_s3_class(q, 'elastic_agg_query')
   expect_named(q$aggs$stats[1], 'multi_terms')
-  expect_equal(q$aggs$stats$multi_terms$terms, list(list(field='fieldname1'), list(field='fieldname2')))
+  expect_setequal(q$aggs$stats$multi_terms$terms, list(list(field='fieldname1'), list(field='fieldname2')))
+  expect_null(q$aggs$stats$aggs)
   expect_equal(q$query, humgen_query)
+  expect_length(attr(q, 'nests'), 1)
+
+  # with custom aggs
+  custom_aggs <- list("mysum" = list("sum" = list("field" = "fieldname3")))
+  q <- build_terms_query(field = field_names, aggs = custom_aggs)
+
+  expect_failure(expect_null(q$aggs$stats$aggs))
+  expect_length(attr(q, 'nests'), 2)
 })
 
 test_that("build_elastic_sub_agg works", {
@@ -334,6 +381,13 @@ test_that('parse_elastic_agg works', {
   expect_s3_class(df, 'data.frame')
   expect_named(df, c('timestamp', 'BOM', 'job_status', 'doc_count'))
   expect_equal(nrow(df), 3)
+
+  # invalid
+  attr(attr(fake_elastic_single_agg_request, 'nests')[[1]], 'type') <- 'invalid_type'
+  expect_error(
+    parse_elastic_agg(fake_elastic_single_agg_response, fake_elastic_single_agg_request), 
+    "Parser for invalid_type is not implemented."
+  )
 })
 
 test_that('format_elastic_date_range works', {
