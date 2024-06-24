@@ -130,7 +130,7 @@ ui <- page_sidebar(
       "Unadjusted Efficiency",
       shinycssloaders::withSpinner(
         tagList(
-          DT::DTOutput("unadjusted_efficiency_table"),
+          DT::DTOutput("unadjusted_efficiency"),
           selectInput(
             "unadjusted_efficiency_column", "Column to plot",
             choices = NULL
@@ -302,18 +302,16 @@ server <- function(input, output, session) {
   })
 
   output$unadjusted_efficiency <-  DT::renderDT({
-    # summarise_time_buckets(df = unadjusted_efficiency_table())
-    data.frame()
+    dt <- generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), team_statistics = team_statistics, time_bucket = 'none')
+    make_dt(dt, table_view_opts = 'ftp')
   })
 
-  unadjusted_efficiency_table <- reactive({
-    dt <- generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), team_statistics = team_statistics, time_bucket = input$time_bucket)
-    dt
-    # make_dt(dt, table_view_opts = 'ftp')
+  unadjusted_efficiency_timed_table <- reactive({
+    generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), team_statistics = team_statistics, time_bucket = input$time_bucket)
   })
 
   unadjusted_efficiency_table_colnames <- reactive({
-    df <- unadjusted_efficiency_table()
+    df <- unadjusted_efficiency_timed_table()
     cols <- colnames(df)
     cols <- setdiff(cols, c('timestamp', 'accounting_name'))
     cols <- column_rename[column_rename %in% cols]
@@ -325,7 +323,7 @@ server <- function(input, output, session) {
   output$unadjusted_efficiency_plot <- renderPlot({
     if(input$time_bucket != "none")
       generate_efficiency_plot(
-        df = unadjusted_efficiency_table(), 
+        df = unadjusted_efficiency_timed_table(), 
         column_to_plot = input$unadjusted_efficiency_column
       )
   })
@@ -407,14 +405,16 @@ server <- function(input, output, session) {
     if (input$time_bucket == "none") {
       accordion_panel_update('myaccordion', target = 'unadjusted_efficiency_panel',
         shinycssloaders::withSpinner(
-          DT::DTOutput("unadjusted_efficiency_table")
+          DT::DTOutput("unadjusted_efficiency")
         )
       )
     } else {
       accordion_panel_update('myaccordion', target = 'unadjusted_efficiency_panel',
         shinycssloaders::withSpinner(
+          DT::DTOutput("unadjusted_efficiency")
+        ),
+        shinycssloaders::withSpinner(
           tagList(
-            DT::DTOutput("unadjusted_efficiency_table"),
             selectInput(
               "unadjusted_efficiency_column", "Column to plot",
               choices = unadjusted_efficiency_table_colnames(),
@@ -425,7 +425,8 @@ server <- function(input, output, session) {
         )
       )
     }
-  })
+  }) %>%
+    bindEvent(input$time_bucket)
 
 }
 
