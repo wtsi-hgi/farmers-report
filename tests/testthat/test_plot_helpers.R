@@ -1,6 +1,6 @@
 library(testthat)
 
-context("Test helper functions to work with elastic")
+context("Test helper functions to work with plots")
 
 if(basename(getwd()) == "testthat")
   setwd("../../")

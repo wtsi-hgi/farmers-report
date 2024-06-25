@@ -13,14 +13,14 @@ generate_efficiency_extra_stats <- list(
   fail_rate = quote(sum(job_status == 'Failed') / number_of_jobs)
 )
 
-get_user_statistics <- function (con, query, adjust = TRUE) {
-  b <- build_user_statistics_query(query)
+get_user_statistics <- function (con, query, adjust = TRUE, time_bucket = 'none') {
+  b <- build_user_statistics_query(query, time_bucket = time_bucket)
   res <- Search(con, index = index, body = b, asdf = T)
 
   df <- parse_elastic_agg(res, b) %>%
     select(-doc_count)
 
-  dt <- generate_user_statistics(df, adjust = adjust)
+  dt <- generate_user_statistics(df, adjust = adjust, timed = time_bucket != 'none')
 }
 
 build_bucket_aggregation_query <- function(fields, query, time_bucket = 'none') {
@@ -47,19 +47,21 @@ build_bucket_aggregation_query <- function(fields, query, time_bucket = 'none') 
   )
 }
 
-build_user_statistics_query <- function(query) {
+build_user_statistics_query <- function(query, time_bucket = 'none') {
   build_bucket_aggregation_query(
     fields = c("NUM_EXEC_PROCS", "Job"),
-    query = query
+    query = query,
+    time_bucket = time_bucket
   )
 }
 
-generate_user_statistics <- function(df, adjust = TRUE) {
-  dt <- generate_app_wastage_statistics(df, adjust = adjust)
+generate_user_statistics <- function(df, adjust = TRUE, timed = FALSE) {
+  dt <- generate_app_wastage_statistics(df, adjust = adjust, timed = timed)
 
-  dt_total <- generate_total_wastage_dt(dt)
-
-  dt <- rbind(dt, dt_total)
+  if (!timed) {
+    dt_total <- generate_total_wastage_dt(dt)
+    dt <- rbind(dt, dt_total)
+  }
 
   specify_wastage_reason(dt)
 }
