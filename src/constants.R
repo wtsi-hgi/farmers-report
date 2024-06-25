@@ -1,5 +1,3 @@
-index <- "user-data-ssg-isg-lsf-analytics-*"
-
 cpu_hour <- 0.00254  # in £
 cpu_second <- cpu_hour / 60 / 60
 

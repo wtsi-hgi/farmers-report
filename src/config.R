@@ -6,7 +6,7 @@ read_config <- function(config_file = "config.yaml") {
     
     config <- yaml.load_file(config_file)
     if ("elastic" %in% names(config))
-        if (all(c("host", "username", "password") %in% names(config$elastic)))
+        if (all(c("host", "username", "password", "port", "index") %in% names(config$elastic)))
             return (config)
     
     stop("No Elastic credentials found in the config file!")
