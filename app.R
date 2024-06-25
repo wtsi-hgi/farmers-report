@@ -353,9 +353,19 @@ server <- function(input, output, session) {
     make_dt(dt, table_view_opts = 'ftp')
   })
 
+  gpu_records_colnames <- reactive({
+    df <- gpu_records()
+    cols <- colnames(df)
+    cols <- setdiff(cols, c('timestamp', 'USER_NAME', 'Job', 'JOB_ID', 'QUEUE_NAME'))
+    cols
+  })
+
   output$gpu_plot <- renderPlot({
     if(input$time_bucket != "none")
-      generate_gpu_plot(gpu_records(), time_bucket = input$time_bucket)
+      generate_gpu_plot(
+        df = gpu_records(),
+        time_bucket = input$time_bucket,
+        metric = input$gpu_statistics_column)
   })
 
   selected_user <- reactive({
@@ -365,13 +375,20 @@ server <- function(input, output, session) {
   observe({
     if (selected_user() == 'all') {
       accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
+      shinycssloaders::withSpinner(
+        DT::DTOutput("gpu_statistics")
+      ),
+      if (input$time_bucket != "none") {
         shinycssloaders::withSpinner(
           tagList(
-            DT::DTOutput("gpu_statistics"),
+            selectInput(
+              "gpu_statistics_column", "Column to plot",
+              choices = gpu_records_colnames()
+          ),
             plotOutput("gpu_plot")
           )
         )
-      )
+      })
     } else {
       accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
         "To see user-by-user GPU statistics please pick a LSF Group and select User='all' in the left panel"
