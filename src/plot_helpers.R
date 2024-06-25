@@ -77,8 +77,8 @@ generate_efficiency_plot <- function(df, column_to_plot){
     wasted_col <- paste0(prefix, '_wasted', gb, '_hrs')
 
     df %>%
-      group_by(across(group_cols)) %>%
-      summarise(across(c(total_col, wasted_col), sum), .groups = 'drop') %>%
+      group_by(across(all_of(group_cols))) %>%
+      summarise(across(all_of(c(total_col, wasted_col)), sum), .groups = 'drop') %>%
       mutate(!!efficiency_col := (.data[[total_col]] - .data[[wasted_col]]) / .data[[total_col]]) -> dt
 
     p <- ggplot(dt, aes(x = timestamp, y = .data[[efficiency_col]])) + theme_bw()
