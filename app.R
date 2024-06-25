@@ -57,18 +57,7 @@ get_user_names <- function(con, bom, accounting_name, date_range) {
     )
   )
 
-  res <- Search(
-    con,
-    index = index,
-    time_scroll="1m",
-    source = c('USER_NAME'),
-    body = b,
-    asdf = T,
-    size = 10000
-  )
-
-  df <- pull_everything(con, res)
-
+  df <- scroll_elastic(con, body = b, fields = 'USER_NAME')
   unique(df$USER_NAME)
 }
 
