@@ -59,7 +59,13 @@ make_wastage_plot <- function (df, renamer = c()) {
 }
 
 generate_efficiency_plot <- function(df, column_to_plot){
-  fill_column <- ifelse('accounting_name' %in% colnames(df), 'accounting_name', 'Reason')
+  if ('accounting_name' %in% colnames(df)) {
+    fill_column <- 'accounting_name'
+    group_cols <- c('timestamp')
+  } else {
+    fill_column <- 'Reason'
+    group_cols <- c('timestamp', fill_column)
+  }
 
   if(endsWith(column_to_plot, '_frac')){
     stopifnot(column_to_plot %in% c('cpu_wasted_frac', 'mem_wasted_frac'))
@@ -71,12 +77,17 @@ generate_efficiency_plot <- function(df, column_to_plot){
     wasted_col <- paste0(prefix, '_wasted', gb, '_hrs')
 
     df %>%
-      group_by(timestamp, !!fill_column) %>%  # FIXME
-      summarise(across(c(total_col, wasted_col), sum)) %>%
+      group_by(across(group_cols)) %>%
+      summarise(across(c(total_col, wasted_col), sum), .groups = 'drop') %>%
       mutate(!!efficiency_col := (.data[[total_col]] - .data[[wasted_col]]) / .data[[total_col]]) -> dt
 
-    ggplot(dt, aes(x = timestamp, y = .data[[efficiency_col]], color = .data[[fill_column]])) +
-      geom_line() + theme_bw()
+    p <- ggplot(dt, aes(x = timestamp, y = .data[[efficiency_col]])) + theme_bw()
+
+    if (fill_column == 'Reason') {
+      p + geom_line(aes(color = .data[[fill_column]]))
+    } else {
+      p + geom_line()
+    }
   } else {
     ggplot(df, aes(x = timestamp, y = .data[[column_to_plot]], fill = .data[[fill_column]])) +
       geom_bar(stat = 'identity') + theme_bw()
