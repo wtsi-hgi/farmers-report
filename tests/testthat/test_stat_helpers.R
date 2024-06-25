@@ -91,6 +91,15 @@ test_that("generate_user_statistics works", {
   dt <- generate_user_statistics(fake_df, adjust = FALSE)
   expect_s3_class(dt, 'data.frame')
   expect_named(dt, expected_columns)
+
+  # with timestamp
+  fake_df$timestamp <- as.Date(c('2024-06-22', '2024-06-23'))
+  dt <- generate_user_statistics(fake_df, timed = TRUE)
+
+  expected_columns <- append(expected_columns, 'timestamp', after = 0)
+
+  expect_s3_class(dt, 'data.frame')
+  expect_named(dt, expected_columns)
 })
 
 test_that("generate_team_statistics works", {

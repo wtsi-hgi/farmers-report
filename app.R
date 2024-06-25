@@ -68,7 +68,7 @@ generate_efficiency <- function (input, con, query, adjust, team_statistics, tim
   }
 
   if (input$accounting_name == 'all') {
-    dt <- get_bom_statistics(con, query = query, adjust = adjust, time_bucket)
+    dt <- get_bom_statistics(con, query = query, adjust = adjust, time_bucket = time_bucket)
   } else {
     if (input$user_name == 'all') {
       if (adjust){
@@ -77,7 +77,7 @@ generate_efficiency <- function (input, con, query, adjust, team_statistics, tim
         dt <- get_team_statistics(con, query = query, adjust = FALSE)
       }
     } else {
-      dt <- get_user_statistics(con, query = query, adjust = adjust)
+      dt <- get_user_statistics(con, query = query, adjust = adjust, time_bucket = time_bucket)
     }
   }
 
@@ -314,8 +314,8 @@ server <- function(input, output, session) {
     cols <- colnames(df)
     cols <- setdiff(cols, c('timestamp', 'accounting_name'))
     cols <- column_rename[column_rename %in% cols]
-    names(cols)[grep('cpu_wasted_frac', cols)] = 'CPU Efficiency'
-    names(cols)[grep('mem_wasted_frac', cols)] = 'Memory Efficiency'
+    names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
+    names(cols)[grep('mem_wasted_frac', cols)] <- 'Memory Efficiency'
     cols
   }) 
 
