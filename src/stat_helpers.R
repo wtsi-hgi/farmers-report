@@ -66,22 +66,30 @@ generate_user_statistics <- function(df, adjust = TRUE, timed = FALSE) {
   specify_wastage_reason(dt)
 }
 
-get_team_statistics <- function(con, query, adjust = TRUE) {
+get_team_statistics <- function(con, query, time_bucket = "none", adjust = TRUE) {
   df <- scroll_elastic(
     con = con,
     body = list(query = query),
-    fields = c('USER_NAME', 'Job',
+    fields = c('USER_NAME', 'Job', 'timestamp', 'JOB_ID',
               'NUM_EXEC_PROCS', 'AVAIL_CPU_TIME_SEC', 'WASTED_CPU_SECONDS',
               'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS')
   )
-  dt <- generate_team_statistics(df, adjust = adjust)
+  df$timestamp = lubridate::as_datetime(df$timestamp)
+  dt <- generate_team_statistics(df, time_bucket, adjust = adjust)
 }
 
-generate_team_statistics <- function (df, adjust = TRUE) {
+generate_team_statistics <- function (df, time_bucket = "none", adjust = TRUE) {
+  # browser()
   df <- rename_raw_elastic_fields(df)
 
   if (adjust)
     df <- adjust_statistics(df)
+  
+  if(time_bucket != "none") {
+    df <- df %>%
+      as_tsibble(key = JOB_ID, index = timestamp) %>%
+      index_by_custom(time_bucket = time_bucket)
+  }
 
   df %>%
     generate_wasted_cost() %>%
@@ -100,6 +108,7 @@ build_bom_aggregation <- function(query, time_bucket = 'none') {
 }
 
 generate_bom_statistics <- function(df, timed = FALSE, adjust = TRUE) {
+  # browser()
   if (adjust) {
     df <- adjust_statistics(df)
   }
