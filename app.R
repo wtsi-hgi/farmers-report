@@ -332,7 +332,8 @@ server <- function(input, output, session) {
   })
 
   output$efficiency <- DT::renderDT({
-     generate_efficiency(input, elastic_con, adjust = TRUE, query = elastic_query(), team_statistics = team_statistics)
+    dt <- generate_efficiency(input, elastic_con, adjust = TRUE, query = elastic_query(), team_statistics = team_statistics, time_bucket = input$time_bucket)
+    make_dt(dt, table_view_opts = 'ftp')
   })
 
   output$awesomeness_formula <- renderUI({
@@ -357,9 +358,13 @@ server <- function(input, output, session) {
 
   gpu_records_colnames <- reactive({
     df <- gpu_records()
-    cols <- colnames(df)
-    cols <- setdiff(cols, c('timestamp', 'USER_NAME', 'Job', 'JOB_ID', 'QUEUE_NAME'))
-    cols
+    cols <- colnames(df) %>%
+      setdiff(c('timestamp', 'USER_NAME', 'Job', 'JOB_ID', 'QUEUE_NAME'))
+
+    pretty_cols <- str_replace_all(cols, '_', ' ') %>% str_to_title()
+
+    cols_list <- setNames(as.list(cols), pretty_cols)
+    cols_list
   })
 
   output$gpu_plot <- renderPlot({
