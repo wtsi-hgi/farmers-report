@@ -72,10 +72,10 @@ generate_efficiency <- function (input, con, query, adjust, team_statistics, tim
     dt <- get_bom_statistics(con, query = query, adjust = adjust, time_bucket = time_bucket)
   } else {
     if (input$user_name == 'all') {
-      if (adjust){
+      if (adjust) {
         dt <- team_statistics()
       } else {
-        dt <- get_team_statistics(con, query = query, adjust = FALSE)
+        dt <- get_team_statistics(con, query = query, time_bucket = time_bucket, adjust = FALSE)
       }
     } else {
       dt <- get_user_statistics(con, query = query, adjust = adjust, time_bucket = time_bucket)
