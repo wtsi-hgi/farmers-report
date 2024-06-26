@@ -37,10 +37,11 @@ elastic_con <- connect(
   path = "",
   user = config$elastic$username,
   pwd = config$elastic$password,
-  port = 19200,
+  port = config$elastic$port,
   transport_schema = "http"
 )
 
+index <- config$elastic$index
 table_view_opts <- ifelse(params$static, 't', 'ftp')
 ```
 

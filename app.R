@@ -19,9 +19,11 @@ elastic_con <- connect(
   path = "",
   user = config$elastic$username,
   pwd = config$elastic$password,
-  port = 19200,
+  port = config$elastic$port,
   transport_schema = "http"
 )
+
+index <- config$elastic$index
 
 get_bom_names <- function(con) {
   b <- build_agg_query("BOM", query = build_humgen_query(filters = build_humgen_filters(BOM = NULL)))

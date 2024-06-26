@@ -12,7 +12,9 @@ fake_config <- list(
   elastic = list(
     host = "test",
     username = "test",
-    password = "test"
+    password = "test",
+    port = 1234,
+    index = "test*"
   )
 )
 
@@ -30,11 +32,15 @@ test_that("read_config produces expected result", {
 })
 
 test_that("read_config throws an error if not all elastic credentials present", {
-  fake_config$elastic$host <- NULL
-  withr::local_file(
-    setNames(list(yaml::write_yaml(fake_config, test_config_name)), test_config_name)
-  )
-  expect_error(read_config(test_config_name))
+  fields <- c('host', 'username', 'password', 'port', 'index')
+  lapply(fields, function (field) {
+    clone_config <- fake_config
+    clone_config$elastic[field] <- NULL
+    withr::local_file(
+      setNames(list(yaml::write_yaml(clone_config, test_config_name)), test_config_name)
+    )
+    expect_error(read_config(test_config_name))
+  })
 })
 
 test_that("read_config throws an error if there is no elastic section in a config", {
