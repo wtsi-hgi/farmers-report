@@ -134,15 +134,12 @@ extract_hits_from_elastic_response <- function(x) {
 
 pull_everything <- function(connection, response) {
   dt <- extract_hits_from_elastic_response(response)
-  hits <- 1
+  total_hits <- response$hits$total$value
 
-  while(hits != 0){
-    res <- scroll(connection, response$`_scroll_id`, asdf = T)
-    hits <- length(res$hits$hits)
-    if(hits > 0){
-      df <- extract_hits_from_elastic_response(res)
-      dt <- rbind(dt, df)
-    }
+  while(nrow(dt) < total_hits){
+    response <- scroll(connection, response$`_scroll_id`, asdf = T)
+    df <- extract_hits_from_elastic_response(response)
+    dt <- rbind(dt, df)
   }
 
   scroll_clear(connection, response$`_scroll_id`)
