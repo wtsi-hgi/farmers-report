@@ -10,8 +10,9 @@ source("src/plot_helpers.R")
 gpu_plot_df <- data.frame(
   'USER_NAME' = c('x', 'y', 'z'),
   'mymetric' = c(1, 2, 3),
-  'JOB_ID' = c(123, 456, 789),
-  'timestamp' = as.Date(c('2024-01-01', '2024-01-02', '2024-01-03'))
+  '_id' = c(123, 456, 789),
+  'timestamp' = as.Date(c('2024-01-01', '2024-01-02', '2024-01-03')),
+  check.names = FALSE
 )
 
 test_that("generate_gpu_plot works", {
@@ -42,15 +43,16 @@ test_that("assert_colnames works", {
   expect_error(assert_colnames(gpu_plot_df, invalid_colnames))
 })
 
-test_that("generate_efficiency_plot works", {
-  df <- data.frame(
+df <- data.frame(
     timestamp = as.Date(c('2024-01-01', '2024-01-01', '2024-01-02', '2024-01-02')),
-    accounting_name = c('team1', 'team2', 'team1', 'team2'),
     mymetric = c(100, 200, 300, 400),
     gpu_wasted_frac = c(0.1, 0.2, 0.3, 0.4),
     cpu_avail_hrs = c(1000, 2000, 3000, 4000),
     cpu_wasted_hrs = c(400, 200, 300, 2000)
   )
+
+test_that("generate_efficiency_plot works with bom", {
+  df$accounting_name <- c('team1', 'team2', 'team1', 'team2')
 
   # invalid input
   expect_error(generate_efficiency_plot(df, column_to_plot = 'gpu_wasted_frac'))
@@ -71,9 +73,36 @@ test_that("generate_efficiency_plot works", {
   expect_null(p$labels$colour)
   expect_equal(as.character(p$layers[[1]]$constructor[[1]]), 'geom_line')
   expect_equal(p$data$cpu_efficiency, c(2400/3000, 4700/7000))
+})
 
+test_that("generate_efficiency_plot works with team", {
+  # team statistics barplot
+  df$date <- as.Date(df$timestamp)
+  df$timestamp <- NULL
+  df$USER_NAME <- c('user1', 'user2', 'user3', 'user4')
+
+  p <- generate_efficiency_plot(df, column_to_plot = 'mymetric')
+
+  expect_equal(p$labels$x, 'date')
+  expect_equal(p$labels$y, 'mymetric')
+  expect_equal(p$labels$fill, 'USER_NAME')
+  expect_equal(as.character(p$layers[[1]]$constructor[[1]]), 'geom_bar')
+
+  # team statistics lineplot - 'fail_rate'
+  df$fail_rate <- c(0.7, 0.5, 0.5, 0.6)
+  df$number_of_jobs <- c(10, 20, 10, 50)
+
+  p <- generate_efficiency_plot(df, column_to_plot = 'fail_rate')
+
+  expect_equal(p$labels$x, 'date')
+  expect_equal(p$labels$y, 'fail_rate')
+  expect_null(p$labels$colour)
+  expect_equal(as.character(p$layers[[1]]$constructor[[1]]), 'geom_line')
+  expect_equal(p$data$fail_rate, c(17/30, 35/60))
+})
+  
+test_that("generate_efficiency_plot works with user", {
   # user statistics barplot
-  df$accounting_name <- NULL
   df$Reason <- c('reason1', 'reason2', 'reason1', 'reason2')
 
   p <- generate_efficiency_plot(df, column_to_plot = 'mymetric')

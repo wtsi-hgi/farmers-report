@@ -111,7 +111,10 @@ test_that("generate_team_statistics works", {
     WASTED_CPU_SECONDS = c(600, 500, 700),
     MEM_REQUESTED_MB = c(1200, 2400, 3600), 
     MEM_REQUESTED_MB_SEC = c(12000, 42000, 60000),
-    WASTED_MB_SECONDS = c(5000, 20000, 10000)
+    WASTED_MB_SECONDS = c(5000, 20000, 10000),
+    "_id" = c(123, 456, 789),
+    "timestamp" = as.Date(c("2024-01-01", "2024-01-2", "2024-01-03")),
+    check.names = FALSE
   )
 
   expected_columns <- c(
@@ -128,6 +131,11 @@ test_that("generate_team_statistics works", {
   dt <- generate_team_statistics(fake_data_frame, adjust = FALSE)
   expect_s3_class(dt, 'data.frame')
   expect_named(dt, expected_columns)
+
+  # with time_bucket
+  dt <- generate_team_statistics(fake_data_frame, time_bucket = 'day')
+  expect_s3_class(dt, 'tbl_ts')
+  expected_columns <- append(expected_columns, 'date')
 })
 
 test_that("build_bom_aggregation works", {
