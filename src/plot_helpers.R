@@ -61,35 +61,51 @@ make_wastage_plot <- function (df, renamer = c()) {
 generate_efficiency_plot <- function(df, column_to_plot){
   if ('accounting_name' %in% colnames(df)) {
     fill_column <- 'accounting_name'
+    date_col <- 'timestamp'
     group_cols <- c('timestamp')
+  } else if ('USER_NAME' %in% colnames(df)) {
+    fill_column <- 'USER_NAME'
+    date_col <- 'date'
+    group_cols <- c('date')
   } else {
     fill_column <- 'Reason'
+    date_col <- 'timestamp'
     group_cols <- c('timestamp', fill_column)
   }
 
-  if(endsWith(column_to_plot, '_frac')){
-    stopifnot(column_to_plot %in% c('cpu_wasted_frac', 'mem_wasted_frac'))
+  if(any(endsWith(column_to_plot, c('_frac', '_rate')))){
+    stopifnot(column_to_plot %in% c('cpu_wasted_frac', 'mem_wasted_frac', 'fail_rate'))
 
-    prefix <- strsplit(column_to_plot, split = "_")[[1]][1]
-    gb <- ifelse(prefix == 'mem', '_gb', '')
-    efficiency_col <- paste0(prefix, '_efficiency')
-    total_col <- paste0(prefix, '_avail', gb, '_hrs')
-    wasted_col <- paste0(prefix, '_wasted', gb, '_hrs')
+    if (column_to_plot == 'fail_rate') {
+      df %>%
+        mutate(failed_jobs = number_of_jobs * fail_rate) %>%
+        group_by(across(all_of(group_cols))) %>%
+        summarise(fail_rate = sum(failed_jobs) / sum(number_of_jobs)) -> dt
 
-    df %>%
-      group_by(across(all_of(group_cols))) %>%
-      summarise(across(all_of(c(total_col, wasted_col)), sum), .groups = 'drop') %>%
-      mutate(!!efficiency_col := (.data[[total_col]] - .data[[wasted_col]]) / .data[[total_col]]) -> dt
-
-    p <- ggplot(dt, aes(x = timestamp, y = .data[[efficiency_col]])) + theme_bw()
-
-    if (fill_column == 'Reason') {
-      p + geom_line(aes(color = .data[[fill_column]]))
+      ggplot(dt, aes(x = .data[[date_col]], y = .data[[column_to_plot]])) +
+        geom_line() + theme_bw()
     } else {
-      p + geom_line()
+      prefix <- strsplit(column_to_plot, split = "_")[[1]][1]
+      gb <- ifelse(prefix == 'mem', '_gb', '')
+      efficiency_col <- paste0(prefix, '_efficiency')
+      total_col <- paste0(prefix, '_avail', gb, '_hrs')
+      wasted_col <- paste0(prefix, '_wasted', gb, '_hrs')
+
+      df %>%
+        group_by(across(all_of(group_cols))) %>%
+        summarise(across(all_of(c(total_col, wasted_col)), sum), .groups = 'drop') %>%
+        mutate(!!efficiency_col := (.data[[total_col]] - .data[[wasted_col]]) / .data[[total_col]]) -> dt
+
+      p <- ggplot(dt, aes(x = .data[[date_col]], y = .data[[efficiency_col]])) + theme_bw()
+
+      if (fill_column == 'Reason') {
+        p + geom_line(aes(color = .data[[fill_column]]))
+      } else {
+        p + geom_line()
+      }
     }
   } else {
-    ggplot(df, aes(x = timestamp, y = .data[[column_to_plot]], fill = .data[[fill_column]])) +
+    ggplot(df, aes(x = .data[[date_col]], y = .data[[column_to_plot]], fill = .data[[fill_column]])) +
       geom_bar(stat = 'identity') + theme_bw()
   }
 }
