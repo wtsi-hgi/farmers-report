@@ -4,6 +4,7 @@ library(elastic)
 library(ggplot2)
 library(dplyr)
 loadNamespace('shinycssloaders')
+loadNamespace('stringr')
 
 source('src/table_helpers.R')
 source('src/elastic_helpers.R')
@@ -359,7 +360,7 @@ server <- function(input, output, session) {
     cols <- colnames(df) %>%
       setdiff(c('timestamp', 'USER_NAME', 'Job', 'JOB_ID', 'QUEUE_NAME'))
 
-    pretty_cols <- str_replace_all(cols, '_', ' ') %>% str_to_title()
+    pretty_cols <- stringr::str_replace_all(cols, '_', ' ') %>% stringr::str_to_title()
 
     cols_list <- setNames(as.list(cols), pretty_cols)
     cols_list
