@@ -122,3 +122,8 @@ generate_gpu_plot <- function(df, time_bucket, metric = 'PENDING_TIME_SEC') {
 
   ggplot(dt, aes(x = date, y = .data[[colname]], fill = USER_NAME)) + geom_bar(stat = 'identity') + theme_bw()
 }
+
+generate_job_breakdown_plot <- function(df, metric = 'cpu_avail_hrs') {
+  # browser()
+  ggplot(df, aes(x = date, y = .data[[metric]], fill = job_type)) + geom_bar(stat = 'identity') + theme_bw()
+}
