@@ -245,8 +245,8 @@ test_that("extract_hits_from_elastic_response works", {
   hits <- extract_hits_from_elastic_response(fake_elastic_response)
 
   expect_s3_class(hits,'data.frame')
-  expect_length(names(hits), 1)
-  expect_named(hits, "name")
+  expect_length(names(hits), 2)
+  expect_named(hits, c("_id", "name"))
 
   # with empty response
   fake_elastic_response$hits$hits <- data.frame()
