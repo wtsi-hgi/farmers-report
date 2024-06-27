@@ -70,11 +70,11 @@ get_team_statistics <- function(con, query, time_bucket = "none", adjust = TRUE)
   df <- scroll_elastic(
     con = con,
     body = list(query = query),
-    fields = c('USER_NAME', 'Job', 'timestamp', 'JOB_ID',
+    fields = c('USER_NAME', 'Job', 'timestamp', 
               'NUM_EXEC_PROCS', 'AVAIL_CPU_TIME_SEC', 'WASTED_CPU_SECONDS',
               'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS')
   )
-  df$timestamp = lubridate::as_datetime(df$timestamp)
+  df$timestamp <- lubridate::as_datetime(df$timestamp)
   dt <- generate_team_statistics(df, time_bucket, adjust = adjust)
 }
 
@@ -83,15 +83,16 @@ generate_team_statistics <- function (df, time_bucket = "none", adjust = TRUE) {
 
   if (adjust)
     df <- adjust_statistics(df)
+
+  df <- generate_wasted_cost(df)
   
   if(time_bucket != "none") {
     df <- df %>%
-      as_tsibble(key = JOB_ID, index = timestamp) %>%
+      as_tsibble(key = `_id`, index = timestamp) %>%
       index_by_custom(time_bucket = time_bucket)
   }
 
   df %>%
-    generate_wasted_cost() %>%
     group_by(USER_NAME) %>%
     generate_efficiency_stats(
       extra_stats = generate_efficiency_extra_stats
@@ -191,10 +192,10 @@ get_gpu_records <- function(con, query) {
   df <- scroll_elastic(
     con = con,
     body = list(query = query),
-    fields = c('timestamp', 'JOB_ID', 'USER_NAME', 'QUEUE_NAME', 'Job', 'PENDING_TIME_SEC', 'RUN_TIME_SEC')
+    fields = c('timestamp', 'USER_NAME', 'QUEUE_NAME', 'Job', 'PENDING_TIME_SEC', 'RUN_TIME_SEC')
   )
 
-  df$timestamp = lubridate::as_datetime(df$timestamp)
+  df$timestamp <- lubridate::as_datetime(df$timestamp)
 
   return(df)
 }
