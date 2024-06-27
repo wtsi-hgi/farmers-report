@@ -79,7 +79,6 @@ get_team_statistics <- function(con, query, time_bucket = "none", adjust = TRUE)
 }
 
 generate_team_statistics <- function (df, time_bucket = "none", adjust = TRUE) {
-  # browser()
   df <- rename_raw_elastic_fields(df)
 
   if (adjust)
@@ -108,7 +107,6 @@ build_bom_aggregation <- function(query, time_bucket = 'none') {
 }
 
 generate_bom_statistics <- function(df, timed = FALSE, adjust = TRUE) {
-  # browser()
   if (adjust) {
     df <- adjust_statistics(df)
   }
