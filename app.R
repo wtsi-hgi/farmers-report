@@ -415,15 +415,14 @@ server <- function(input, output, session) {
             selectInput(
               "unadjusted_efficiency_column", "Column to plot",
               choices = unadjusted_efficiency_table_colnames(),
-              selected = input$unadjusted_efficiency_column
+              selected = isolate(input$unadjusted_efficiency_column)
             ),
             plotOutput("unadjusted_efficiency_plot")
           )
         )
       )
     }
-  }) %>%
-    bindEvent(input$time_bucket)
+  }) 
 
 }
 
