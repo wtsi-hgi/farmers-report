@@ -154,6 +154,10 @@ ui <- page_sidebar(
       shinycssloaders::withSpinner(
         tagList(
           DT::DTOutput("job_breakdown"),
+          selectInput(
+            "job_breakdown_column", "Column to plot",
+            choices = NULL
+          ),
           plotOutput("job_breakdown_plot")
         )
       ),
@@ -356,11 +360,20 @@ server <- function(input, output, session) {
     get_job_statistics(elastic_con, time_bucket = input$time_bucket, query = elastic_query())
   })
 
+  timed_job_statistics_colnames <- reactive({
+    df <- timed_job_statistics()
+    cols <- colnames(df)
+    cols <- setdiff(cols, c('date', 'job_type'))
+    cols <- column_rename[column_rename %in% cols]
+    names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
+    names(cols)[grep('mem_wasted_frac', cols)] <- 'Memory Efficiency'
+    cols
+  })
+
   output$job_breakdown_plot <- renderPlot({
-    req(input$job_breakdown_column)
     if(input$time_bucket != "none"){
       df <- timed_job_statistics()
-      generate_job_breakdown_plot(df, metric = input$job_breakdown_column)
+      generate_efficiency_plot(df, column_to_plot = input$job_breakdown_column)
     }
   })
 
@@ -376,7 +389,7 @@ server <- function(input, output, session) {
   gpu_records_colnames <- reactive({
     df <- gpu_records()
     cols <- colnames(df) %>%
-      setdiff(c('timestamp', 'USER_NAME', 'Job', 'JOB_ID', 'QUEUE_NAME'))
+      setdiff(c('timestamp', 'USER_NAME', 'Job', 'QUEUE_NAME', '_id'))
 
     pretty_cols <- stringr::str_replace_all(cols, '_', ' ') %>% stringr::str_to_title()
 
@@ -467,22 +480,25 @@ server <- function(input, output, session) {
 
   observe({
     if (input$time_bucket == "none") {
-      accordion_panel_update('my_accordion', target = 'job_breakdown_panel',
+      accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
         shinycssloaders::withSpinner(
           DT::DTOutput("job_breakdown")
         )
       )
     } else {
-      browser()
-      shinycssloaders::withSpinner(
-        tagList(
-          DT::DTOutput("job_breakdown"),
-          selectInput(
-            "job_breakdown_column", "Column to plot",
-            choices = colnames(timed_job_statistics()),
-            selected = isolate(input$job_breakdown_column)
-          ),
-          plotOutput("job_breakdown_plot")
+      accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
+        shinycssloaders::withSpinner(
+          DT::DTOutput("job_breakdown")
+        ),
+        shinycssloaders::withSpinner(
+          tagList(
+            selectInput(
+              "job_breakdown_column", "Column to plot",
+              choices = timed_job_statistics_colnames(),
+              selected = isolate(input$job_breakdown_column)
+            ),
+            plotOutput("job_breakdown_plot")
+          )
         )
       )
     }

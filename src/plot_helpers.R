@@ -67,6 +67,10 @@ generate_efficiency_plot <- function(df, column_to_plot){
     fill_column <- 'USER_NAME'
     date_col <- 'date'
     group_cols <- c('date')
+  } else if ('job_type' %in% colnames(df)) {
+    fill_column <- 'job_type'
+    date_col <- 'date'
+    group_cols <- c('date')
   } else {
     fill_column <- 'Reason'
     date_col <- 'timestamp'
@@ -121,9 +125,4 @@ generate_gpu_plot <- function(df, time_bucket, metric = 'PENDING_TIME_SEC') {
     summarise(!!colname := median(.data[[metric]]))
 
   ggplot(dt, aes(x = date, y = .data[[colname]], fill = USER_NAME)) + geom_bar(stat = 'identity') + theme_bw()
-}
-
-generate_job_breakdown_plot <- function(df, metric = 'cpu_avail_hrs') {
-  # browser()
-  ggplot(df, aes(x = date, y = .data[[metric]], fill = job_type)) + geom_bar(stat = 'identity') + theme_bw()
 }
