@@ -311,7 +311,7 @@ server <- function(input, output, session) {
   unadjusted_efficiency_table_colnames <- reactive({
     df <- unadjusted_efficiency_timed_table()
     cols <- colnames(df)
-    cols <- setdiff(cols, c('timestamp', 'accounting_name'))
+    cols <- setdiff(cols, c('timestamp', 'accounting_name', 'USER_NAME'))
     cols <- column_rename[column_rename %in% cols]
     names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
     names(cols)[grep('mem_wasted_frac', cols)] <- 'Memory Efficiency'
