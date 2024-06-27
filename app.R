@@ -152,8 +152,12 @@ ui <- page_sidebar(
     accordion_panel(
       "Job Breakdown",
       shinycssloaders::withSpinner(
-        DT::DTOutput("job_breakdown")
-      )
+        tagList(
+          DT::DTOutput("job_breakdown"),
+          plotOutput("job_breakdown_plot")
+        )
+      ),
+      value = "job_breakdown_panel"
     ),
     accordion_panel(
       "GPU Statistics",
@@ -348,6 +352,18 @@ server <- function(input, output, session) {
     make_dt(dt, table_view_opts = 'ftp')
   })
 
+  timed_job_statistics <- reactive({
+    get_job_statistics(elastic_con, time_bucket = input$time_bucket, query = elastic_query())
+  })
+
+  output$job_breakdown_plot <- renderPlot({
+    req(input$job_breakdown_column)
+    if(input$time_bucket != "none"){
+      df <- timed_job_statistics()
+      generate_job_breakdown_plot(df, metric = input$job_breakdown_column)
+    }
+  })
+
   gpu_records <- reactive({
     get_gpu_records(elastic_con, query = elastic_query())
   })
@@ -447,7 +463,30 @@ server <- function(input, output, session) {
         )
       )
     }
-  }) 
+  })
+
+  observe({
+    if (input$time_bucket == "none") {
+      accordion_panel_update('my_accordion', target = 'job_breakdown_panel',
+        shinycssloaders::withSpinner(
+          DT::DTOutput("job_breakdown")
+        )
+      )
+    } else {
+      browser()
+      shinycssloaders::withSpinner(
+        tagList(
+          DT::DTOutput("job_breakdown"),
+          selectInput(
+            "job_breakdown_column", "Column to plot",
+            choices = colnames(timed_job_statistics()),
+            selected = isolate(input$job_breakdown_column)
+          ),
+          plotOutput("job_breakdown_plot")
+        )
+      )
+    }
+  })
 
 }
 

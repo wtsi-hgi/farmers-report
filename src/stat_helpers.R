@@ -146,23 +146,33 @@ get_bom_statistics <- function (con, query, adjust = TRUE, time_bucket = 'none')
   generate_bom_statistics(df, timed = time_bucket != 'none', adjust = adjust)
 }
 
-get_job_statistics <- function (con, query) {
+get_job_statistics <- function (con, query, time_bucket = 'none') {
   df <- scroll_elastic(
     con = con,
     body = list(query = query),
-    fields = c('JOB_NAME', 'Job',
+    fields = c('timestamp', 'JOB_NAME', 'Job',
               'NUM_EXEC_PROCS', 'AVAIL_CPU_TIME_SEC', 'WASTED_CPU_SECONDS',
               'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS')
   )
-  dt <- generate_job_statistics(df)
+  df$timestamp <- lubridate::as_datetime(df$timestamp)
+  dt <- generate_job_statistics(df, time_bucket = time_bucket)
 }
 
-generate_job_statistics <- function (df) {
+generate_job_statistics <- function (df, time_bucket = 'none') {
+  # browser()
   dt <- df %>%
     rename_raw_elastic_fields() %>%
     adjust_statistics() %>%
     generate_wasted_cost() %>%
-    mutate(job_type = sapply(job_name, parse_job_type)) %>%
+    mutate(job_type = sapply(job_name, parse_job_type))
+
+  if (time_bucket != 'none') {
+    dt <- dt %>%
+      as_tsibble(key = `_id`, index = timestamp) %>%
+      index_by_custom(time_bucket = time_bucket)
+  }
+  
+  dt %>%
     group_by(job_type) %>%
     generate_efficiency_stats(
       extra_stats = generate_efficiency_extra_stats
