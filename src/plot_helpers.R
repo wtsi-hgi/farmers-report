@@ -70,7 +70,7 @@ generate_efficiency_plot <- function(df, column_to_plot){
   } else if ('job_type' %in% colnames(df)) {
     fill_column <- 'job_type'
     date_col <- 'date'
-    group_cols <- c('date')
+    group_cols <- c('date', fill_column)
   } else {
     fill_column <- 'Reason'
     date_col <- 'timestamp'
@@ -102,7 +102,7 @@ generate_efficiency_plot <- function(df, column_to_plot){
 
       p <- ggplot(dt, aes(x = .data[[date_col]], y = .data[[efficiency_col]])) + theme_bw()
 
-      if (fill_column == 'Reason') {
+      if (fill_column == 'Reason' || fill_column == 'job_type') {
         p + geom_line(aes(color = .data[[fill_column]]))
       } else {
         p + geom_line()
