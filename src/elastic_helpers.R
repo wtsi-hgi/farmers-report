@@ -2,6 +2,7 @@ library(dplyr)
 
 source("src/constants.R")
 source('src/timeseries_helpers.R')
+loadNamespace('tidyr')
 
 rename_raw_elastic_fields <- function (df, map = elastic_column_map) {
   rename(df, any_of(map))
@@ -303,7 +304,15 @@ parse_elastic_agg <- function(response, request, df = data.frame(), nest_level =
   return(df)
 }
 
-scroll_elastic <- function (con, body, fields) {
+# move to stat helpers
+get_numerical_colnames <- function(df) {
+  numerical_colnames <- df %>%
+    select(where(is.numeric)) %>%
+    colnames()
+}
+
+scroll_elastic <- function(con, body, fields) {
+  browser()
   res <- Search(
     con,
     index = attr(con, 'index'),
@@ -318,6 +327,12 @@ scroll_elastic <- function (con, body, fields) {
   if(nrow(df) == 0)
     df <- mutate(df, !!!sapply(fields, c))
 
+  # have a function that identifies all numerical columns in a given df
+  numerical_columns <- get_numerical_colnames(df)
+
+  # use replace_na to replace NA values to 0
+  df <- df %>% 
+    mutate(across(all_of(numerical_columns), ~ tidyr::replace_na(., 0)))
+
   return(df)
 }
-
