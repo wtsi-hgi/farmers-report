@@ -121,3 +121,26 @@ test_that("generate_efficiency_plot works with user", {
   expect_equal(as.character(p$layers[[1]]$constructor[[1]]), 'geom_line')
   expect_equal(p$data$cpu_efficiency, c(0.6, 0.9, 0.9, 0.5))
 })
+
+test_that("generate_efficiency_plot works with job statistics", {
+  df$date <- as.Date(df$timestamp)
+  df$timestamp <- NULL
+  df$job_type <- c('other', 'other', 'nextflow', 'interactive')
+
+  # job statistics bar plot
+  p <- generate_efficiency_plot(df, column_to_plot = 'mymetric')
+
+  expect_equal(p$labels$x, 'date')
+  expect_equal(p$labels$y, 'mymetric')
+  expect_equal(p$labels$fill, 'job_type')
+  expect_equal(as.character(p$layers[[1]]$constructor[[1]]), 'geom_bar')
+
+  # job statistics line plot
+  p <- generate_efficiency_plot(df, column_to_plot = 'cpu_wasted_frac')
+
+  expect_equal(p$labels$x, 'date')
+  expect_equal(p$labels$y, 'cpu_efficiency')
+  expect_equal(p$labels$colour, 'job_type')
+  expect_equal(as.character(p$layers[[1]]$constructor[[1]]), 'geom_line')
+  expect_equal(p$data$cpu_efficiency, c(2400/3000, 2000/4000, 2700/3000))
+})
