@@ -159,7 +159,6 @@ get_job_statistics <- function (con, query, time_bucket = 'none') {
 }
 
 generate_job_statistics <- function (df, time_bucket = 'none') {
-  # browser()
   dt <- df %>%
     rename_raw_elastic_fields() %>%
     adjust_statistics() %>%

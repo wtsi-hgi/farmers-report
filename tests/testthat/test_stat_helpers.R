@@ -172,8 +172,18 @@ test_that("generate_job_statistics works", {
     'cpu_wasted_frac','mem_avail_gb_hrs', 'mem_wasted_gb_hrs', 'mem_wasted_frac', 'wasted_cost'
   )
 
+  # when time_bucket == 'none'
   dt <- generate_job_statistics(fake_data_frame)
   expect_s3_class(dt, 'data.frame')
+  expect_named(dt, expected_columns)
+
+  # when time_bucket != 'none'
+  fake_data_frame$`_id` <- c('123', '456', '789')
+  fake_data_frame$timestamp <- as.Date(c('2024-01-02', '2024-01-03', '2024-01-03'))
+  expected_columns <- append(expected_columns, 'date', after = 1)
+
+  dt <- generate_job_statistics(fake_data_frame, time_bucket = 'day')
+  expect_s3_class(dt, 'tbl_ts')
   expect_named(dt, expected_columns)
 })
 

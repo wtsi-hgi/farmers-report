@@ -116,7 +116,6 @@ generate_efficiency_plot <- function(df, column_to_plot){
 
 generate_gpu_plot <- function(df, time_bucket, metric = 'PENDING_TIME_SEC') {
   colname <- paste(metric, "median", sep = "_")
-  # Warning: Error in validate_tsibble: A valid tsibble must have distinct rows identified by key and index.
   dt <- df %>%
     as_tsibble(key = `_id`, index = timestamp) %>%
     # group_by_key() %>%
