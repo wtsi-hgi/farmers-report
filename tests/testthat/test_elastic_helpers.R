@@ -424,3 +424,25 @@ test_that("rename_raw_elastic_fields works", {
   expect_s3_class(result,'data.frame')
   expect_named(result, names(elastic_column_map))
 })
+
+test_that("get_numerical_colnames", {
+  # with mixed columns
+  test_df <- data.frame(
+    RUN_TIME_SEC = c(40, 13, 10),
+    USER_NAME = c('user1', 'user2', 'user3'),
+    PENDING_TIME_SEC = c(12, NA, NA),
+    QUEUE_NAME = c('queue1', 'queue1', 'queue2')
+  )
+  test_colnames <- get_numerical_colnames(test_df)
+
+  expect_equal(test_colnames, c('RUN_TIME_SEC', 'PENDING_TIME_SEC'))
+
+  # with no numerical columns
+  test_df <- data.frame(
+    USER_NAME = c('user1', 'user2', 'user3'),
+    QUEUE_NAME = c('queue1', 'queue1', 'queue2')
+  )
+  test_colnames <- get_numerical_colnames(test_df)
+
+  expect_equal(test_colnames, character(0))
+})
