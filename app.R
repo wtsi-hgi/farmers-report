@@ -325,9 +325,7 @@ server <- function(input, output, session) {
 
   unadjusted_efficiency_table_colnames <- reactive({
     df <- unadjusted_efficiency_timed_table()
-    cols <- colnames(df)
-    cols <- setdiff(cols, c('timestamp', 'accounting_name', 'USER_NAME'))
-    cols <- column_rename[column_rename %in% cols]
+    cols <- get_colname_options(df, exclude_columns = c('timestamp', 'accounting_name', 'USER_NAME'))
     names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
     names(cols)[grep('mem_wasted_frac', cols)] <- 'Memory Efficiency'
     cols
@@ -356,9 +354,7 @@ server <- function(input, output, session) {
 
   efficiency_table_colnames <- reactive({
     df <- efficiency_timed_table()
-    cols <- colnames(df)
-    cols <- setdiff(cols, c('timestamp', 'accounting_name', 'USER_NAME'))
-    cols <- column_rename[column_rename %in% cols]
+    cols <- get_colname_options(df, exclude_columns = c('timestamp', 'accounting_name', 'USER_NAME'))
     names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
     names(cols)[grep('mem_wasted_frac', cols)] <- 'Memory Efficiency'
     cols
@@ -390,9 +386,7 @@ server <- function(input, output, session) {
 
   timed_job_statistics_colnames <- reactive({
     df <- timed_job_statistics()
-    cols <- colnames(df)
-    cols <- setdiff(cols, c('date', 'job_type'))
-    cols <- column_rename[column_rename %in% cols]
+    cols <- get_colname_options(df, exclude_columns = c('date', 'job_type'))
     names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
     names(cols)[grep('mem_wasted_frac', cols)] <- 'Memory Efficiency'
     cols
