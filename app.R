@@ -117,7 +117,8 @@ ui <- page_sidebar(
         tagList(
           plotOutput("job_failure"),
           plotOutput("per_bucket_job_failure"),
-          DT::DTOutput("per_bucket_job_failure_table")
+          DT::DTOutput("per_bucket_job_failure_table"),
+          plotOutput("job_failure_time_plot")
         )
       ),
       value = "job_failure_panel"
@@ -243,16 +244,22 @@ server <- function(input, output, session) {
     )
   })
 
+  get_job_failure_statistics <- function(query, fields, time_bucket = "none") {
+    if (time_bucket == "none") {
+      b <- build_terms_query(fields = fields, query = elastic_query())
+    } else {
+      b <- build_date_query(interval = time_bucket, fields = fields, query = elastic_query())
+    }
+
+    res <- Search(elastic_con, index = index, body = b, asdf = T)
+
+    parse_elastic_agg(res, b) %>%
+      rename_group_column() -> df    
+  }
+
   per_bucket_job_failure_df <- reactive({
     if (input$accounting_name == 'all') {
-
-      b <- build_terms_query(fields = c("ACCOUNTING_NAME", "Job"), query = elastic_query())
-
-      res <- Search(elastic_con, index = index, body = b, asdf = T)
-
-      parse_elastic_agg(res, b) %>%
-        rename_group_column() -> df
-
+      get_job_failure_statistics(query = elastic_query(), fields = c("ACCOUNTING_NAME", "Job"))
     } else {
       req(input$user_name)
       if (input$user_name == 'all') {
@@ -269,6 +276,21 @@ server <- function(input, output, session) {
         # we need by this point: c('accounting_name', 'job_status', 'doc_count')
       }
     }
+  })
+
+  output$job_failure_time_plot <- renderPlot({
+    browser()
+    if (input$accounting_name == 'all') {
+      fields <- c("BOM", "Job")
+    } else if (input$user_name == 'all') {
+      fields <- c("ACCOUNTING_NAME", "Job")
+    } else {
+      fields <- c("USER_NAME", "Job")
+    }
+
+    df <- get_job_failure_statistics(query = elastic_query(), fields = fields, time_bucket = input$time_bucket)
+
+    make_job_failure_timeplot(df)
   })
 
   output$job_failure <- renderPlot({
@@ -450,21 +472,41 @@ server <- function(input, output, session) {
   })
 
   observe({
-    if (input$accounting_name == 'all' || input$user_name == 'all') {
-      accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
-        shinycssloaders::withSpinner(
-          tagList(
-            plotOutput("per_bucket_job_failure"),
-            DT::DTOutput("per_bucket_job_failure_table")
+    if (input$time_bucket == "none") {
+      if (input$accounting_name == 'all' || input$user_name == 'all') {
+        accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
+          shinycssloaders::withSpinner(
+            tagList(
+              plotOutput("per_bucket_job_failure"),
+              DT::DTOutput("per_bucket_job_failure_table")
+            )
           )
-        )
-      ) 
+        ) 
+      } else {
+        accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
+          shinycssloaders::withSpinner(
+            plotOutput("job_failure")
+          )
+        ) 
+      }
     } else {
-      accordion_panel_update('myaccordion', target = 'job_failure_panel',
-        shinycssloaders::withSpinner(
-          plotOutput("job_failure")
-        )
-      ) 
+      if (input$accounting_name == 'all' || input$user_name == 'all') {
+        accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
+          shinycssloaders::withSpinner(
+            tagList(
+              plotOutput("per_bucket_job_failure"),
+              DT::DTOutput("per_bucket_job_failure_table")
+            )
+          ),
+          shinycssloaders::withSpinner(plotOutput("job_failure_time_plot"))
+        ) 
+      } else {
+        accordion_panel_update('myaccordion', target = 'job_failure_panel',
+          shinycssloaders::withSpinner(
+            plotOutput("job_failure")
+          )
+        ) 
+      }
     }
   })
 

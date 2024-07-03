@@ -112,7 +112,7 @@ build_terms_agg <- function(field, size = 1000) {
 }
 
 build_multi_terms_agg <- function(fields, size = 1000) {
-  terms <- lapply(fields, function(field){
+  terms <- lapply(fields, function(field) {
     list("field" = field)
   })
 
@@ -198,6 +198,33 @@ build_terms_query <- function(fields, aggs = NULL, query = humgen_query, time_bu
 
   nests = list(new_elastic_agg(list(), type = 'multi_terms', fields = fields))
   if(!is.null(aggs)) nests <- append(nests, list(new_elastic_agg(list(), type = 'compute')))
+
+  new_elastic_agg_query(b, nests = nests)
+}
+
+build_date_query <- function(interval, field = 'timestamp', fields, query = humgen_query()) {
+  # build date aggregation
+  date_agg <- build_date_agg(interval)
+  # build multi terms aggregation
+  multi_terms_agg <- build_multi_terms_agg(fields)
+
+  b <- list(
+    "aggs" = list(
+      "stats" = append(
+        build_date_agg(interval),
+        list("aggs" = list(
+          "stats2" = build_multi_terms_agg(fields)
+        ))
+      )
+    ),
+    "size" = 0,
+    "query" = query
+  )
+
+  nests <- list(
+    new_elastic_agg(list(), type = 'date', fields = field),
+    new_elastic_agg(list(), type = 'multi_terms', fields = fields)
+  )
 
   new_elastic_agg_query(b, nests = nests)
 }

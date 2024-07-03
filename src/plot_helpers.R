@@ -125,3 +125,10 @@ generate_gpu_plot <- function(df, time_bucket, metric = 'PENDING_TIME_SEC') {
 
   ggplot(dt, aes(x = date, y = .data[[colname]], fill = USER_NAME)) + geom_bar(stat = 'identity') + theme_bw()
 }
+
+make_job_failure_timeplot <- function(df) {
+  ggplot(df, mapping = aes(x = timestamp, y = doc_count, fill = job_status)) + 
+    geom_bar(position="stack", stat="identity") + 
+    theme_bw() +
+    labs(x = 'Time', y = 'Number of jobs')
+}
