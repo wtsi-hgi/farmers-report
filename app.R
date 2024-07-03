@@ -253,8 +253,12 @@ server <- function(input, output, session) {
 
     res <- Search(elastic_con, index = index, body = b, asdf = T)
 
-    parse_elastic_agg(res, b) %>%
-      rename_group_column() -> df    
+    df <- parse_elastic_agg(res, b)
+
+    if ('ACCOUNTING_NAME' %in% fields) {
+      df <- rename_group_column(df)  
+    }
+    return(df)
   }
 
   per_bucket_job_failure_df <- reactive({
@@ -279,7 +283,6 @@ server <- function(input, output, session) {
   })
 
   output$job_failure_time_plot <- renderPlot({
-    browser()
     if (input$accounting_name == 'all') {
       fields <- c("BOM", "Job")
     } else if (input$user_name == 'all') {
