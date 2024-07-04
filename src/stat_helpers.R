@@ -1,6 +1,7 @@
 library(elastic)
 library(dplyr)
 library(tsibble)
+library(tidyr)
 loadNamespace('lubridate')
 
 
@@ -177,6 +178,53 @@ generate_job_statistics <- function (df, time_bucket = 'none') {
       extra_stats = generate_efficiency_extra_stats
     )
 }
+
+get_job_failure_statistics <- function(con, query, fields, time_bucket = "none") {
+  if (time_bucket == "none") {
+    b <- build_terms_query(fields = fields, query = query)
+  } else {
+    b <- build_date_query(interval = time_bucket, fields = fields, query = query)
+  }
+
+  res <- Search(con, index = index, body = b, asdf = T)
+
+  df <- parse_elastic_agg(res, b)
+
+  if ('ACCOUNTING_NAME' %in% fields) {
+    df <- rename_group_column(df)  
+  }
+  return(df)
+}
+
+get_timed_user_job_failure_statistics <- function(con, query, time_bucket) {
+    df <- scroll_elastic(
+      con = con,
+      body = list(query = query),
+      fields = c('USER_NAME', 'Job', 'timestamp')
+    )
+
+    df$timestamp <- lubridate::as_datetime(df$timestamp)
+  
+    # index by date
+    df <- df %>% 
+      as_tsibble(key = `_id`, index = timestamp) %>% 
+      index_by_custom(time_bucket = time_bucket)
+
+    # aggregate by time and transform
+    df <- df %>%
+      group_by(date) %>%
+      summarise(
+        Fail = sum(Job == 'Failed'),
+        Success = sum(Job == 'Success'),
+        .groups = 'drop') %>%
+      pivot_longer(
+        cols = c(Fail, Success),
+        names_to = 'job_status',
+        values_to = 'doc_count') %>%
+      rename(timestamp = 'date')
+    
+    return(df)
+  }
 
 parse_job_type <- function (job_name) {
 

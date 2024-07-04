@@ -244,57 +244,9 @@ server <- function(input, output, session) {
     )
   })
 
-  get_job_failure_statistics <- function(query, fields, time_bucket = "none") {
-    if (time_bucket == "none") {
-      b <- build_terms_query(fields = fields, query = elastic_query())
-    } else {
-      b <- build_date_query(interval = time_bucket, fields = fields, query = elastic_query())
-    }
-
-    res <- Search(elastic_con, index = index, body = b, asdf = T)
-
-    df <- parse_elastic_agg(res, b)
-
-    if ('ACCOUNTING_NAME' %in% fields) {
-      df <- rename_group_column(df)  
-    }
-    return(df)
-  }
-
-  get_timed_user_job_failure_statistics <- function(con, query, time_bucket) {
-    # have a elastic_scroll query with fields USER_NAME, Job, timestamp
-    df <- scroll_elastic(
-    con = con,
-    body = list(query = query),
-    fields = c('USER_NAME', 'Job', 'timestamp')
-    )
-
-    df$timestamp <- lubridate::as_datetime(df$timestamp)
-  
-    # create a tsibble and index by date
-    df <- df %>% 
-      as_tsibble(key = `_id`, index = timestamp) %>% 
-      index_by_custom(time_bucket = time_bucket)
-
-    # aggregate by user_name and count the number of Success and Fail in Job
-    df <- df %>%
-      group_by(date) %>%
-      summarise(
-        Fail = sum(Job == 'Failed'),
-        Success = sum(Job == 'Success'),
-        .groups = 'drop') %>%
-      pivot_longer(
-        cols = c(Fail, Success),
-        names_to = 'job_status',
-        values_to = 'doc_count') %>%
-      rename(timestamp = 'date')
-    
-    return(df)
-  }
-
   per_bucket_job_failure_df <- reactive({
     if (input$accounting_name == 'all') {
-      get_job_failure_statistics(query = elastic_query(), fields = c("ACCOUNTING_NAME", "Job"))
+      get_job_failure_statistics(con = elastic_con, query = elastic_query(), fields = c("ACCOUNTING_NAME", "Job"))
     } else {
       req(input$user_name)
       if (input$user_name == 'all') {
@@ -316,11 +268,11 @@ server <- function(input, output, session) {
   output$job_failure_time_plot <- renderPlot({
     if (input$accounting_name == 'all') {
       fields <- c("BOM", "Job")
-      df <- get_job_failure_statistics(query = elastic_query(), fields = fields, time_bucket = input$time_bucket)
+      df <- get_job_failure_statistics(con = elastic_con, query = elastic_query(), fields = fields, time_bucket = input$time_bucket)
 
     } else if (input$user_name == 'all') {
       fields <- c("ACCOUNTING_NAME", "Job")
-      df <- get_job_failure_statistics(query = elastic_query(), fields = fields, time_bucket = input$time_bucket)
+      df <- get_job_failure_statistics(con = elastic_con, query = elastic_query(), fields = fields, time_bucket = input$time_bucket)
 
     } else {
       fields <- c("USER_NAME", "Job")
