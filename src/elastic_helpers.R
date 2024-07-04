@@ -202,12 +202,8 @@ build_terms_query <- function(fields, aggs = NULL, query = humgen_query, time_bu
   new_elastic_agg_query(b, nests = nests)
 }
 
-build_date_query <- function(interval, field = 'timestamp', fields, query = humgen_query()) {
-  # build date aggregation
-  date_agg <- build_date_agg(interval)
-  # build multi terms aggregation
-  multi_terms_agg <- build_multi_terms_agg(fields)
-
+# creates a query body to aggregate over multiple fields with date aggregation
+build_date_query <- function(interval, field = 'timestamp', fields, query = humgen_query) {
   b <- list(
     "aggs" = list(
       "stats" = append(

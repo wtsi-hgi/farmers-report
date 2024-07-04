@@ -285,6 +285,19 @@ test_that("build_terms_query works", {
   expect_length(attr(q, 'nests'), 2)
 })
 
+test_that("build_date_query works", {
+  # time bucket is day
+  q <- build_date_query(interval = 'day', fields = c("ACCOUNTING_NAME", "Job"))
+
+  expect_type(q, "list")
+  expect_s3_class(q, 'elastic_agg_query')
+  expect_named(q$aggs$stats[1], 'date_histogram')
+  expect_named(q$aggs$stats$aggs$stats2[1], 'multi_terms')
+  expect_setequal(q$aggs$stats$aggs$stats2$multi_terms$terms, list(list(field='ACCOUNTING_NAME'), list(field='Job')))
+  expect_equal(q$query, humgen_query)
+  expect_length(attr(q, 'nests'), 2)
+})
+
 test_that("build_elastic_sub_agg works", {
   sub_agg <- build_elastic_sub_agg("myfield", "sum")
   expected_struct <- list(

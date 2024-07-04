@@ -204,30 +204,32 @@ get_timed_user_job_failure_statistics <- function(con, query, time_bucket) {
     )
 
     df$timestamp <- lubridate::as_datetime(df$timestamp)
-  
-    # index by date
-    df <- df %>% 
-      as_tsibble(key = `_id`, index = timestamp) %>% 
-      index_by_custom(time_bucket = time_bucket)
-
-    # aggregate by time and transform
-    df <- df %>%
-      group_by(date) %>%
-      summarise(
-        Fail = sum(Job == 'Failed'),
-        Success = sum(Job == 'Success'),
-        .groups = 'drop') %>%
-      pivot_longer(
-        cols = c(Fail, Success),
-        names_to = 'job_status',
-        values_to = 'doc_count') %>%
-      rename(timestamp = 'date')
-    
-    return(df)
+    dt <- generate_timed_user_job_failure_statistics(df, time_bucket)
   }
 
-parse_job_type <- function (job_name) {
+generate_timed_user_job_failure_statistics <- function(df, time_bucket = 'none') {
+  # index by date
+  df <- df %>% 
+    as_tsibble(key = `_id`, index = timestamp) %>% 
+    index_by_custom(time_bucket = time_bucket)
 
+  # aggregate by time and transform
+  df <- df %>%
+    group_by(date) %>%
+    summarise(
+      Failed = sum(Job == 'Failed'),
+      Success = sum(Job == 'Success'),
+      .groups = 'drop') %>%
+    pivot_longer(
+      cols = c(Failed, Success),
+      names_to = 'job_status',
+      values_to = 'doc_count') %>%
+    rename(timestamp = 'date')
+  
+  return(df)
+}
+
+parse_job_type <- function (job_name) {
   if (startsWith(job_name, "nf-"))
     return('nextflow')
 

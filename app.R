@@ -487,12 +487,18 @@ server <- function(input, output, session) {
               DT::DTOutput("per_bucket_job_failure_table")
             )
           ),
-          shinycssloaders::withSpinner(plotOutput("job_failure_time_plot"))
+          shinycssloaders::withSpinner(
+            plotOutput("job_failure_time_plot")
+          )
         ) 
       } else {
         accordion_panel_update('myaccordion', target = 'job_failure_panel',
-          shinycssloaders::withSpinner(plotOutput("job_failure")),
-          shinycssloaders::withSpinner(plotOutput("job_failure_time_plot"))
+          shinycssloaders::withSpinner(
+            plotOutput("job_failure")
+          ),
+          shinycssloaders::withSpinner(
+            plotOutput("job_failure_time_plot")
+          )
         ) 
       }
     }

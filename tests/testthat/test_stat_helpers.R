@@ -234,3 +234,19 @@ test_that("build_bucket_aggregation_query works", {
   expect_failure(expect_null(result$aggs$stats$aggs$stats2))
   expect_equal(result$aggs$stats$date_histogram$calendar_interval, 'day')
 })
+
+test_that("generate_timed_user_job_failure_statistics works", {
+  df <- data.frame(
+    "_id" = c(123, 456, 789),
+    USER_NAME = c('user1', 'user1', 'user1'),
+    Job = c('Failed', 'Success', 'Success'),
+    timestamp = as.Date(c('2024-01-02', '2024-01-03', '2024-01-03')),
+    check.names = FALSE
+  )
+
+  result <- generate_timed_user_job_failure_statistics(df, time_bucket = 'day')
+
+  expect_named(result, c('timestamp', 'job_status', 'doc_count'))
+  expect_s3_class(result, 'tbl_ts')
+  expect_s3_class(result$timestamp, 'Date')
+})
