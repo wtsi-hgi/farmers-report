@@ -130,5 +130,5 @@ make_job_failure_timeplot <- function(df) {
   ggplot(df, mapping = aes(x = timestamp, y = doc_count, fill = job_status)) + 
     geom_bar(position="stack", stat="identity") + 
     theme_bw() +
-    labs(x = 'Time', y = 'Number of jobs')
+    labs(x = 'Date', y = 'Number of jobs', fill = 'Job status')
 }
