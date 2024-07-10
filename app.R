@@ -62,7 +62,7 @@ get_user_names <- function(con, bom, accounting_name, date_range) {
   unique(df$USER_NAME)
 }
 
-generate_efficiency <- function (input, con, query, adjust, team_statistics, time_bucket) {
+generate_efficiency <- function (input, con, query, adjust, time_bucket) {
   req(input$accounting_name)
   if (input$accounting_name != 'all') {
     req(input$user_name)
@@ -72,11 +72,7 @@ generate_efficiency <- function (input, con, query, adjust, team_statistics, tim
     dt <- get_bom_statistics(con, query = query, adjust = adjust, time_bucket = time_bucket)
   } else {
     if (input$user_name == 'all') {
-      if (adjust) {
-        dt <- team_statistics()
-      } else {
-        dt <- get_team_statistics(con, query = query, time_bucket = time_bucket, adjust = FALSE)
-      }
+      dt <- get_team_statistics(con, query = query, time_bucket = time_bucket, adjust = adjust)
     } else {
       dt <- get_user_statistics(con, query = query, adjust = adjust, time_bucket = time_bucket)
     }
@@ -146,8 +142,15 @@ ui <- page_sidebar(
         tagList(
           textOutput("adjustments_explanation"),
           DT::DTOutput("efficiency"),
-          htmlOutput("awesomeness_formula"))
-      )
+          htmlOutput("awesomeness_formula"),
+          selectInput(
+            "efficiency_column", "Column to plot",
+            choices = NULL
+          ),
+          plotOutput("efficiency_plot")
+        )
+      ),
+      value = 'efficiency_panel'
     ),
     accordion_panel(
       "Job Breakdown",
@@ -240,10 +243,6 @@ server <- function(input, output, session) {
     )
   })
 
-  team_statistics <- reactive({
-    get_team_statistics(elastic_con, query = elastic_query())
-  })
-
   per_bucket_job_failure_df <- reactive({
     if (input$accounting_name == 'all') {
 
@@ -258,7 +257,7 @@ server <- function(input, output, session) {
       req(input$user_name)
       if (input$user_name == 'all') {
         # statistics for only one team
-        df <- team_statistics()
+        df <- get_team_statistics(elastic_con, query = elastic_query())
 
         # transform df
         df <- df %>%
@@ -310,19 +309,17 @@ server <- function(input, output, session) {
   })
 
   output$unadjusted_efficiency <-  DT::renderDT({
-    dt <- generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), team_statistics = team_statistics, time_bucket = 'none')
+    dt <- generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), time_bucket = 'none')
     make_dt(dt, table_view_opts = 'ftp')
   })
 
   unadjusted_efficiency_timed_table <- reactive({
-    generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), team_statistics = team_statistics, time_bucket = input$time_bucket)
+    generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), time_bucket = input$time_bucket)
   })
 
   unadjusted_efficiency_table_colnames <- reactive({
     df <- unadjusted_efficiency_timed_table()
-    cols <- colnames(df)
-    cols <- setdiff(cols, c('timestamp', 'accounting_name', 'USER_NAME'))
-    cols <- column_rename[column_rename %in% cols]
+    cols <- get_colname_options(df, exclude_columns = c('timestamp', 'accounting_name', 'USER_NAME'))
     names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
     names(cols)[grep('mem_wasted_frac', cols)] <- 'Memory Efficiency'
     cols
@@ -341,8 +338,29 @@ server <- function(input, output, session) {
   })
 
   output$efficiency <- DT::renderDT({
-    dt <- generate_efficiency(input, elastic_con, adjust = TRUE, query = elastic_query(), team_statistics = team_statistics, time_bucket = input$time_bucket)
+    dt <- generate_efficiency(input, elastic_con, adjust = TRUE, query = elastic_query(), time_bucket = 'none')
     make_dt(dt, table_view_opts = 'ftp')
+  })
+
+  efficiency_timed_table <- reactive({
+    generate_efficiency(input, elastic_con, adjust = TRUE, query = elastic_query(), time_bucket = input$time_bucket)
+  })
+
+  efficiency_table_colnames <- reactive({
+    df <- efficiency_timed_table()
+    cols <- get_colname_options(df, exclude_columns = c('timestamp', 'accounting_name', 'USER_NAME'))
+    names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
+    names(cols)[grep('mem_wasted_frac', cols)] <- 'Memory Efficiency'
+    cols
+  })
+
+  output$efficiency_plot <- renderPlot({
+    if(input$time_bucket != "none") {
+      generate_efficiency_plot(
+        df = efficiency_timed_table(),
+        column_to_plot = input$efficiency_column
+      )
+    }
   })
 
   output$awesomeness_formula <- renderUI({
@@ -362,9 +380,7 @@ server <- function(input, output, session) {
 
   timed_job_statistics_colnames <- reactive({
     df <- timed_job_statistics()
-    cols <- colnames(df)
-    cols <- setdiff(cols, c('date', 'job_type'))
-    cols <- column_rename[column_rename %in% cols]
+    cols <- get_colname_options(df, exclude_columns = c('date', 'job_type'))
     names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
     names(cols)[grep('mem_wasted_frac', cols)] <- 'Memory Efficiency'
     cols
@@ -472,6 +488,32 @@ server <- function(input, output, session) {
               selected = isolate(input$unadjusted_efficiency_column)
             ),
             plotOutput("unadjusted_efficiency_plot")
+          )
+        )
+      )
+    }
+  })
+
+  observe({
+    if (input$time_bucket == "none") {
+      accordion_panel_update('myaccordion', target = 'efficiency_panel',
+        shinycssloaders::withSpinner(
+          DT::DTOutput("efficiency")
+        )
+      )
+    } else {
+      accordion_panel_update('myaccordion', target = 'efficiency_panel',
+        shinycssloaders::withSpinner(
+          DT::DTOutput("efficiency")
+        ),
+        shinycssloaders::withSpinner(
+          tagList(
+            selectInput(
+              "efficiency_column", "Column to plot",
+              choices = efficiency_table_colnames(),
+              selected = isolate(input$efficiency_column)
+            ),
+            plotOutput("efficiency_plot")
           )
         )
       )
