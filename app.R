@@ -266,8 +266,10 @@ server <- function(input, output, session) {
   })
 
   output$job_failure_time_plot <- renderPlot({
-    df <- get_job_failure_statistics(con = elastic_con, query = elastic_query(), fields = "Job", time_bucket = input$time_bucket)
-    make_job_failure_timeplot(df)
+    if(input$time_bucket != "none"){
+      df <- get_job_failure_statistics(con = elastic_con, query = elastic_query(), fields = "Job", time_bucket = input$time_bucket)
+      make_job_failure_timeplot(df)
+    }
   })
 
   output$job_failure <- renderPlot({
@@ -317,6 +319,7 @@ server <- function(input, output, session) {
   })
 
   unadjusted_efficiency_table_colnames <- reactive({
+    req('unadjusted_efficiency_panel' %in% input$myaccordion)
     df <- unadjusted_efficiency_timed_table()
     cols <- get_colname_options(df, exclude_columns = c('timestamp', 'accounting_name', 'USER_NAME'))
     names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
@@ -346,6 +349,7 @@ server <- function(input, output, session) {
   })
 
   efficiency_table_colnames <- reactive({
+    req('efficiency_panel' %in% input$myaccordion)
     df <- efficiency_timed_table()
     cols <- get_colname_options(df, exclude_columns = c('timestamp', 'accounting_name', 'USER_NAME'))
     names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
@@ -378,6 +382,7 @@ server <- function(input, output, session) {
   })
 
   timed_job_statistics_colnames <- reactive({
+    req('job_breakdown_panel' %in% input$myaccordion)
     df <- timed_job_statistics()
     cols <- get_colname_options(df, exclude_columns = c('date', 'job_type'))
     names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
@@ -402,6 +407,7 @@ server <- function(input, output, session) {
   })
 
   gpu_records_colnames <- reactive({
+    req('gpu_statistics_panel' %in% input$myaccordion)
     df <- gpu_records()
     cols <- colnames(df) %>%
       setdiff(c('timestamp', 'USER_NAME', 'Job', 'QUEUE_NAME', '_id'))
@@ -569,7 +575,6 @@ server <- function(input, output, session) {
       )
     }
   })
-
 }
 
 shinyApp(ui = ui, server = server)
