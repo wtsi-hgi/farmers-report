@@ -60,7 +60,7 @@ get_user_names <- function(con, bom, accounting_name, date_range) {
   unique(df$USER_NAME)
 }
 
-generate_efficiency <- function (input, con, query, adjust, team_statistics, time_bucket) {
+generate_efficiency <- function (input, con, query, adjust, time_bucket) {
   req(input$accounting_name)
   if (input$accounting_name != 'all') {
     req(input$user_name)
@@ -70,11 +70,7 @@ generate_efficiency <- function (input, con, query, adjust, team_statistics, tim
     dt <- get_bom_statistics(con, query = query, adjust = adjust, time_bucket = time_bucket)
   } else {
     if (input$user_name == 'all') {
-      if (adjust) {
-        dt <- get_team_statistics(con, query = query, time_bucket = time_bucket, adjust = TRUE)
-      } else {
-        dt <- get_team_statistics(con, query = query, time_bucket = time_bucket, adjust = FALSE)
-      }
+      dt <- get_team_statistics(con, query = query, time_bucket = time_bucket, adjust = adjust)
     } else {
       dt <- get_user_statistics(con, query = query, adjust = adjust, time_bucket = time_bucket)
     }
@@ -245,10 +241,6 @@ server <- function(input, output, session) {
     )
   })
 
-  team_statistics <- reactive({
-    get_team_statistics(elastic_con, query = elastic_query())
-  })
-
   per_bucket_job_failure_df <- reactive({
     if (input$accounting_name == 'all') {
 
@@ -263,7 +255,7 @@ server <- function(input, output, session) {
       req(input$user_name)
       if (input$user_name == 'all') {
         # statistics for only one team
-        df <- team_statistics()
+        df <- get_team_statistics(elastic_con, query = elastic_query())
 
         # transform df
         df <- df %>%
@@ -315,12 +307,12 @@ server <- function(input, output, session) {
   })
 
   output$unadjusted_efficiency <-  DT::renderDT({
-    dt <- generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), team_statistics = team_statistics, time_bucket = 'none')
+    dt <- generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), time_bucket = 'none')
     make_dt(dt, table_view_opts = 'ftp')
   })
 
   unadjusted_efficiency_timed_table <- reactive({
-    generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), team_statistics = team_statistics, time_bucket = input$time_bucket)
+    generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), time_bucket = input$time_bucket)
   })
 
   unadjusted_efficiency_table_colnames <- reactive({
@@ -344,12 +336,12 @@ server <- function(input, output, session) {
   })
 
   output$efficiency <- DT::renderDT({
-    dt <- generate_efficiency(input, elastic_con, adjust = TRUE, query = elastic_query(), team_statistics = team_statistics, time_bucket = 'none')
+    dt <- generate_efficiency(input, elastic_con, adjust = TRUE, query = elastic_query(), time_bucket = 'none')
     make_dt(dt, table_view_opts = 'ftp')
   })
 
   efficiency_timed_table <- reactive({
-    generate_efficiency(input, elastic_con, adjust = TRUE, query = elastic_query(), team_statistics = team_statistics, time_bucket = input$time_bucket)
+    generate_efficiency(input, elastic_con, adjust = TRUE, query = elastic_query(), time_bucket = input$time_bucket)
   })
 
   efficiency_table_colnames <- reactive({
