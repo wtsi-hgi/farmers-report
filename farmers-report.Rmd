@@ -51,10 +51,10 @@ b <- build_agg_query("Job", query = build_humgen_query(filters = build_humgen_fi
 
 res <- Search(elastic_con, index = index, body = b, asdf = T)
 
-df <- parse_elastic_single_agg(res) %>%
+df <- parse_elastic_agg(res, b) %>%
   mutate_for_piechart()
 
-piechart(df, count_field = 'doc_count', key_field = 'key', legend_name = 'Job status')
+piechart(df, count_field = 'doc_count', key_field = 'job_status', legend_name = 'Job status')
 ```
 
 ### per team
@@ -63,7 +63,7 @@ b <- build_terms_query(fields = c("ACCOUNTING_NAME", "Job"), query = build_humge
 
 res <- Search(elastic_con, index = index, body = b, asdf = T)
 
-parse_elastic_multi_agg(res, column_names = c('accounting_name', 'job_status')) %>%
+parse_elastic_agg(res, b) %>%
   rename_group_column() -> df
 
 make_per_team_job_plot(df, static = params$static)
@@ -87,7 +87,7 @@ b <- build_bom_aggregation(
 
 res <- Search(elastic_con, index = index, body = b, asdf = T)
 
-df <- parse_elastic_multi_agg(res, column_names = c('accounting_name', 'procs', 'job_status')) %>%
+df <- parse_elastic_agg(res, b) %>%
   select(-doc_count)
 ```
 

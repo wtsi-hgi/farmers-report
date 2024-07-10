@@ -117,7 +117,8 @@ ui <- page_sidebar(
         tagList(
           plotOutput("job_failure"),
           plotOutput("per_bucket_job_failure"),
-          DT::DTOutput("per_bucket_job_failure_table")
+          DT::DTOutput("per_bucket_job_failure_table"),
+          plotOutput("job_failure_time_plot")
         )
       ),
       value = "job_failure_panel"
@@ -245,14 +246,7 @@ server <- function(input, output, session) {
 
   per_bucket_job_failure_df <- reactive({
     if (input$accounting_name == 'all') {
-
-      b <- build_terms_query(fields = c("ACCOUNTING_NAME", "Job"), query = elastic_query())
-
-      res <- Search(elastic_con, index = index, body = b, asdf = T)
-
-      parse_elastic_agg(res, b) %>%
-        rename_group_column() -> df
-
+      get_job_failure_statistics(con = elastic_con, query = elastic_query(), fields = c("ACCOUNTING_NAME", "Job"))
     } else {
       req(input$user_name)
       if (input$user_name == 'all') {
@@ -268,6 +262,13 @@ server <- function(input, output, session) {
 
         # we need by this point: c('accounting_name', 'job_status', 'doc_count')
       }
+    }
+  })
+
+  output$job_failure_time_plot <- renderPlot({
+    if(input$time_bucket != "none"){
+      df <- get_job_failure_statistics(con = elastic_con, query = elastic_query(), fields = "Job", time_bucket = input$time_bucket)
+      make_job_failure_timeplot(df)
     }
   })
 
@@ -318,6 +319,7 @@ server <- function(input, output, session) {
   })
 
   unadjusted_efficiency_table_colnames <- reactive({
+    req('unadjusted_efficiency_panel' %in% input$myaccordion)
     df <- unadjusted_efficiency_timed_table()
     cols <- get_colname_options(df, exclude_columns = c('timestamp', 'accounting_name', 'USER_NAME'))
     names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
@@ -347,6 +349,7 @@ server <- function(input, output, session) {
   })
 
   efficiency_table_colnames <- reactive({
+    req('efficiency_panel' %in% input$myaccordion)
     df <- efficiency_timed_table()
     cols <- get_colname_options(df, exclude_columns = c('timestamp', 'accounting_name', 'USER_NAME'))
     names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
@@ -379,6 +382,7 @@ server <- function(input, output, session) {
   })
 
   timed_job_statistics_colnames <- reactive({
+    req('job_breakdown_panel' %in% input$myaccordion)
     df <- timed_job_statistics()
     cols <- get_colname_options(df, exclude_columns = c('date', 'job_type'))
     names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
@@ -403,6 +407,7 @@ server <- function(input, output, session) {
   })
 
   gpu_records_colnames <- reactive({
+    req('gpu_statistics_panel' %in% input$myaccordion)
     df <- gpu_records()
     cols <- colnames(df) %>%
       setdiff(c('timestamp', 'USER_NAME', 'Job', 'QUEUE_NAME', '_id'))
@@ -450,21 +455,46 @@ server <- function(input, output, session) {
   })
 
   observe({
-    if (input$accounting_name == 'all' || input$user_name == 'all') {
-      accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
-        shinycssloaders::withSpinner(
-          tagList(
-            plotOutput("per_bucket_job_failure"),
-            DT::DTOutput("per_bucket_job_failure_table")
+    if (input$time_bucket == "none") {
+      if (input$accounting_name == 'all' || input$user_name == 'all') {
+        accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
+          shinycssloaders::withSpinner(
+            tagList(
+              plotOutput("per_bucket_job_failure"),
+              DT::DTOutput("per_bucket_job_failure_table")
+            )
           )
-        )
-      ) 
+        ) 
+      } else {
+        accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
+          shinycssloaders::withSpinner(
+            plotOutput("job_failure")
+          )
+        ) 
+      }
     } else {
-      accordion_panel_update('myaccordion', target = 'job_failure_panel',
-        shinycssloaders::withSpinner(
-          plotOutput("job_failure")
-        )
-      ) 
+      if (input$accounting_name == 'all' || input$user_name == 'all') {
+        accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
+          shinycssloaders::withSpinner(
+            tagList(
+              plotOutput("per_bucket_job_failure"),
+              DT::DTOutput("per_bucket_job_failure_table")
+            )
+          ),
+          shinycssloaders::withSpinner(
+            plotOutput("job_failure_time_plot")
+          )
+        ) 
+      } else {
+        accordion_panel_update('myaccordion', target = 'job_failure_panel',
+          shinycssloaders::withSpinner(
+            plotOutput("job_failure")
+          ),
+          shinycssloaders::withSpinner(
+            plotOutput("job_failure_time_plot")
+          )
+        ) 
+      }
     }
   })
 
@@ -545,7 +575,6 @@ server <- function(input, output, session) {
       )
     }
   })
-
 }
 
 shinyApp(ui = ui, server = server)

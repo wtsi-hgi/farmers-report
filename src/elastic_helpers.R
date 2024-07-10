@@ -112,7 +112,7 @@ build_terms_agg <- function(field, size = 1000) {
 }
 
 build_multi_terms_agg <- function(fields, size = 1000) {
-  terms <- lapply(fields, function(field){
+  terms <- lapply(fields, function(field) {
     list("field" = field)
   })
 

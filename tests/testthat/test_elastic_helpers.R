@@ -375,7 +375,7 @@ test_that('parse_elastic_agg works', {
   expect_named(df, c('timestamp', 'doc_count'))
   expect_equal(nrow(df), 2)
 
-  # nest level 2, test for 'date' and 'multi_terms
+  # nest level 2, test for 'date' and 'multi_terms'
   df <- parse_elastic_agg(fake_elastic_nested_date_response, fake_elastic_nested_date_request)
 
   expect_s3_class(df, 'data.frame')

@@ -1,6 +1,7 @@
 library(elastic)
 library(dplyr)
 library(tsibble)
+library(tidyr)
 loadNamespace('lubridate')
 
 
@@ -178,8 +179,30 @@ generate_job_statistics <- function (df, time_bucket = 'none') {
     )
 }
 
-parse_job_type <- function (job_name) {
+get_job_failure_statistics <- function(con, query, fields, time_bucket = "none") {
 
+  if (length(fields) == 1){
+    term_agg <- build_terms_agg(field = fields)
+  } else {
+    term_agg <- build_multi_terms_agg(fields = fields)
+  }
+  
+  aggs <- list(term_agg)
+
+  if (time_bucket != 'none') {
+    aggs <- append(aggs, list(build_date_agg(interval = time_bucket)), after = 0)
+  }
+
+  b <- build_elasic_agg(aggs = aggs, query = query)
+
+  res <- Search(con, index = index, body = b, asdf = T)
+
+  df <- parse_elastic_agg(res, b)
+
+  return(df)
+}
+
+parse_job_type <- function (job_name) {
   if (startsWith(job_name, "nf-"))
     return('nextflow')
 
