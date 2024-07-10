@@ -180,19 +180,25 @@ generate_job_statistics <- function (df, time_bucket = 'none') {
 }
 
 get_job_failure_statistics <- function(con, query, fields, time_bucket = "none") {
-  if (time_bucket == "none") {
-    b <- build_terms_query(fields = fields, query = query)
+
+  if (length(fields) == 1){
+    term_agg <- build_terms_agg(field = fields)
   } else {
-    b <- build_date_query(interval = time_bucket, fields = fields, query = query)
+    term_agg <- build_multi_terms_agg(fields = fields)
   }
+  
+  aggs <- list(term_agg)
+
+  if (time_bucket != 'none') {
+    aggs <- append(aggs, list(build_date_agg(interval = time_bucket)), after = 0)
+  }
+
+  b <- build_elasic_agg(aggs = aggs, query = query)
 
   res <- Search(con, index = index, body = b, asdf = T)
 
   df <- parse_elastic_agg(res, b)
 
-  if ('ACCOUNTING_NAME' %in% fields) {
-    df <- rename_group_column(df)  
-  }
   return(df)
 }
 

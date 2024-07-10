@@ -266,19 +266,7 @@ server <- function(input, output, session) {
   })
 
   output$job_failure_time_plot <- renderPlot({
-    if (input$accounting_name == 'all') {
-      fields <- c("BOM", "Job")
-      df <- get_job_failure_statistics(con = elastic_con, query = elastic_query(), fields = fields, time_bucket = input$time_bucket)
-
-    } else if (input$user_name == 'all') {
-      fields <- c("ACCOUNTING_NAME", "Job")
-      df <- get_job_failure_statistics(con = elastic_con, query = elastic_query(), fields = fields, time_bucket = input$time_bucket)
-
-    } else {
-      fields <- c("USER_NAME", "Job")
-      df <- get_timed_user_job_failure_statistics(con = elastic_con, query = elastic_query(), time_bucket = input$time_bucket)
-    }
-
+    df <- get_job_failure_statistics(con = elastic_con, query = elastic_query(), fields = "Job", time_bucket = input$time_bucket)
     make_job_failure_timeplot(df)
   })
 
