@@ -24,12 +24,12 @@ elastic_con <- connect(
   transport_schema = "http"
 )
 
-index <<- config$elastic$index
+attr(elastic_con, 'index') <- config$elastic$index
 
 get_bom_names <- function(con) {
   b <- build_agg_query("BOM", query = build_humgen_query(filters = build_humgen_filters(BOM = NULL)))
 
-  res <- Search(con, index = index, body = b, asdf = T)
+  res <- Search(con, index = attr(con, 'index'), body = b, asdf = T)
 
   parse_elastic_agg(res, b)$BOM
 }
@@ -42,7 +42,7 @@ get_accounting_names <- function(con, bom, date_range) {
     )
   ))
 
-  res <- Search(con, index = index, body = b, asdf = T)
+  res <- Search(con, index = attr(con, 'index'), body = b, asdf = T)
 
   parse_elastic_agg(res, b)$accounting_name
 }
@@ -275,7 +275,7 @@ server <- function(input, output, session) {
   output$job_failure <- renderPlot({
     b <- build_agg_query("Job", query = elastic_query())
 
-    res <- Search(elastic_con, index = index, body = b, asdf = T)
+    res <- Search(elastic_con, index = attr(elastic_con, 'index'), body = b, asdf = T)
 
     df <- parse_elastic_agg(res, b) %>%
       mutate_for_piechart()

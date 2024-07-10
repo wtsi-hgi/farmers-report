@@ -16,7 +16,7 @@ generate_efficiency_extra_stats <- list(
 
 get_user_statistics <- function (con, query, adjust = TRUE, time_bucket = 'none') {
   b <- build_user_statistics_query(query, time_bucket = time_bucket)
-  res <- Search(con, index = index, body = b, asdf = T)
+  res <- Search(con, index = attr(con, 'index'), body = b, asdf = T)
 
   df <- parse_elastic_agg(res, b) %>%
     select(-doc_count)
@@ -139,7 +139,7 @@ generate_bom_statistics <- function(df, timed = FALSE, adjust = TRUE) {
 
 get_bom_statistics <- function (con, query, adjust = TRUE, time_bucket = 'none') {
   b <- build_bom_aggregation(query, time_bucket)
-  res <- Search(con, index = index, body = b, asdf = T)
+  res <- Search(con, index = attr(con, 'index'), body = b, asdf = T)
 
   df <- parse_elastic_agg(res, b) %>%
     select(-doc_count)
@@ -195,7 +195,7 @@ get_job_failure_statistics <- function(con, query, fields, time_bucket = "none")
 
   b <- build_elasic_agg(aggs = aggs, query = query)
 
-  res <- Search(con, index = index, body = b, asdf = T)
+  res <- Search(con, index = attr(con, 'index'), body = b, asdf = T)
 
   df <- parse_elastic_agg(res, b)
 

@@ -306,7 +306,7 @@ parse_elastic_agg <- function(response, request, df = data.frame(), nest_level =
 scroll_elastic <- function (con, body, fields) {
   res <- Search(
     con,
-    index = index,
+    index = attr(con, 'index'),
     time_scroll="1m",
     source = fields,
     body = body,
