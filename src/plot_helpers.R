@@ -125,10 +125,3 @@ generate_gpu_plot <- function(df, time_bucket, metric = 'PENDING_TIME_SEC') {
 
   ggplot(dt, aes(x = date, y = .data[[colname]], fill = USER_NAME)) + geom_bar(stat = 'identity') + theme_bw()
 }
-
-get_colname_options <- function(df, exclude_columns) {
-  cols <- colnames(df)
-  cols <- setdiff(cols, exclude_columns)
-  cols <- column_rename[column_rename %in% cols]
-  return(cols)
-}

@@ -6,7 +6,6 @@ if(basename(getwd()) == "testthat")
   setwd("../../")
 
 source("src/plot_helpers.R")
-source("src/table_helpers.R")
 
 gpu_plot_df <- data.frame(
   'USER_NAME' = c('x', 'y', 'z'),
@@ -144,21 +143,4 @@ test_that("generate_efficiency_plot works with job statistics", {
   expect_equal(p$labels$colour, 'job_type')
   expect_equal(as.character(p$layers[[1]]$constructor[[1]]), 'geom_line')
   expect_equal(p$data$cpu_efficiency, c(2400/3000, 2000/4000, 2700/3000))
-})
-
-test_that("get_colname_options works", {
-  test_df <- data.frame(
-    USER_NAME = c('user1', 'user2', 'user3'),
-    cpu_wasted_frac = c(1.0, 0.79, 0.3),
-    number_of_jobs = c(1, 2, 3),
-    timestamp = as.Date(c('2024-01-01', '2024-01-02', '2024-01-03'))
-  )
-
-  expected_output <- c(
-    'Number of jobs' = 'number_of_jobs',
-    'Wasted CPU fraction' = 'cpu_wasted_frac'
-  )
-  
-  test_output <- get_colname_options(test_df, exclude_columns = c('USER_NAME', 'timestamp'))
-  expect_equal(test_output, expected_output)
 })

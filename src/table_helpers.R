@@ -224,3 +224,10 @@ generate_efficiency_stats <- function(df, extra_stats = list()) {
     relocate(wasted_cost, .after = last_col()) %>%
     select(-setdiff(fields, 'wasted_cost'))
 }
+
+get_colname_options <- function(df, exclude_columns) {
+  cols <- colnames(df)
+  cols <- setdiff(cols, exclude_columns)
+  cols <- column_rename[column_rename %in% cols]
+  return(cols)
+}
