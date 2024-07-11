@@ -83,7 +83,7 @@ generate_efficiency_plot <- function(df, column_to_plot){
     if (column_to_plot == 'fail_rate') {
       df %>%
         mutate(failed_jobs = number_of_jobs * fail_rate) %>%
-        group_by(across(all_of(group_cols))) %>%
+        group_by(across(all_of(date_col))) %>%
         summarise(fail_rate = sum(failed_jobs) / sum(number_of_jobs)) -> dt
 
       ggplot(dt, aes(x = .data[[date_col]], y = .data[[column_to_plot]])) +
