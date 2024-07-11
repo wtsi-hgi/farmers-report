@@ -7,6 +7,36 @@ if(basename(getwd()) == "testthat")
 
 source("src/elastic_helpers.R")
 
+test_that("new_elastic_agg works", {
+  # invalid x
+  expect_error(new_elastic_agg(x = character(), type = 'date', fields = NULL))
+
+  # invalid type
+  expect_error(new_elastic_agg(x = list(), type = 'year', fields = NULL))
+
+  # valid
+  elastic_agg <- new_elastic_agg(x = list(), type = 'compute', fields = c('x'))
+
+  expect_s3_class(elastic_agg, 'elastic_agg')
+  expect_contains(names(attributes(elastic_agg)), c('type', 'fields'))
+})
+
+test_that("new_elastic_agg_query works", {
+  # invalid x
+  expect_error(new_elastic_agg_query(x = character(), nests = NULL), "x should be list")
+
+  # invalid nests
+  fake_nests <- list('x', 'y')
+  expect_error(new_elastic_agg_query(x = list(), nests = fake_nests), "should be of type")
+
+  # valid
+  valid_nests <- list(new_elastic_agg(list(), type = 'terms', fields = NULL))
+  elastic_agg_query <- new_elastic_agg_query(x = list(), nests = valid_nests)
+
+  expect_s3_class(elastic_agg_query, 'elastic_agg_query')
+  expect_contains(names(attributes(elastic_agg_query)), c('nest_levels', 'nests'))
+})
+
 fake_elastic_response <- list(
   hits = list(
     hits = data.frame(
@@ -20,8 +50,121 @@ fake_elastic_response <- list(
   )
 )
 
+fake_elastic_single_agg_request <- new_elastic_agg_query(
+  list(
+    "aggs" = list(
+        "stats" = list(
+          "terms" = list(
+            "field" = "Job",
+            "size" = 1000
+          )
+        )
+      ),
+      "size" = 0
+  ),
+  nests = list(new_elastic_agg(list(), type = 'terms', fields = "Job"))
+)
+
 fake_elastic_single_agg_response <- list(
   aggregations = list(stats = list(buckets = data.frame(key = 1:3)))
+)
+
+fake_elastic_nested_multi_agg_request <- new_elastic_agg_query(
+  list(
+    "aggs" = list(
+        "stats" = list(
+          "multi_terms" = list(
+            "terms" = list(
+              list(field = "Job"),
+              list(field = "ACCOUNTING_NAME")
+            ),
+            "size" = 1000
+          ),
+          "aggs" = list(
+            "cpu_avail_sec" = list(
+              "sum" = list(
+                "field" = "AVAIL_CPU_TIME_SEC"
+              )
+            )
+          )
+        )
+      ),
+      "size" = 0
+  ),
+  nests = list(
+    new_elastic_agg(list(), type = 'multi_terms', fields = c("Job", "ACCOUNTING_NAME")),
+    new_elastic_agg(list(), type = 'compute')
+  )
+)
+
+fake_elastic_nested_multi_agg_response <- list(
+  aggregations = list(stats = list(buckets = tibble::tibble(
+    key = list(
+      c('value1', 'value2'),
+      c('value3', 'value4'),
+      c('value5', 'value6')),
+    key_as_string = character(3),
+    cpu_avail_sec = c(1, 2, 3)
+  )))
+)
+
+fake_elastic_nested_agg_request <- new_elastic_agg_query(
+  list(
+    "aggs" = list(
+        "stats" = list(
+          "terms" = list(
+            "field" = "BOM",
+            "size" = 1000
+          ),
+          "aggs" = list(
+            "stats2" = list(
+              "multi_terms" = list(
+                "terms" = list(
+                  list(field = "Job"),
+                  list(field = "ACCOUNTING_NAME")
+                ),
+                "size" = 1000
+              )
+            )
+          )
+        )
+      ),
+      "size" = 0
+  ),
+  nests = list(
+    new_elastic_agg(list(), type = 'terms', fields = "BOM"),
+    new_elastic_agg(list(), type = 'multi_terms', fields = c("Job", "ACCOUNTING_NAME"))
+  )
+)
+
+fake_elastic_nested_agg_response <- list(
+  aggregations = list(stats = list(buckets = tibble::tibble(
+    key = c('Humgen', 'CellGen'),
+    doc_count = c(100, 200),
+    stats2.doc_count_error_upper_bound = c(0, 0),
+    stats2.sum_other_doc_count = c(0, 0),
+    stats2.buckets = list(
+      tibble::tribble(~key, ~key_as_string, ~doc_count, 
+                      c('value1', 'value2'), '', c(300, 400), 
+                      c('value3', 'value4'), '', c(500, 600)),
+      tibble::tribble(~key, ~key_as_string, ~doc_count, 
+                      c('value5', 'value6'), '', c(700, 800))
+    )
+  )))
+)
+
+fake_elastic_multi_agg_request <- new_elastic_agg_query(
+  list(
+    "aggs" = list(
+      "stats" = list(
+        "multi_terms" = list(
+          "terms" = terms,
+          "size" = 1000
+        )
+      )
+    )
+  ), 
+  nests = list(new_elastic_agg(list(), type = 'multi_terms', fields = c("field1", "field2")))
 )
 
 fake_elastic_multi_agg_response <- list(
@@ -34,12 +177,81 @@ fake_elastic_multi_agg_response <- list(
   )))
 )
 
+fake_elastic_date_request <- new_elastic_agg_query(
+  list(
+    "aggs" = list(
+      "stats" = list(
+        "date_histogram" = list(
+          "field" = "timestamp",
+          "calendar_interval" = "day"
+        )
+      )
+    )
+  ),
+  nests = list(new_elastic_agg(list(), type = "date", fields = "timestamp"))
+)
+
+fake_elastic_date_response <- list(
+  aggregations = list(stats = list(buckets = tibble::tibble(
+    key = c(1.718237e+12, 1.718323e+12),
+    key_as_string = c('2024-06-13', '2024-06-14'),
+    doc_count = c(100, 200)
+  )))
+)
+
+fake_elastic_nested_date_request <- new_elastic_agg_query(
+  list(
+    "aggs" = list(
+      "stats" = list(
+        "date_histogram" = list(
+          "field" = "timestamp",
+          "calendar_interval" = "day"
+        ),
+        "aggs" = list(
+          "stats2" = list(
+            "multi_terms" = list(
+              "terms" = terms
+            )
+          )
+        )
+      )
+    )
+  ),
+  nests = list(
+    new_elastic_agg(list(), type = "date", fields = "timestamp"),
+    new_elastic_agg(list(), type = 'multi_terms', fields = c('BOM', 'Job'))
+  )
+)
+
+fake_elastic_nested_date_response <- list(
+  aggregations = list(stats = list(buckets = tibble::tibble(
+    key = c(1.718237e+12, 1.718323e+12),
+    key_as_string = c('2024-06-13', '2024-06-14'),
+    doc_count = c(100, 200),
+    stats2.doc_count_error_upper_bound = c(0, 0),
+    stats2.sum_other_doc_count = c(0, 0),
+    stats2.buckets = list(
+      tibble::tribble(~key, ~key_as_string, ~doc_count, 
+                      c('value1', 'value2'), '', c(300, 400), 
+                      c('value3', 'value4'), '', c(500, 600)),
+      tibble::tribble(~key, ~key_as_string, ~doc_count, 
+                      c('value5', 'value6'), '', c(700, 800))
+    )
+  )))
+)
+
 test_that("extract_hits_from_elastic_response works", {
+  # with records
   hits <- extract_hits_from_elastic_response(fake_elastic_response)
 
   expect_s3_class(hits,'data.frame')
-  expect_length(names(hits), 1)
-  expect_named(hits, "name")
+  expect_length(names(hits), 2)
+  expect_named(hits, c("_id", "name"))
+
+  # with empty response
+  fake_elastic_response$hits$hits <- data.frame()
+  hits <- extract_hits_from_elastic_response(fake_elastic_response)
+  expect_equal(hits, data.frame())
 })
 
 test_that("build_agg_query works", {
@@ -53,13 +265,24 @@ test_that("build_agg_query works", {
 })
 
 test_that("build_terms_query works", {
+  # without custom aggs
   field_names <- c('fieldname1', 'fieldname2')
   q <- build_terms_query(field = field_names)
 
   expect_type(q, "list")
+  expect_s3_class(q, 'elastic_agg_query')
   expect_named(q$aggs$stats[1], 'multi_terms')
-  expect_equal(q$aggs$stats$multi_terms$terms, list(list(field='fieldname1'), list(field='fieldname2')))
+  expect_setequal(q$aggs$stats$multi_terms$terms, list(list(field='fieldname1'), list(field='fieldname2')))
+  expect_null(q$aggs$stats$aggs)
   expect_equal(q$query, humgen_query)
+  expect_length(attr(q, 'nests'), 1)
+
+  # with custom aggs
+  custom_aggs <- list("mysum" = list("sum" = list("field" = "fieldname3")))
+  q <- build_terms_query(field = field_names, aggs = custom_aggs)
+
+  expect_failure(expect_null(q$aggs$stats$aggs))
+  expect_length(attr(q, 'nests'), 2)
 })
 
 test_that("build_elastic_sub_agg works", {
@@ -114,20 +337,57 @@ test_that('build_humgen_query works', {
   expect_named(q$bool$filter, NULL)
 })
 
-test_that('parse_elastic_single_agg works', {
-  df <- parse_elastic_single_agg(fake_elastic_single_agg_response)
+test_that('parse_elastic_agg works', {
+  # nest level 1, test for 'terms'
+  df <- parse_elastic_agg(fake_elastic_single_agg_response, fake_elastic_single_agg_request)
 
-  expect_s3_class(df,'data.frame')
-  expect_named(df, "key")
-})
+  expect_s3_class(df, 'data.frame')
+  expect_named(df, "job_status")
 
-test_that('parse_elastic_multi_agg works', {
+  # nest level 1, test for 'multi_terms'
   field_names <- c('field1', 'field2')
-  df <- parse_elastic_multi_agg(fake_elastic_multi_agg_response, column_names = field_names)
+  df <- parse_elastic_agg(fake_elastic_multi_agg_response, fake_elastic_multi_agg_request)
 
-  expect_s3_class(df,'data.frame')
+  expect_s3_class(df, 'data.frame')
   expect_named(df, field_names)
   expect_equal(nrow(df), 3)
+
+  # nest level 2, test for 'multi_terms' and 'compute'
+  field_names <- c('job_status', 'accounting_name', 'cpu_avail_sec')
+  df <- parse_elastic_agg(fake_elastic_nested_multi_agg_response, fake_elastic_nested_multi_agg_request)
+
+  expect_s3_class(df, 'data.frame')
+  expect_named(df, field_names)
+  expect_equal(nrow(df), 3)
+
+  # nest level 2, test for 'terms' and 'multi_terms'
+  field_names <- c('BOM', 'job_status', 'accounting_name', 'doc_count')
+  df <- parse_elastic_agg(fake_elastic_nested_agg_response, fake_elastic_nested_agg_request)
+
+  expect_s3_class(df, 'data.frame')
+  expect_named(df, field_names)
+  expect_equal(nrow(df), 3)
+
+  # nest level 1, test for 'date'
+  df <- parse_elastic_agg(fake_elastic_date_response, fake_elastic_date_request)
+
+  expect_s3_class(df, 'data.frame')
+  expect_named(df, c('timestamp', 'doc_count'))
+  expect_equal(nrow(df), 2)
+
+  # nest level 2, test for 'date' and 'multi_terms'
+  df <- parse_elastic_agg(fake_elastic_nested_date_response, fake_elastic_nested_date_request)
+
+  expect_s3_class(df, 'data.frame')
+  expect_named(df, c('timestamp', 'BOM', 'job_status', 'doc_count'))
+  expect_equal(nrow(df), 3)
+
+  # invalid
+  attr(attr(fake_elastic_single_agg_request, 'nests')[[1]], 'type') <- 'invalid_type'
+  expect_error(
+    parse_elastic_agg(fake_elastic_single_agg_response, fake_elastic_single_agg_request), 
+    "Parser for invalid_type is not implemented."
+  )
 })
 
 test_that('format_elastic_date_range works', {
@@ -153,4 +413,14 @@ test_that("build_match_phrase_filter works", {
   )
 
   expect_equal(object, expected_object)
+})
+
+test_that("rename_raw_elastic_fields works", {
+  df <- as.data.frame(as.list(seq_along(elastic_column_map)))
+  names(df) <- elastic_column_map
+
+  result <- rename_raw_elastic_fields(df)
+
+  expect_s3_class(result,'data.frame')
+  expect_named(result, names(elastic_column_map))
 })

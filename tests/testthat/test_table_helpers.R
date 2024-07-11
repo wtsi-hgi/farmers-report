@@ -202,13 +202,21 @@ test_that("generate_app_wastage_statistics function produces correct app wastage
     )
   )
 
-  expected_result$cpu_wasted_frac = expected_result$cpu_wasted_hrs / expected_result$cpu_avail_hrs
-  expected_result$mem_wasted_frac = expected_result$mem_wasted_gb_hrs / expected_result$mem_avail_gb_hrs
+  expected_result$cpu_wasted_frac <- expected_result$cpu_wasted_hrs / expected_result$cpu_avail_hrs
+  expected_result$mem_wasted_frac <- expected_result$mem_wasted_gb_hrs / expected_result$mem_avail_gb_hrs
 
   expected_result <- expected_result[c(1, 2, 3, 7, 4, 5, 8, 6)]
-  
+
+  # no timestamp
   result <- generate_app_wastage_statistics(df)
-  
+  expect_equal(result, expected_result)
+
+  df$timestamp <- as.Date(c('2024-01-01', '2024-01-01', '2024-01-02', '2024-01-01', '2024-01-02'))
+  expected_result$timestamp <- as.Date(c('2024-01-02', '2024-01-01'))
+  expected_result <- dplyr::relocate(expected_result, timestamp, .before = 1)
+
+  # with timestamp
+  result <- generate_app_wastage_statistics(df, timed = TRUE)
   expect_equal(result, expected_result)
 })
 
@@ -229,16 +237,6 @@ test_that("set_team_names generates named lists for accounting names", {
   expect_named(converted_team_names, team_name)
 })
 
-test_that("rename_raw_elastic_fields works", {
-  df <- as.data.frame(as.list(seq_along(elastic_column_map)))
-  names(df) <- elastic_column_map
-
-  result <- rename_raw_elastic_fields(df)
-
-  expect_s3_class(result,'data.frame')
-  expect_named(result, names(elastic_column_map))
-})
-
 test_that("generate_wasted_cost works", {
   df <- data.frame(
     cpu_wasted_sec = c(100, 200, 300),
@@ -253,4 +251,21 @@ test_that("generate_wasted_cost works", {
   result <- generate_wasted_cost(df)
 
   expect_equal(result, expected_df)
+})
+
+test_that("get_colname_options works", {
+  test_df <- data.frame(
+    USER_NAME = c('user1', 'user2', 'user3'),
+    cpu_wasted_frac = c(1.0, 0.79, 0.3),
+    number_of_jobs = c(1, 2, 3),
+    timestamp = as.Date(c('2024-01-01', '2024-01-02', '2024-01-03'))
+  )
+
+  expected_output <- c(
+    'Number of jobs' = 'number_of_jobs',
+    'Wasted CPU fraction' = 'cpu_wasted_frac'
+  )
+  
+  test_output <- get_colname_options(test_df, exclude_columns = c('USER_NAME', 'timestamp'))
+  expect_equal(test_output, expected_output)
 })

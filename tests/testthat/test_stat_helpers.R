@@ -36,6 +36,16 @@ test_that("generate_bom_statistics works", {
   dt <- generate_bom_statistics(df, adjust = FALSE)
   expect_s3_class(dt,'data.frame')
   expect_named(dt, expected_columns)
+
+  # with timed = TRUE
+  df$timestamp <- as.Date(c('2024-06-22', '2024-06-23', '2024-06-24'))
+  dt <- generate_bom_statistics(df, timed = TRUE)
+
+  expected_columns <- append(expected_columns, 'timestamp', after = 0)
+  expected_columns <- setdiff(expected_columns, 'awesomeness')
+
+  expect_s3_class(dt,'data.frame')
+  expect_named(dt, expected_columns)
 })
 
 test_that("build_user_statistics_query works", {
@@ -55,21 +65,15 @@ test_that("build_user_statistics_query works", {
 })
 
 test_that("generate_user_statistics works", {
-  fake_elastic_response <- list(
-    aggregations = list(
-      stats = list(
-        buckets = tibble::tibble(
-          key = list(c("1", "Success"), c("2", "Failed")),
-          key_as_string = c('1|Success', '2|Failed'),
-          doc_count = c(10, 20),
-          mem_avail_mb_sec = c(500, 750),
-          mem_wasted_mb_sec = c(1000, 2000),
-          cpu_avail_sec = c (50, 75),
-          cpu_wasted_sec = c(100, 200),
-          wasted_cost = c(0.1, 0.2)
-        )
-      )
-    )
+  fake_df <- tibble::tibble(
+    procs = c(1, 2),
+    job_status = c("Success", "Failed"),
+    doc_count = c(10, 20),
+    mem_avail_mb_sec = c(500, 750),
+    mem_wasted_mb_sec = c(1000, 2000),
+    cpu_avail_sec = c (50, 75),
+    cpu_wasted_sec = c(100, 200),
+    wasted_cost = c(0.1, 0.2)
   )
 
   expected_columns <- c(
@@ -78,13 +82,22 @@ test_that("generate_user_statistics works", {
   )
 
   # with adjustment
-  dt <- generate_user_statistics(fake_elastic_response)
+  dt <- generate_user_statistics(fake_df)
   expect_s3_class(dt, 'data.frame')
   expect_named(dt, expected_columns)
   expect_true('Total' %in% dt$Reason)
 
   # without adjustment
-  dt <- generate_user_statistics(fake_elastic_response, adjust = FALSE)
+  dt <- generate_user_statistics(fake_df, adjust = FALSE)
+  expect_s3_class(dt, 'data.frame')
+  expect_named(dt, expected_columns)
+
+  # with timestamp
+  fake_df$timestamp <- as.Date(c('2024-06-22', '2024-06-23'))
+  dt <- generate_user_statistics(fake_df, timed = TRUE)
+
+  expected_columns <- append(expected_columns, 'timestamp', after = 0)
+
   expect_s3_class(dt, 'data.frame')
   expect_named(dt, expected_columns)
 })
@@ -98,7 +111,10 @@ test_that("generate_team_statistics works", {
     WASTED_CPU_SECONDS = c(600, 500, 700),
     MEM_REQUESTED_MB = c(1200, 2400, 3600), 
     MEM_REQUESTED_MB_SEC = c(12000, 42000, 60000),
-    WASTED_MB_SECONDS = c(5000, 20000, 10000)
+    WASTED_MB_SECONDS = c(5000, 20000, 10000),
+    "_id" = c(123, 456, 789),
+    "timestamp" = as.Date(c("2024-01-01", "2024-01-2", "2024-01-03")),
+    check.names = FALSE
   )
 
   expected_columns <- c(
@@ -115,6 +131,11 @@ test_that("generate_team_statistics works", {
   dt <- generate_team_statistics(fake_data_frame, adjust = FALSE)
   expect_s3_class(dt, 'data.frame')
   expect_named(dt, expected_columns)
+
+  # with time_bucket
+  dt <- generate_team_statistics(fake_data_frame, time_bucket = 'day')
+  expect_s3_class(dt, 'tbl_ts')
+  expected_columns <- append(expected_columns, 'date')
 })
 
 test_that("build_bom_aggregation works", {
@@ -151,8 +172,18 @@ test_that("generate_job_statistics works", {
     'cpu_wasted_frac','mem_avail_gb_hrs', 'mem_wasted_gb_hrs', 'mem_wasted_frac', 'wasted_cost'
   )
 
+  # when time_bucket == 'none'
   dt <- generate_job_statistics(fake_data_frame)
   expect_s3_class(dt, 'data.frame')
+  expect_named(dt, expected_columns)
+
+  # when time_bucket != 'none'
+  fake_data_frame$`_id` <- c('123', '456', '789')
+  fake_data_frame$timestamp <- as.Date(c('2024-01-02', '2024-01-03', '2024-01-03'))
+  expected_columns <- append(expected_columns, 'date', after = 1)
+
+  dt <- generate_job_statistics(fake_data_frame, time_bucket = 'day')
+  expect_s3_class(dt, 'tbl_ts')
   expect_named(dt, expected_columns)
 })
 
@@ -187,4 +218,19 @@ test_that("generate_gpu_statistics works", {
   expect_s3_class(result, 'data.frame')
   expect_named(result, expected_columns)
   expect_equal(result, expected_df)
+})
+
+test_that("build_bucket_aggregation_query works", {
+  # with no time bucket
+  result <- build_bucket_aggregation_query(fields = c('x', 'y'), query = NULL, time_bucket = 'none')
+
+  expect_failure(expect_null(result$aggs$stats$aggs))
+  expect_null(result$aggs$stats$aggs$stats2)
+  expect_setequal(result$aggs$stats$multi_terms$terms, list(list(field = 'x'), list(field = 'y')))
+
+  # with given time bucket
+  result <- build_bucket_aggregation_query(fields = c('x', 'y'), query = NULL, time_bucket = 'day')
+
+  expect_failure(expect_null(result$aggs$stats$aggs$stats2))
+  expect_equal(result$aggs$stats$date_histogram$calendar_interval, 'day')
 })

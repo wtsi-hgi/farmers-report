@@ -20,15 +20,6 @@ column_rename <- c(
   'Median Run Time' = 'median_run_time'
 )
 
-elastic_column_map <- c(
-  'cpu_avail_sec' = 'AVAIL_CPU_TIME_SEC',
-  'mem_avail_mb_sec' = 'MEM_REQUESTED_MB_SEC',
-  'mem_wasted_mb_sec' = 'WASTED_MB_SECONDS',
-  'cpu_wasted_sec' = 'WASTED_CPU_SECONDS',
-  'procs' = 'NUM_EXEC_PROCS',
-  'job_status' = 'Job'
-)
-
 team_map <- tibble::enframe(
   c(
     'team152' = 'Anderson group',
@@ -106,19 +97,24 @@ adjust_statistics <- function (df) {
   return(df)
 }
 
-generate_app_wastage_statistics <- function(df, adjust = TRUE) {
+generate_app_wastage_statistics <- function(df, adjust = TRUE, timed = FALSE) {
   if (adjust) {
     df <- adjust_statistics(df)
   }
 
-  df %>%
-    group_by(job_status) %>%
-    generate_efficiency_stats() %>%
-    select(job_status, cpu_avail_hrs, cpu_wasted_hrs, cpu_wasted_frac, mem_avail_gb_hrs, mem_wasted_gb_hrs, mem_wasted_frac, wasted_cost)
-}
+  groups <- c('job_status')
+  cols <- c('job_status', 'cpu_avail_hrs', 'cpu_wasted_hrs', 'cpu_wasted_frac',
+            'mem_avail_gb_hrs', 'mem_wasted_gb_hrs', 'mem_wasted_frac', 'wasted_cost')
 
-rename_raw_elastic_fields <- function (df, map = elastic_column_map) {
-  rename(df, !!!map)
+  if(timed) {
+    groups <- append(groups, 'timestamp')
+    cols <- append(cols, 'timestamp', after = 0)
+  }
+
+  df %>%
+    group_by(across(all_of(groups))) %>%
+    generate_efficiency_stats() %>%
+    select(all_of(cols))
 }
 
 generate_wasted_cost <- function (df) {
@@ -214,7 +210,8 @@ generate_efficiency_stats <- function(df, extra_stats = list()) {
   df %>%
     summarise(
       across(all_of(fields), sum),
-      !!!extra_stats
+      !!!extra_stats,
+      .groups = 'drop'
     ) %>%
     mutate(
       cpu_avail_hrs = cpu_avail_sec / 60 / 60,
@@ -226,4 +223,11 @@ generate_efficiency_stats <- function(df, extra_stats = list()) {
     ) %>%
     relocate(wasted_cost, .after = last_col()) %>%
     select(-setdiff(fields, 'wasted_cost'))
+}
+
+get_colname_options <- function(df, exclude_columns) {
+  cols <- colnames(df)
+  cols <- setdiff(cols, exclude_columns)
+  cols <- column_rename[column_rename %in% cols]
+  return(cols)
 }
