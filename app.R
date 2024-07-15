@@ -441,7 +441,8 @@ server <- function(input, output, session) {
           tagList(
             selectInput(
               "gpu_statistics_column", "Column to plot",
-              choices = gpu_records_colnames()
+              choices = gpu_records_colnames(),
+              selected = isolate(input$gpu_statistics_column)
           ),
             plotOutput("gpu_plot")
           )
