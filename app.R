@@ -58,8 +58,16 @@ get_user_names <- function(con, bom, accounting_name, date_range) {
     )
   )
 
-  df <- scroll_elastic(con, body = b, fields = 'USER_NAME')
-  unique(df$USER_NAME)
+  res <- httr::POST(
+    url = con$make_url(),
+    path = 'get_usernames',
+    body = b,
+    encode = "json"
+  )
+
+  httr::stop_for_status(res, task = paste("get list of users for LSF group", accounting_name))
+
+  as.character(httr::content(res))
 }
 
 generate_efficiency <- function (input, con, query, adjust, time_bucket) {
