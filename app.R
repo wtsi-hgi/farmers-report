@@ -3,6 +3,8 @@ library(bslib)
 library(elastic)
 library(ggplot2)
 library(dplyr)
+library(promises)
+library(future)
 loadNamespace('shinycssloaders')
 loadNamespace('stringr')
 
@@ -12,6 +14,8 @@ source('src/plot_helpers.R')
 source('src/stat_helpers.R')
 source('src/constants.R')
 source('src/config.R')
+
+plan(multisession, workers=4)
 
 config <- read_config("config.yaml")
 
@@ -381,8 +385,12 @@ server <- function(input, output, session) {
   })
 
   output$job_breakdown <- DT::renderDT({
-    dt <- get_job_statistics(elastic_con, query = elastic_query())
-    make_dt(dt, table_view_opts = 'ftp')
+    q <- elastic_query()
+    future_promise({
+      get_job_statistics(elastic_con, query = q)
+    }) %...>% (function(dt) {
+      make_dt(dt, table_view_opts = 'ftp')
+    })
   })
 
   timed_job_statistics <- reactive({
