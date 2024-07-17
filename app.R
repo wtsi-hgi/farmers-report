@@ -234,7 +234,7 @@ server <- function(input, output, session) {
       req(input$user_name)
     }
 
-    custom_filters = NULL
+    custom_filters <- NULL
     if(input$accounting_name != 'all'){
       if(input$user_name == 'all'){
         custom_filters <- build_match_phrase_filter("ACCOUNTING_NAME", input$accounting_name)
@@ -264,7 +264,7 @@ server <- function(input, output, session) {
         # transform df
         df <- df %>%
           rename(accounting_name = USER_NAME) %>%
-          mutate(Failed = number_of_jobs * fail_rate,
+          mutate(Failed = as.integer(number_of_jobs * fail_rate),
                 Success = number_of_jobs - Failed) %>%
           tidyr::pivot_longer(cols = c('Success', 'Failed'), names_to = 'job_status', values_to = 'doc_count')
 

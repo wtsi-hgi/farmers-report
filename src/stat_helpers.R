@@ -199,7 +199,8 @@ get_job_failure_statistics <- function(con, query, fields, time_bucket = "none")
 
   df <- parse_elastic_agg(res, b)
 
-  df <- rename_group_column(df)
+  if(time_bucket == "none")
+    df <- rename_group_column(df)
 
   return(df)
 }
