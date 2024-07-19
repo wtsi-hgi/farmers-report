@@ -195,15 +195,17 @@ server <- function(input, output, session) {
 
     selected_accounting_name <- isolate(input$accounting_name)
     if (!(selected_accounting_name %in% team_names)) {
-      selected_accounting_name = 'all'
+      selected_accounting_name <- 'all'
     }
+
+    freezeReactiveValue(input, "accounting_name")
 
     updateSelectInput(
       inputId = "accounting_name",
       choices = c('all', team_names),
       selected = selected_accounting_name
     )
-  })
+  }, priority = 2)
 
   observeEvent(c(input$accounting_name, input$period), {
     req(input$bom, input$accounting_name, input$period)
@@ -217,16 +219,18 @@ server <- function(input, output, session) {
     }
 
     selected_user_name <- isolate(input$user_name)
-    if (!(selected_user_name %in% user_names)) {
-      selected_user_name = user_names[1]
+    if ( !is.null(input$user_name) && !(selected_user_name %in% user_names)) {
+      selected_user_name <- user_names[1]
     }
+
+    freezeReactiveValue(input, "user_name")
 
     updateSelectInput(
       inputId = "user_name",
       choices = user_names,
       selected = selected_user_name
     )
-  })
+  }, priority = 1)
 
   elastic_query <- reactive({
     req(input$bom, input$accounting_name)
@@ -410,8 +414,10 @@ server <- function(input, output, session) {
   })
 
   output$gpu_statistics <- DT::renderDT({
-    dt <- generate_gpu_statistics(gpu_records())
-    make_dt(dt, table_view_opts = 'ftp')
+    if(input$accounting_name != 'all'){
+      dt <- generate_gpu_statistics(gpu_records())
+      make_dt(dt, table_view_opts = 'ftp')
+    }
   })
 
   gpu_records_colnames <- reactive({
@@ -435,6 +441,7 @@ server <- function(input, output, session) {
   })
 
   selected_user <- reactive({
+    req(input$accounting_name)
     ifelse(input$accounting_name == 'all', '', input$user_name)
   })
 
