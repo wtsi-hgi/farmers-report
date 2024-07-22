@@ -381,8 +381,10 @@ server <- function(input, output, session) {
   })
 
   output$job_breakdown <- DT::renderDT({
-    dt <- get_job_statistics(elastic_con, query = elastic_query())
-    make_dt(dt, table_view_opts = 'ftp')
+    if (input$accounting_name != 'all') {
+      dt <- get_job_statistics(elastic_con, query = elastic_query())
+      make_dt(dt, table_view_opts = 'ftp')
+    }
   })
 
   timed_job_statistics <- reactive({
@@ -560,27 +562,33 @@ server <- function(input, output, session) {
   })
 
   observe({
-    if (input$time_bucket == "none") {
-      accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
-        shinycssloaders::withSpinner(
-          DT::DTOutput("job_breakdown")
-        )
-      )
-    } else {
-      accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
-        shinycssloaders::withSpinner(
-          DT::DTOutput("job_breakdown")
-        ),
-        shinycssloaders::withSpinner(
-          tagList(
-            selectInput(
-              "job_breakdown_column", "Column to plot",
-              choices = timed_job_statistics_colnames(),
-              selected = isolate(input$job_breakdown_column)
-            ),
-            plotOutput("job_breakdown_plot")
+    if (selected_user() == 'all') {
+      if (input$time_bucket == "none") {
+        accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
+          shinycssloaders::withSpinner(
+            DT::DTOutput("job_breakdown")
           )
         )
+      } else {
+        accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
+          shinycssloaders::withSpinner(
+            DT::DTOutput("job_breakdown")
+          ),
+          shinycssloaders::withSpinner(
+            tagList(
+              selectInput(
+                "job_breakdown_column", "Column to plot",
+                choices = timed_job_statistics_colnames(),
+                selected = isolate(input$job_breakdown_column)
+              ),
+              plotOutput("job_breakdown_plot")
+            )
+          )
+        )
+      }
+    } else {
+      accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
+        "To see user-by-user job breakdown statistics please pick a LSF Group in the left panel"
       )
     }
   })
