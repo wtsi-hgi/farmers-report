@@ -440,32 +440,39 @@ server <- function(input, output, session) {
         metric = input$gpu_statistics_column)
   })
 
-  selected_user <- reactive({
-    req(input$accounting_name)
-    ifelse(input$accounting_name == 'all', '', input$user_name)
+  selected_accounting_name <- reactive({
+    req(input$bom)
+    return (input$accounting_name)
   })
 
   observe({
-    if (selected_user() == 'all') {
-      accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
-      shinycssloaders::withSpinner(
-        DT::DTOutput("gpu_statistics")
-      ),
-      if (input$time_bucket != "none") {
-        shinycssloaders::withSpinner(
-          tagList(
-            selectInput(
-              "gpu_statistics_column", "Column to plot",
-              choices = gpu_records_colnames(),
-              selected = isolate(input$gpu_statistics_column)
-          ),
-            plotOutput("gpu_plot")
+    if (selected_accounting_name() != 'all') {
+      if (input$time_bucket == "none") {
+        accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
+          shinycssloaders::withSpinner(
+            DT::DTOutput("gpu_statistics")
           )
         )
-      })
+      } else {
+        accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
+          shinycssloaders::withSpinner(
+            DT::DTOutput("gpu_statistics")
+          ),
+          shinycssloaders::withSpinner(
+            tagList(
+              selectInput(
+                "gpu_statistics_column", "Column to plot",
+                choices = gpu_records_colnames(),
+                selected = isolate(input$gpu_statistics_column)
+              ),
+              plotOutput("gpu_plot")
+            )
+          )
+        )
+      }
     } else {
       accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
-        "To see user-by-user GPU statistics please pick a LSF Group and select User='all' in the left panel"
+        "To see GPU statistics please pick a LSF Group in the left panel"
       )
     }
   })
