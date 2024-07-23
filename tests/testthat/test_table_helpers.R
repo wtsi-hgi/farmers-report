@@ -174,12 +174,20 @@ test_that("generate_app_wastage_statistics function produces correct app wastage
     wasted_cost = c(10, 20, 30, 40, 50)
   )
 
+  number_of_jobs <- length(df$job_status)
   failing_jobs <- c(3, 5)
   success_jobs <- c(1, 2, 4)
   wasting_jobs <- c(2)  # success jobs with procs > 1
+
+  generate_extra_stats <- list(
+    number_of_jobs = quote(n()),
+    fail_rate = quote(sum(job_status == 'Failed') / number_of_jobs)
+  )
   
   expected_result <- tibble::tibble(
     job_status = c('Failure', 'Success'),
+    number_of_jobs = c(length(failing_jobs), length(success_jobs)),
+    fail_rate = c(0, 0),
     cpu_avail_hrs = c(
       sum(df$cpu_avail_sec[failing_jobs]), 
       sum(df$cpu_avail_sec[success_jobs])
@@ -205,10 +213,10 @@ test_that("generate_app_wastage_statistics function produces correct app wastage
   expected_result$cpu_wasted_frac <- expected_result$cpu_wasted_hrs / expected_result$cpu_avail_hrs
   expected_result$mem_wasted_frac <- expected_result$mem_wasted_gb_hrs / expected_result$mem_avail_gb_hrs
 
-  expected_result <- expected_result[c(1, 2, 3, 7, 4, 5, 8, 6)]
+  expected_result <- expected_result[c(1, 2, 3, 4, 5, 9, 6, 7, 10, 8)]
 
   # no timestamp
-  result <- generate_app_wastage_statistics(df)
+  result <- generate_app_wastage_statistics(df, extra_stats = generate_extra_stats)
   expect_equal(result, expected_result)
 
   df$timestamp <- as.Date(c('2024-01-01', '2024-01-01', '2024-01-02', '2024-01-01', '2024-01-02'))
@@ -216,7 +224,7 @@ test_that("generate_app_wastage_statistics function produces correct app wastage
   expected_result <- dplyr::relocate(expected_result, timestamp, .before = 1)
 
   # with timestamp
-  result <- generate_app_wastage_statistics(df, timed = TRUE)
+  result <- generate_app_wastage_statistics(df, timed = TRUE, extra_stats = generate_extra_stats)
   expect_equal(result, expected_result)
 })
 

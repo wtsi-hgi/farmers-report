@@ -77,7 +77,7 @@ test_that("generate_user_statistics works", {
   )
 
   expected_columns <- c(
-    'Reason', 'cpu_avail_hrs', 'cpu_wasted_hrs', 'cpu_wasted_frac', 
+    'Reason', 'number_of_jobs', 'fail_rate', 'cpu_avail_hrs', 'cpu_wasted_hrs', 'cpu_wasted_frac', 
     'mem_avail_gb_hrs', 'mem_wasted_gb_hrs', 'mem_wasted_frac', 'wasted_cost'
   )
 
