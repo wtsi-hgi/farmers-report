@@ -156,6 +156,19 @@ get_job_statistics <- function (con, query, time_bucket = 'none') {
               'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS')
   )
   df$timestamp <- lubridate::as_datetime(df$timestamp)
+
+  # make request for snakemake, return list with ids
+  snakemake_df <- get_jobtype_from_command(con, query, 'snakejob')
+
+  # temporary df to test on 'Anderson group' while waiting for the proxy
+  snakemake_df <- data.frame(
+    "_id" = c('farm22_1720618206_213128_0', 'farm22_1720615322_205886_0', 'farm22_1720615319_205883_0'),
+    check.names = FALSE
+  )
+
+  # function to add those id's into snakemake job type
+  df <- df %>% mutate(job_type = ifelse(`_id` %in% snakemake_df$`_id`, 'snakemake', NA))
+
   dt <- generate_job_statistics(df, time_bucket = time_bucket)
 }
 
@@ -164,7 +177,7 @@ generate_job_statistics <- function (df, time_bucket = 'none') {
     rename_raw_elastic_fields() %>%
     adjust_statistics() %>%
     generate_wasted_cost() %>%
-    mutate(job_type = sapply(job_name, parse_job_type))
+    mutate(job_type = ifelse(is.na(job_type), sapply(job_name, parse_job_type), job_type))
 
   if (time_bucket != 'none') {
     dt <- dt %>%
@@ -219,6 +232,19 @@ parse_job_type <- function (job_name) {
     return('cromwell')
 
   return('other')
+}
+
+get_jobtype_from_command <- function(con, query, keyword) {
+  custom_filter <- list(
+    "prefix" = list("Command" = keyword)
+  )
+  query$bool$filter <- c(query$bool$filter, list(custom_filter))
+
+  df <- scroll_elastic(
+    con = con,
+    body = list(query = query),
+    fields = c('Command')
+  )
 }
 
 get_gpu_records <- function(con, query) {

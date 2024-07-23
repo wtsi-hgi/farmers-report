@@ -164,7 +164,8 @@ test_that("generate_job_statistics works", {
     MEM_REQUESTED_MB = c(1200, 2400, 3600), 
     MEM_REQUESTED_MB_SEC = c(12000, 42000, 60000),
     WASTED_MB_SECONDS = c(5000, 20000, 10000),
-    JOB_NAME = c('nf-hello', 'wrp_job', 'another_job')
+    JOB_NAME = c('nf-hello', 'wrp_job', 'another_job'),
+    job_type = c('snakemake', NA, NA)
   )
 
   expected_columns <- c(
