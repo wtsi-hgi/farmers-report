@@ -214,6 +214,9 @@ parse_job_type <- function (job_name) {
   if (startsWith(job_name, 'bsub rstudio'))
     return('interactive')
 
+  if (startsWith(job_name, 'cromwell'))
+    return('cromwell')
+
   return('other')
 }
 
