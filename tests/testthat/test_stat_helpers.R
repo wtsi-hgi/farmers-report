@@ -191,6 +191,7 @@ test_that("parse_job_type works", {
   expect_equal(parse_job_type("nf-NFCORE-HELLOWORLD"), "nextflow")
   expect_equal(parse_job_type("wrp_c842dac"), "wr")
   expect_equal(parse_job_type("bsub rstudio user ip13"), "interactive")
+  expect_equal(parse_job_type("cromwell_ffe311a3_auto_ccs_outputs_barcoded"), "cromwell")
   expect_equal(parse_job_type(""), "other")
 })
 
