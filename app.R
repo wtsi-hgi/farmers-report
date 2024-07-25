@@ -544,13 +544,19 @@ server <- function(input, output, session) {
     if (input$time_bucket == "none") {
       accordion_panel_update('myaccordion', target = 'efficiency_panel',
         shinycssloaders::withSpinner(
-          DT::DTOutput("efficiency")
+          tagList(
+            DT::DTOutput("efficiency"),
+            htmlOutput("awesomeness_formula")
+          )
         )
       )
     } else {
       accordion_panel_update('myaccordion', target = 'efficiency_panel',
         shinycssloaders::withSpinner(
-          DT::DTOutput("efficiency")
+          tagList(
+            DT::DTOutput("efficiency"),
+            htmlOutput("awesomeness_formula")
+          )
         ),
         shinycssloaders::withSpinner(
           tagList(
