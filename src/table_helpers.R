@@ -190,12 +190,20 @@ mutate_for_piechart <- function(df, count_col = 'doc_count') {
 
 generate_efficiency_stats <- function(df, extra_stats = list()) {
   fields <- c('cpu_avail_sec', 'cpu_wasted_sec', 'mem_avail_mb_sec', 'mem_wasted_mb_sec', 'wasted_cost')
+  
+  median_timestamps <- df %>%
+    group_by(date) %>%
+    summarise(median_timestamp = as_datetime(median(as.numeric(timestamp))),
+              .groups = 'drop')
+  
   df %>%
+    group_by(USER_NAME, date) %>%
     summarise(
       across(all_of(fields), sum),
       !!!extra_stats,
       .groups = 'drop'
     ) %>%
+    left_join(median_timestamps, by = 'date') %>% 
     mutate(
       cpu_avail_hrs = cpu_avail_sec / 60 / 60,
       cpu_wasted_hrs = cpu_wasted_sec / 60 / 60,

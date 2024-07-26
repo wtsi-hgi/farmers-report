@@ -65,8 +65,8 @@ generate_efficiency_plot <- function(df, column_to_plot){
     group_cols <- c('timestamp')
   } else if ('USER_NAME' %in% colnames(df)) {
     fill_column <- 'USER_NAME'
-    date_col <- 'date'
-    group_cols <- c('date')
+    date_col <- 'median_timestamp'
+    group_cols <- c('median_timestamp')
   } else if ('job_type' %in% colnames(df)) {
     fill_column <- 'job_type'
     date_col <- 'date'
