@@ -18,8 +18,7 @@ get_user_statistics <- function (con, query, adjust = TRUE, time_bucket = 'none'
   b <- build_user_statistics_query(query, time_bucket = time_bucket)
   res <- Search(con, index = attr(con, 'index'), body = b, asdf = T)
 
-  df <- parse_elastic_agg(res, b) %>%
-    select(-doc_count)
+  df <- parse_elastic_agg(res, b)
 
   dt <- generate_user_statistics(df, adjust = adjust, timed = time_bucket != 'none')
 }
@@ -263,6 +262,9 @@ generate_app_wastage_statistics <- function(df, adjust = TRUE, timed = FALSE) {
 
   df %>%
     group_by(across(all_of(groups))) %>%
-    generate_efficiency_stats(extra_stats = generate_efficiency_extra_stats) %>%
+    generate_efficiency_stats(extra_stats = list(
+        number_of_jobs = quote(sum(doc_count)),
+        fail_rate = quote(sum(ifelse(job_status == 'Failed', doc_count, 0)) / number_of_jobs)
+    )) %>%
     select(all_of(cols))
 }

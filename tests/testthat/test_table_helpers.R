@@ -121,14 +121,18 @@ test_that("specify_wastage_reason works", {
 
 test_that("generate_total_wastage_dt works", {
   input_dt <- data.frame(
+    number_of_jobs = c(10, 20, 30),
+    fail_rate = c(0, 1, 1),
     cpu_wasted_hrs = c(3, 4, 3),
     cpu_avail_hrs = c(12, 6, 2),
     mem_wasted_gb_hrs = c(12, 3, 5),
     mem_avail_gb_hrs = c(18, 25, 7),
-    status = c("True", "False", "False")
+    job_status = c("Success", "Failed", "Failed")
   )
 
   expected_df <- data.frame(
+    number_of_jobs = sum(input_dt$number_of_jobs),
+    fail_rate = sum(input_dt[input_dt$job_status == "Failed", "number_of_jobs"]) / sum(input_dt$number_of_jobs),
     cpu_wasted_hrs = sum(input_dt$cpu_wasted_hrs),
     cpu_avail_hrs = sum(input_dt$cpu_avail_hrs),
     mem_wasted_gb_hrs = sum(input_dt$mem_wasted_gb_hrs),

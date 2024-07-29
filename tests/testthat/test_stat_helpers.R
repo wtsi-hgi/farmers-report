@@ -237,7 +237,8 @@ test_that("build_bucket_aggregation_query works", {
 
 test_that("generate_app_wastage_statistics function produces correct app wastage statistics", {
   df <- data.frame(
-    job_status = c('Success', 'Success', 'Failure', 'Success', 'Failure'),
+    doc_count = c(1, 12, 2, 3, 7),
+    job_status = c('Success', 'Success', 'Failed', 'Success', 'Failed'),
     mem_avail_mb_sec = c(36864, 36864, 73728, 2048, 2560),
     mem_wasted_mb_sec = c(1024000, 512, 768, 1024000, 1280),
     cpu_avail_sec = c(3600, 7200, 10800, 4000, 5000),
@@ -246,15 +247,17 @@ test_that("generate_app_wastage_statistics function produces correct app wastage
     wasted_cost = c(10, 20, 30, 40, 50)
   )
 
-  number_of_jobs <- length(df$job_status)
   failing_jobs <- c(3, 5)
   success_jobs <- c(1, 2, 4)
   wasting_jobs <- c(2)  # success jobs with procs > 1
   
   expected_result <- tibble::tibble(
-    job_status = c('Failure', 'Success'),
-    number_of_jobs = c(length(failing_jobs), length(success_jobs)),
-    fail_rate = c(0, 0),
+    job_status = c('Failed', 'Success'),
+    number_of_jobs = c(
+      sum(df$doc_count[failing_jobs]),
+      sum(df$doc_count[success_jobs])
+    ),
+    fail_rate = c(1, 0),
     cpu_avail_hrs = c(
       sum(df$cpu_avail_sec[failing_jobs]), 
       sum(df$cpu_avail_sec[success_jobs])
