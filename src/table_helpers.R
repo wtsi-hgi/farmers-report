@@ -76,11 +76,14 @@ generate_total_failure_dt <- function(dt) {
 }
 
 generate_total_wastage_dt <- function(dt) {
+  failrate <- sum(filter(dt, job_status == 'Failed')$number_of_jobs) / sum(dt$number_of_jobs)
+
   dt %>%
     generate_total_stats_dt(col_name = 'job_status') %>%
       mutate(
         cpu_wasted_frac = cpu_wasted_hrs / cpu_avail_hrs,
-        mem_wasted_frac = mem_wasted_gb_hrs / mem_avail_gb_hrs
+        mem_wasted_frac = mem_wasted_gb_hrs / mem_avail_gb_hrs,
+        fail_rate = failrate
       )
 }
 
