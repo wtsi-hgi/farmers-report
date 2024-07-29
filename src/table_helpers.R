@@ -97,26 +97,6 @@ adjust_statistics <- function (df) {
   return(df)
 }
 
-generate_app_wastage_statistics <- function(df, adjust = TRUE, timed = FALSE, extra_stats = list()) {
-  if (adjust) {
-    df <- adjust_statistics(df)
-  }
-
-  groups <- c('job_status')
-  cols <- c('job_status', 'number_of_jobs', 'fail_rate', 'cpu_avail_hrs', 'cpu_wasted_hrs', 'cpu_wasted_frac',
-            'mem_avail_gb_hrs', 'mem_wasted_gb_hrs', 'mem_wasted_frac', 'wasted_cost')
-
-  if(timed) {
-    groups <- append(groups, 'timestamp')
-    cols <- append(cols, 'timestamp', after = 0)
-  }
-
-  df %>%
-    group_by(across(all_of(groups))) %>%
-    generate_efficiency_stats(extra_stats = extra_stats) %>%
-    select(all_of(cols))
-}
-
 generate_wasted_cost <- function (df) {
   df %>%
     mutate(

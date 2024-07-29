@@ -234,3 +234,63 @@ test_that("build_bucket_aggregation_query works", {
   expect_failure(expect_null(result$aggs$stats$aggs$stats2))
   expect_equal(result$aggs$stats$date_histogram$calendar_interval, 'day')
 })
+
+test_that("generate_app_wastage_statistics function produces correct app wastage statistics", {
+  df <- data.frame(
+    job_status = c('Success', 'Success', 'Failure', 'Success', 'Failure'),
+    mem_avail_mb_sec = c(36864, 36864, 73728, 2048, 2560),
+    mem_wasted_mb_sec = c(1024000, 512, 768, 1024000, 1280),
+    cpu_avail_sec = c(3600, 7200, 10800, 4000, 5000),
+    cpu_wasted_sec = c(600, 1000, 1500, 2000, 2500),
+    procs = c(1, 2, 1, 1, 1),
+    wasted_cost = c(10, 20, 30, 40, 50)
+  )
+
+  number_of_jobs <- length(df$job_status)
+  failing_jobs <- c(3, 5)
+  success_jobs <- c(1, 2, 4)
+  wasting_jobs <- c(2)  # success jobs with procs > 1
+  
+  expected_result <- tibble::tibble(
+    job_status = c('Failure', 'Success'),
+    number_of_jobs = c(length(failing_jobs), length(success_jobs)),
+    fail_rate = c(0, 0),
+    cpu_avail_hrs = c(
+      sum(df$cpu_avail_sec[failing_jobs]), 
+      sum(df$cpu_avail_sec[success_jobs])
+    ) / 3600,
+    cpu_wasted_hrs = c(
+      sum(df$cpu_wasted_sec[failing_jobs]), 
+      sum(df$cpu_wasted_sec[wasting_jobs])
+    ) / 3600,
+    mem_avail_gb_hrs = c(
+      sum(df$mem_avail_mb_sec[failing_jobs]), 
+      sum(df$mem_avail_mb_sec[success_jobs])
+    ) / 3600 / 1024,
+    mem_wasted_gb_hrs =  c(
+      sum(df$mem_wasted_mb_sec[failing_jobs]), 
+      sum(df$mem_wasted_mb_sec[success_jobs])
+    ) / 3600 / 1024,
+    wasted_cost = c(
+      sum(df$wasted_cost[failing_jobs]), 
+      sum(df$wasted_cost[wasting_jobs]) + sum(df$mem_wasted_mb_sec[setdiff(success_jobs, wasting_jobs)]) * ram_mb_second
+    )
+  )
+
+  expected_result$cpu_wasted_frac <- expected_result$cpu_wasted_hrs / expected_result$cpu_avail_hrs
+  expected_result$mem_wasted_frac <- expected_result$mem_wasted_gb_hrs / expected_result$mem_avail_gb_hrs
+
+  expected_result <- expected_result[c(1, 2, 3, 4, 5, 9, 6, 7, 10, 8)]
+
+  # no timestamp
+  result <- generate_app_wastage_statistics(df)
+  expect_equal(result, expected_result)
+
+  df$timestamp <- as.Date(c('2024-01-01', '2024-01-01', '2024-01-02', '2024-01-01', '2024-01-02'))
+  expected_result$timestamp <- as.Date(c('2024-01-02', '2024-01-01'))
+  expected_result <- dplyr::relocate(expected_result, timestamp, .before = 1)
+
+  # with timestamp
+  result <- generate_app_wastage_statistics(df, timed = TRUE)
+  expect_equal(result, expected_result)
+})
