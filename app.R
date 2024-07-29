@@ -392,7 +392,8 @@ server <- function(input, output, session) {
   })
 
   timed_job_statistics <- reactive({
-    get_job_statistics(elastic_con, time_bucket = input$time_bucket, query = elastic_query())
+    if (input$accounting_name != 'all')
+      get_job_statistics(elastic_con, time_bucket = input$time_bucket, query = elastic_query())
   })
 
   timed_job_statistics_colnames <- reactive({
@@ -571,18 +572,12 @@ server <- function(input, output, session) {
   })
 
   observe({
-    if (selected_user() == 'all') {
-      if (input$time_bucket == "none") {
-        accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
-          shinycssloaders::withSpinner(
-            DT::DTOutput("job_breakdown")
-          )
-        )
-      } else {
-        accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
-          shinycssloaders::withSpinner(
-            DT::DTOutput("job_breakdown")
-          ),
+    if (input$accounting_name != 'all') {
+      accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
+        shinycssloaders::withSpinner(
+          DT::DTOutput("job_breakdown")
+        ),
+        if (input$time_bucket != "none") {
           shinycssloaders::withSpinner(
             tagList(
               selectInput(
@@ -592,12 +587,12 @@ server <- function(input, output, session) {
               ),
               plotOutput("job_breakdown_plot")
             )
-          )
-        )
-      }
+          ) 
+        }
+      )
     } else {
       accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
-        "To see user-by-user job breakdown statistics please pick a LSF Group in the left panel"
+        "To see job breakdown statistics please pick a LSF Group in the left panel"
       )
     }
   })
