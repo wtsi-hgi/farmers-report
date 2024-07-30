@@ -12,8 +12,11 @@ index_by_custom <- function(df, time_bucket) {
   if(time_bucket == 'day')
     dt <- index_by(df, date = ~ as.Date(.))
   
-  if(time_bucket == 'week')
-    dt <- index_by(df, date = ~ yearweek(.))
+  if(time_bucket == 'week'){
+    dt <- df %>%
+      index_by(date = ~ yearweek(.)) %>%
+      mutate(date = as.Date(format(date, "%Y-%m-%d")))
+  }
 
   if(time_bucket == 'month')
     dt <- index_by(df, date = ~ yearmonth(.))
