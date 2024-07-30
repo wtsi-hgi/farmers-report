@@ -17,7 +17,9 @@ column_rename <- c(
   'Job type' = 'job_type',
   'Queue name' = 'QUEUE_NAME',
   'Median Wait Time' = 'median_wait_time',
-  'Median Run Time' = 'median_run_time'
+  'Median Run Time' = 'median_run_time',
+  'Wait Time' = 'PENDING_TIME_SEC',
+  'Run Time' = 'RUN_TIME_SEC'
 )
 
 team_map <- tibble::enframe(

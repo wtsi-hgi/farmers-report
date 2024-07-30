@@ -115,7 +115,7 @@ generate_efficiency_plot <- function(df, column_to_plot){
 }
 
 generate_gpu_plot <- function(df, time_bucket, metric = 'PENDING_TIME_SEC') {
-  colname <- paste(metric, "median", sep = "_")
+  colname <- paste(sub("_SEC", "", metric), "median", sep = "_")
   dt <- df %>%
     as_tsibble(key = `_id`, index = timestamp) %>%
     group_by(USER_NAME) %>%
