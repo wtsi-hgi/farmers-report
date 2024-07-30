@@ -426,13 +426,7 @@ server <- function(input, output, session) {
   gpu_records_colnames <- reactive({
     req('gpu_statistics_panel' %in% input$myaccordion)
     df <- gpu_records()
-    cols <- colnames(df) %>%
-      setdiff(c('timestamp', 'USER_NAME', 'Job', 'QUEUE_NAME', '_id'))
-
-    pretty_cols <- stringr::str_replace_all(cols, '_', ' ') %>% stringr::str_to_title()
-
-    cols_list <- setNames(as.list(cols), pretty_cols)
-    cols_list
+    get_colname_options(df, exclude_columns = c('timestamp', 'USER_NAME', 'Job', 'QUEUE_NAME', '_id'))
   })
 
   output$gpu_plot <- renderPlot({

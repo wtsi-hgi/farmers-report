@@ -115,15 +115,15 @@ generate_efficiency_plot <- function(df, column_to_plot){
 }
 
 generate_gpu_plot <- function(df, time_bucket, metric = 'PENDING_TIME_SEC') {
-  colname <- paste(metric, "median", sep = "_")
+  colname <- paste(sub("_SEC", "", metric), "median", sep = "_")
   dt <- df %>%
     as_tsibble(key = `_id`, index = timestamp) %>%
-    # group_by_key() %>%
     group_by(USER_NAME) %>%
     index_by_custom(time_bucket = time_bucket) %>%
     summarise(!!colname := median(.data[[metric]]))
 
-  ggplot(dt, aes(x = date, y = .data[[colname]], fill = USER_NAME)) + geom_bar(stat = 'identity') + theme_bw()
+  ggplot(dt, aes(x = date, y = .data[[colname]], fill = USER_NAME)) + geom_bar(stat = 'identity') + theme_bw() +
+    scale_y_continuous(trans = scales::transform_timespan(unit = "secs"))
 }
 
 make_job_failure_timeplot <- function(df) {

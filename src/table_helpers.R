@@ -17,7 +17,9 @@ column_rename <- c(
   'Job type' = 'job_type',
   'Queue name' = 'QUEUE_NAME',
   'Median Wait Time' = 'median_wait_time',
-  'Median Run Time' = 'median_run_time'
+  'Median Run Time' = 'median_run_time',
+  'Wait Time' = 'PENDING_TIME_SEC',
+  'Run Time' = 'RUN_TIME_SEC'
 )
 
 team_map <- tibble::enframe(
@@ -190,6 +192,7 @@ mutate_for_piechart <- function(df, count_col = 'doc_count') {
 
 generate_efficiency_stats <- function(df, extra_stats = list()) {
   fields <- c('cpu_avail_sec', 'cpu_wasted_sec', 'mem_avail_mb_sec', 'mem_wasted_mb_sec', 'wasted_cost')
+  
   df %>%
     summarise(
       across(all_of(fields), sum),
