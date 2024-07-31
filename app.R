@@ -115,9 +115,17 @@ ui <- page_navbar(
       choices = NULL
     ),
     dateRangeInput(
-      "period", "Period",
+      "period", 
+      label = tooltip(
+        trigger = list(
+          "Period",
+          shiny::icon("circle-exclamation")
+        ),
+        "The dashboard is responsive for periods up to 6 months but expect longer waiting time for periods over one year"
+      ),
       start = Sys.Date() - 30,
       end = NULL,
+      min = as.Date("2014-09-07"),
       weekstart = 1
     ),
     selectInput(
