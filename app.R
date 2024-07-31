@@ -90,8 +90,15 @@ generate_efficiency <- function (input, con, query, adjust, time_bucket) {
   dt
 }
 
-ui <- page_sidebar(
+doc_link <- tags$a(
+  shiny::icon("book"), "Docs",
+  href = "https://docs.google.com/document/d/1U55kxuEJpvksGG2we_tMhzYeVLXv5YakOGNwH2Rscd8/edit?usp=sharing",
+  target = "_blank"
+)
+
+ui <- page_navbar(
   title = "HGI Farm Dashboard",
+  nav_spacer(),
   sidebar = sidebar(
     width = 270,
     selectInput(
@@ -118,73 +125,76 @@ ui <- page_sidebar(
       choices = c("none", "day", "week", "month")
     )
   ),
-  accordion(
-    accordion_panel(
-      "Job failure statistics",
-      shinycssloaders::withSpinner(
-        tagList(
-          plotOutput("job_failure"),
-          plotOutput("per_bucket_job_failure"),
-          DT::DTOutput("per_bucket_job_failure_table"),
-          plotOutput("job_failure_time_plot")
-        )
+  nav_panel(title = "Dashboard", 
+    accordion(
+      accordion_panel(
+        "Job failure statistics",
+        shinycssloaders::withSpinner(
+          tagList(
+            plotOutput("job_failure"),
+            plotOutput("per_bucket_job_failure"),
+            DT::DTOutput("per_bucket_job_failure_table"),
+            plotOutput("job_failure_time_plot")
+          )
+        ),
+        value = "job_failure_panel"
       ),
-      value = "job_failure_panel"
-    ),
-    accordion_panel(
-      "Unadjusted Efficiency",
-      shinycssloaders::withSpinner(
-        tagList(
-          DT::DTOutput("unadjusted_efficiency"),
-          selectInput(
-            "unadjusted_efficiency_column", "Column to plot",
-            choices = NULL
-          ),
-          plotOutput("unadjusted_efficiency_plot")
-        )
+      accordion_panel(
+        "Unadjusted Efficiency",
+        shinycssloaders::withSpinner(
+          tagList(
+            DT::DTOutput("unadjusted_efficiency"),
+            selectInput(
+              "unadjusted_efficiency_column", "Column to plot",
+              choices = NULL
+            ),
+            plotOutput("unadjusted_efficiency_plot")
+          )
+        ),
+        value = 'unadjusted_efficiency_panel'
       ),
-      value = 'unadjusted_efficiency_panel'
-    ),
-    accordion_panel(
-      "Efficiency",
-      shinycssloaders::withSpinner(
-        tagList(
-          textOutput("adjustments_explanation"),
-          DT::DTOutput("efficiency"),
-          htmlOutput("awesomeness_formula"),
-          selectInput(
-            "efficiency_column", "Column to plot",
-            choices = NULL
-          ),
-          plotOutput("efficiency_plot")
-        )
+      accordion_panel(
+        "Efficiency",
+        shinycssloaders::withSpinner(
+          tagList(
+            textOutput("adjustments_explanation"),
+            DT::DTOutput("efficiency"),
+            htmlOutput("awesomeness_formula"),
+            selectInput(
+              "efficiency_column", "Column to plot",
+              choices = NULL
+            ),
+            plotOutput("efficiency_plot")
+          )
+        ),
+        value = 'efficiency_panel'
       ),
-      value = 'efficiency_panel'
-    ),
-    accordion_panel(
-      "Job Breakdown",
-      shinycssloaders::withSpinner(
-        tagList(
-          DT::DTOutput("job_breakdown"),
-          selectInput(
-            "job_breakdown_column", "Column to plot",
-            choices = NULL
-          ),
-          plotOutput("job_breakdown_plot")
-        )
+      accordion_panel(
+        "Job Breakdown",
+        shinycssloaders::withSpinner(
+          tagList(
+            DT::DTOutput("job_breakdown"),
+            selectInput(
+              "job_breakdown_column", "Column to plot",
+              choices = NULL
+            ),
+            plotOutput("job_breakdown_plot")
+          )
+        ),
+        value = "job_breakdown_panel"
       ),
-      value = "job_breakdown_panel"
-    ),
-    accordion_panel(
-      "GPU Statistics",
-      shinycssloaders::withSpinner(
-        DT::DTOutput("gpu_statistics")
+      accordion_panel(
+        "GPU Statistics",
+        shinycssloaders::withSpinner(
+          DT::DTOutput("gpu_statistics")
+        ),
+        value = "gpu_statistics_panel"
       ),
-      value = "gpu_statistics_panel"
-    ),
-    id = "myaccordion",
-    open = FALSE
-  )
+      id = "myaccordion",
+      open = FALSE
+    )
+  ),
+  nav_item(doc_link)
 )
 
 server <- function(input, output, session) {
