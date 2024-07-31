@@ -208,6 +208,8 @@ ui <- page_navbar(
 server <- function(input, output, session) {
   observeEvent(c(input$bom, input$period), {
     req(input$bom, input$period)
+    req(all(!isInvalidDate(input$period)))
+    req(input$period[1] <= input$period[2])
     accounting_names <- get_accounting_names(elastic_con, input$bom, input$period)
     team_names <- set_team_names(accounting_names, mapping = team_map)
 
@@ -227,6 +229,8 @@ server <- function(input, output, session) {
 
   observeEvent(c(input$accounting_name, input$period), {
     req(input$bom, input$accounting_name, input$period)
+    req(all(!isInvalidDate(input$period)))
+    req(input$period[1] <= input$period[2])
     if (input$accounting_name == 'all') {
        user_names <- c("Select a group" = "")
     } else {
@@ -255,6 +259,8 @@ server <- function(input, output, session) {
     if (input$accounting_name != 'all'){
       req(input$user_name)
     }
+    req(all(!isInvalidDate(input$period)))
+    req(input$period[1] <= input$period[2])
 
     custom_filters <- NULL
     if(input$accounting_name != 'all'){
@@ -606,6 +612,19 @@ server <- function(input, output, session) {
       accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
         "To see job breakdown statistics please pick a LSF Group in the left panel"
       )
+    }
+  })
+
+  observe({
+    if(any(isInvalidDate(input$period))) {
+      showNotification("Please enter a valid date", type = "error")
+    } else {
+      if(input$period[2] < input$period[1]) {
+        updateDateRangeInput(
+          inputId = "period",
+          end = input$period[1]
+        )
+      }
     }
   })
 }
