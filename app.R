@@ -121,11 +121,12 @@ ui <- page_navbar(
           "Period",
           shiny::icon("circle-exclamation")
         ),
-        "The dashboard is responsive for periods up to 6 months but expect longer waiting time for periods over one year"
+        "The dashboard is responsive for periods up to 6 months. Expect longer waiting time for periods over one year."
       ),
       start = Sys.Date() - 30,
-      end = NULL,
+      end = Sys.Date(),
       min = as.Date("2014-09-07"),
+      max = Sys.Date(),
       weekstart = 1
     ),
     selectInput(
