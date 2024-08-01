@@ -1,4 +1,5 @@
 library(tsibble)
+loadNamespace('lubridate')
 
 source('src/constants.R')
 
@@ -22,3 +23,6 @@ index_by_custom <- function(df, time_bucket) {
   return(dt)
 }
 
+isInvalidDate <- function(date) {
+  is.na(lubridate::parse_date_time(date, orders = "ymd"))
+}

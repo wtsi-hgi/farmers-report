@@ -90,8 +90,15 @@ generate_efficiency <- function (input, con, query, adjust, time_bucket) {
   dt
 }
 
-ui <- page_sidebar(
+doc_link <- tags$a(
+  shiny::icon("book"), "Docs",
+  href = "https://docs.google.com/document/d/1U55kxuEJpvksGG2we_tMhzYeVLXv5YakOGNwH2Rscd8/edit?usp=sharing",
+  target = "_blank"
+)
+
+ui <- page_navbar(
   title = "HGI Farm Dashboard",
+  nav_spacer(),
   sidebar = sidebar(
     width = 270,
     selectInput(
@@ -108,9 +115,18 @@ ui <- page_sidebar(
       choices = NULL
     ),
     dateRangeInput(
-      "period", "Period",
+      "period", 
+      label = tooltip(
+        trigger = list(
+          "Period",
+          shiny::icon("circle-exclamation")
+        ),
+        "The dashboard is responsive for periods up to 6 months. Expect longer waiting time for periods over one year."
+      ),
       start = Sys.Date() - 30,
-      end = NULL,
+      end = Sys.Date(),
+      min = as.Date("2014-09-07"),
+      max = Sys.Date(),
       weekstart = 1
     ),
     selectInput(
@@ -118,78 +134,83 @@ ui <- page_sidebar(
       choices = c("none", "day", "week", "month")
     )
   ),
-  accordion(
-    accordion_panel(
-      "Job failure statistics",
-      shinycssloaders::withSpinner(
-        tagList(
-          plotOutput("job_failure"),
-          plotOutput("per_bucket_job_failure"),
-          DT::DTOutput("per_bucket_job_failure_table"),
-          plotOutput("job_failure_time_plot")
-        )
+  nav_panel(title = "Dashboard", 
+    accordion(
+      accordion_panel(
+        "Job failure statistics",
+        shinycssloaders::withSpinner(
+          tagList(
+            plotOutput("job_failure"),
+            plotOutput("per_bucket_job_failure"),
+            DT::DTOutput("per_bucket_job_failure_table"),
+            plotOutput("job_failure_time_plot")
+          )
+        ),
+        value = "job_failure_panel"
       ),
-      value = "job_failure_panel"
-    ),
-    accordion_panel(
-      "Unadjusted Efficiency",
-      shinycssloaders::withSpinner(
-        tagList(
-          DT::DTOutput("unadjusted_efficiency"),
-          selectInput(
-            "unadjusted_efficiency_column", "Column to plot",
-            choices = NULL
-          ),
-          plotOutput("unadjusted_efficiency_plot")
-        )
+      accordion_panel(
+        "Unadjusted Efficiency",
+        shinycssloaders::withSpinner(
+          tagList(
+            DT::DTOutput("unadjusted_efficiency"),
+            selectInput(
+              "unadjusted_efficiency_column", "Column to plot",
+              choices = NULL
+            ),
+            plotOutput("unadjusted_efficiency_plot")
+          )
+        ),
+        value = 'unadjusted_efficiency_panel'
       ),
-      value = 'unadjusted_efficiency_panel'
-    ),
-    accordion_panel(
-      "Efficiency",
-      shinycssloaders::withSpinner(
-        tagList(
-          textOutput("adjustments_explanation"),
-          DT::DTOutput("efficiency"),
-          htmlOutput("awesomeness_formula"),
-          selectInput(
-            "efficiency_column", "Column to plot",
-            choices = NULL
-          ),
-          plotOutput("efficiency_plot")
-        )
+      accordion_panel(
+        "Efficiency",
+        shinycssloaders::withSpinner(
+          tagList(
+            textOutput("adjustments_explanation"),
+            DT::DTOutput("efficiency"),
+            htmlOutput("awesomeness_formula"),
+            selectInput(
+              "efficiency_column", "Column to plot",
+              choices = NULL
+            ),
+            plotOutput("efficiency_plot")
+          )
+        ),
+        value = 'efficiency_panel'
       ),
-      value = 'efficiency_panel'
-    ),
-    accordion_panel(
-      "Job Breakdown",
-      shinycssloaders::withSpinner(
-        tagList(
-          DT::DTOutput("job_breakdown"),
-          selectInput(
-            "job_breakdown_column", "Column to plot",
-            choices = NULL
-          ),
-          plotOutput("job_breakdown_plot")
-        )
+      accordion_panel(
+        "Job Breakdown",
+        shinycssloaders::withSpinner(
+          tagList(
+            DT::DTOutput("job_breakdown"),
+            selectInput(
+              "job_breakdown_column", "Column to plot",
+              choices = NULL
+            ),
+            plotOutput("job_breakdown_plot")
+          )
+        ),
+        value = "job_breakdown_panel"
       ),
-      value = "job_breakdown_panel"
-    ),
-    accordion_panel(
-      "GPU Statistics",
-      shinycssloaders::withSpinner(
-        DT::DTOutput("gpu_statistics")
+      accordion_panel(
+        "GPU Statistics",
+        shinycssloaders::withSpinner(
+          DT::DTOutput("gpu_statistics")
+        ),
+        value = "gpu_statistics_panel"
       ),
-      value = "gpu_statistics_panel"
-    ),
-    id = "myaccordion",
-    open = FALSE
-  )
+      id = "myaccordion",
+      open = FALSE
+    )
+  ),
+  nav_item(doc_link)
 )
 
 server <- function(input, output, session) {
   observeEvent(c(input$bom, input$period), {
     req(input$bom, input$period)
+    req(all(!isInvalidDate(input$period)))
+    req(input$period[1] <= input$period[2])
     accounting_names <- get_accounting_names(elastic_con, input$bom, input$period)
     team_names <- set_team_names(accounting_names, mapping = team_map)
 
@@ -209,6 +230,8 @@ server <- function(input, output, session) {
 
   observeEvent(c(input$accounting_name, input$period), {
     req(input$bom, input$accounting_name, input$period)
+    req(all(!isInvalidDate(input$period)))
+    req(input$period[1] <= input$period[2])
     if (input$accounting_name == 'all') {
        user_names <- c("Select a group" = "")
     } else {
@@ -237,6 +260,8 @@ server <- function(input, output, session) {
     if (input$accounting_name != 'all'){
       req(input$user_name)
     }
+    req(all(!isInvalidDate(input$period)))
+    req(input$period[1] <= input$period[2])
 
     custom_filters <- NULL
     if(input$accounting_name != 'all'){
@@ -588,6 +613,19 @@ server <- function(input, output, session) {
       accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
         "To see job breakdown statistics please pick a LSF Group in the left panel"
       )
+    }
+  })
+
+  observe({
+    if(any(isInvalidDate(input$period))) {
+      showNotification("Please enter a valid date", type = "error")
+    } else {
+      if(input$period[2] < input$period[1]) {
+        updateDateRangeInput(
+          inputId = "period",
+          end = input$period[1]
+        )
+      }
     }
   })
 }
