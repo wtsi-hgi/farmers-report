@@ -125,7 +125,7 @@ ui <- page_navbar(
       ),
       start = Sys.Date() - 30,
       end = Sys.Date(),
-      min = as.Date("2014-09-07"),
+      min = as.Date("2021-07-31"), # original date to block is as.Date("2014-09-07")
       max = Sys.Date(),
       weekstart = 1
     ),
