@@ -1,0 +1,27 @@
+proxy:
+  title: HGI Shiny Proxy
+  authentication: none
+  container-backend: docker
+  docker:
+    image-pull-policy: IfNotPresent
+  specs:
+    - id: 01_hello
+      display-name: Hello app
+      container-cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+      container-image: openanalytics/shinyproxy-demo
+    - id: farmer_dashboard
+      display-name: Farmer Dashboard
+      container-cmd: [ "R", "-e", "shiny::runApp('/srv/shiny-server/farm/app.R', port = 3838, host = '0.0.0.0')" ]
+      container-image: mercury/farmers-report
+      container-env:
+        FARMERS_CONFIG: /opt/farmer/farm-config.yaml
+      container-volumes: [ "/opt:/opt/farmer" ]
+      minimum-seats-available: 1
+      seats-per-container: 1
+      allow-container-re-use: true
+  container-log-path: /var/log/shinyproxy/
+
+
+logging:
+  file:
+    name: /var/log/shinyproxy/server.log

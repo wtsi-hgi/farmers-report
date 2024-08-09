@@ -1,0 +1,25 @@
+#cloud-config
+
+write_files:
+ - path: /opt/application.yml
+   content: !!binary |
+    ${shinyproxy_config}
+
+ - path: /opt/farm-config.yaml
+   content: !!binary |
+    ${farm_config}
+
+ - path: /etc/systemd/resolved.conf.d/dns.conf
+   content: |
+    DNS=172.18.255.1 172.18.255.2
+
+packages:
+ - openjdk-21-jre-headless
+
+runcmd:
+ - [ wget, "https://www.shinyproxy.io/downloads/shinyproxy_3.1.1_amd64.deb" ]
+ - apt install -y ./shinyproxy_3.1.1_amd64.deb
+ - rm ./shinyproxy_3.1.1_amd64.deb
+ - systemctl enable shinyproxy
+ - mv /opt/application.yml /etc/shinyproxy/application.yml
+ - systemctl restart shinyproxy
