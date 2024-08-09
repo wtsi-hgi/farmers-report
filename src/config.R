@@ -1,6 +1,6 @@
 library(yaml)
 
-read_config <- function(config_file = "config.yaml") {
+read_config <- function(config_file = Sys.getenv("FARMERS_CONFIG", "config.yaml")) {
     if (!file.exists(config_file))
         stop("No config file found!")
     
