@@ -7,8 +7,31 @@ terraform {
   }
 }
 
-data "openstack_compute_keypair_v2" "kp" {
-  name = "ip13-key"
+variable "public_key" {
+  type        = string
+  description = "Path to public key to be used in server"
+  default     = "~/.ssh/id_rsa.pub"
+}
+
+variable "private_key" {
+  type        = string
+  description = "Path to private key to establish ssh tunel"
+  nullable    = false
+}
+
+variable "farm_config" {
+  type        = string
+  description = "Path to farmers report config file"
+  default     = "./config.yaml"
+}
+
+resource "openstack_compute_keypair_v2" "kp" {
+  name       = "shinyproxy-keypair"
+  public_key = file(var.public_key)
+}
+
+locals {
+  farmers_config = yamldecode(file(var.farm_config))
 }
 
 data "openstack_networking_network_v2" "external" {
@@ -68,7 +91,7 @@ resource "openstack_compute_instance_v2" "server" {
   name            = "shinyproxy_server"
   image_name      = "jammy-WTSI-docker_247771_4ea57c30"
   flavor_name     = "m4.small"
-  key_pair        = data.openstack_compute_keypair_v2.kp.name
+  key_pair        = openstack_compute_keypair_v2.kp.name
   security_groups = [
     "default",
     "cloudforms_ssh_in",
@@ -80,11 +103,15 @@ resource "openstack_compute_instance_v2" "server" {
   }
 
   user_data       = templatefile("startup.yaml", {
-    farm_config       = filebase64("../config-elastic.yaml")
+    farm_config       = filebase64(var.farm_config)
     shinyproxy_config = filebase64("./shinyproxy.yml")
+    private_key       = filebase64(var.private_key)
+    proxy_host        = local.farmers_config.tunnel.host
+    proxy_port        = local.farmers_config.elastic.port
+    proxy_user        = local.farmers_config.tunnel.user
   })
 }
 
 output "instance_ip_addr" {
-  value = openstack_networking_floatingip_v2.floating_ip
+  value = openstack_networking_floatingip_v2.floating_ip.address
 }

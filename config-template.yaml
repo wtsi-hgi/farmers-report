@@ -1,0 +1,11 @@
+elastic:
+  host: "localhost"
+  port: 12345
+  scheme: "http"
+  username: "user"
+  password: "pass"
+  index: "elastic-index"
+
+tunnel:
+  host: "my-host.com"
+  user: "user"

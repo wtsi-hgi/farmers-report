@@ -9,9 +9,30 @@ write_files:
    content: !!binary |
     ${farm_config}
 
+ - path: /opt/key
+   permissions: '0600'
+   content: !!binary |
+    ${private_key}
+
  - path: /etc/systemd/resolved.conf.d/dns.conf
    content: |
+    [Resolve]
     DNS=172.18.255.1 172.18.255.2
+
+ - path: /etc/systemd/system/sshtunnel.service
+   content: |
+    [Unit]
+    Description=SSH Tunnel
+    After=network.target
+
+    [Service]
+    Restart=always
+    RestartSec=20
+    User=root
+    ExecStart=/bin/ssh -i /opt/key -o StrictHostKeyChecking=no -nNT -L ${proxy_port}:localhost:${proxy_port} ${proxy_user}@${proxy_host}
+
+    [Install]
+    WantedBy=multi-user.target
 
 packages:
  - openjdk-21-jre-headless
@@ -23,3 +44,6 @@ runcmd:
  - systemctl enable shinyproxy
  - mv /opt/application.yml /etc/shinyproxy/application.yml
  - systemctl restart shinyproxy
+ - systemctl restart systemd-resolved
+ - systemctl enable sshtunnel
+ - systemctl start sshtunnel
