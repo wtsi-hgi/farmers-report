@@ -48,11 +48,11 @@ data "openstack_networking_network_v2" "external" {
 }
 
 resource "openstack_networking_network_v2" "network" {
-  name           = "shinyproxy_network"
+  name           = "shinyproxy-network"
 }
 
 resource "openstack_networking_subnet_v2" "subnet" {
-  name           = "shinyproxy_subnetwork"
+  name           = "shinyproxy-subnetwork"
   network_id     = openstack_networking_network_v2.network.id
   cidr           = "192.168.0.0/24"
 }
@@ -64,7 +64,7 @@ resource "openstack_networking_floatingip_v2" "floating_ip" {
 }
 
 resource "openstack_networking_port_v2" "port" {
-  name       = "shinyproxy_port"
+  name       = "shinyproxy-port"
   network_id = openstack_networking_network_v2.network.id
   fixed_ip {
     subnet_id = openstack_networking_subnet_v2.subnet.id
@@ -87,7 +87,7 @@ resource "openstack_networking_secgroup_v2" "secgroup" {
   delete_default_rules = true
 }
 
-resource "openstack_networking_secgroup_rule_v2" "secgroup_rule_8080" {
+resource "openstack_networking_secgroup_rule_v2" "shinyproxy_web_port" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
@@ -97,7 +97,7 @@ resource "openstack_networking_secgroup_rule_v2" "secgroup_rule_8080" {
 }
 
 resource "openstack_compute_instance_v2" "server" {
-  name            = "shinyproxy_server"
+  name            = "shinyproxy-server"
   image_name      = "jammy-WTSI-docker_247771_4ea57c30"
   flavor_name     = "m4.small"
   key_pair        = openstack_compute_keypair_v2.kp.name
