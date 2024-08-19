@@ -5,6 +5,15 @@ terraform {
       version = "2.1.0"
     }
   }
+
+  backend "s3" {
+    bucket = "terraform-remote-state"
+    key    = "farmers-report-app/terraform.tfstate"
+    region = "us-east-1"
+    skip_credentials_validation = true
+    skip_requesting_account_id  = true
+    skip_s3_checksum            = true
+  }
 }
 
 variable "public_key" {

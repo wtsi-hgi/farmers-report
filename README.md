@@ -31,3 +31,37 @@ To run tests inside a container
 ```bash
 docker run --rm -v $(pwd):/code -w /code mercury/farmers-report:latest Rscript /code/tests/testthat.R
 ```
+
+## Deployment
+
+### Infrastructure 
+
+Infrastructure is managed via Terraform with a remote backend in a s3 bucket to enable shared access to Terraform state file.
+Code contains instructions to create an OpenStack VM and configure it (install software and launch systemd services).
+
+#### Initialisation (needed only once) 
+
+To initialise terraform prepare a config file `config.s3.tfbackend` with your s3 credentials:
+```terraform
+access_key = "your-access-key"
+secret_key = "your-secret-key"
+endpoints  = {
+        s3 = "https://your-host-base"
+}
+```
+Ensure your user has access to a s3 bucket and execute
+```bash
+terraform init -backend-config="config.s3.tfbackend"
+```
+
+#### Deploy
+
+Prepare a config file `config.yaml` based on `config-template.yaml`.
+Now prepare a file `terraform.tfvars` based on `terraform-template.tfvars` where `farm_config` would point to your `config.yaml`. 
+Now execute
+
+```bash
+terraform apply
+```
+
+Terraform will now update infrastructure according to your changes.
