@@ -65,3 +65,11 @@ terraform apply
 ```
 
 Terraform will now update infrastructure according to your changes.
+
+### Update application on the server
+
+Build and push to Docker Hub a new image.
+Go to the server and launch the app. 
+Shinyproxy will spawn a new container in the background from the new image.
+Close the app.
+The old container will die in a minute.

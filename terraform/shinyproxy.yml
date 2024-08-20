@@ -3,16 +3,18 @@ proxy:
   authentication: none
   container-backend: docker
   docker:
-    image-pull-policy: IfNotPresent
+    image-pull-policy: Always
+  ldap:
+    user-dn-pattern: uid={0},ou=people
+    group-search-base: ou=group
+    group-search-filter: "(memberUid={1})"
+  admin-groups:
+    - hgi
   specs:
-    - id: 01_hello
-      display-name: Hello app
-      container-cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
-      container-image: openanalytics/shinyproxy-demo
     - id: farmer_dashboard
       display-name: Farmer Dashboard
       container-cmd: [ "R", "-e", "shiny::runApp('/srv/shiny-server/farm/app.R', port = 3838, host = '0.0.0.0')" ]
-      container-image: mercury/farmers-report
+      container-image: mercury/farmers-report:latest
       container-env:
         FARMERS_CONFIG: /opt/farmer/farm-config.yaml
       container-volumes: [ "/opt:/opt/farmer" ]
@@ -20,7 +22,6 @@ proxy:
       seats-per-container: 1
       allow-container-re-use: true
   container-log-path: /var/log/shinyproxy/
-
 
 logging:
   file:
