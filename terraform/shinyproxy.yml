@@ -21,8 +21,8 @@ proxy:
       minimum-seats-available: 1
       seats-per-container: 1
       allow-container-re-use: true
-  container-log-path: /var/log/shinyproxy/
+  container-log-path: /etc/shinyproxy/apps/
 
 logging:
   file:
-    name: /var/log/shinyproxy/server.log
+    name: /etc/shinyproxy/server.log

@@ -29,7 +29,7 @@ write_files:
     Restart=always
     RestartSec=20
     User=root
-    ExecStart=/bin/ssh -i /opt/key -o StrictHostKeyChecking=no -nNT -L ${proxy_port}:localhost:${proxy_port} ${proxy_user}@${proxy_host}
+    ExecStart=/bin/ssh -i /opt/key -o StrictHostKeyChecking=no -nNT -L 0.0.0.0:${proxy_port}:localhost:${proxy_port} ${proxy_user}@${proxy_host}
 
     [Install]
     WantedBy=multi-user.target
