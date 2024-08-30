@@ -53,6 +53,7 @@ Ensure your user has access to a s3 bucket and execute
 ```bash
 terraform init -backend-config="config.s3.tfbackend"
 ```
+Now download `openrc.sh` file for your OpenStack tenant.
 
 #### Deploy
 
@@ -61,15 +62,18 @@ Now prepare a file `terraform.tfvars` based on `terraform-template.tfvars` where
 Now execute
 
 ```bash
+source openrc.sh
 terraform apply
 ```
 
 Terraform will now update infrastructure according to your changes.
 
+You can manage different deployments by changing terraform workspaces.
+
 ### Update application on the server
 
 Build and push to Docker Hub a new image.
-Go to the server and launch the app. 
+Go to the shinyproxy web-page and launch the app. 
 Shinyproxy will spawn a new container in the background from the new image.
 Close the app.
 The old container will die in a minute.

@@ -8,6 +8,7 @@ terraform {
 
   backend "s3" {
     bucket = "terraform-remote-state"
+    workspace_key_prefix = "farmers-report-app"
     key    = "farmers-report-app/terraform.tfstate"
     region = "us-east-1"
     skip_credentials_validation = true
@@ -22,9 +23,9 @@ variable "public_key" {
   default     = "~/.ssh/id_rsa.pub"
 }
 
-variable "private_key" {
+variable "smbcredentials" {
   type        = string
-  description = "Path to private key to establish ssh tunel"
+  description = "Path to a file with credentials for SMB mount"
   nullable    = false
 }
 
@@ -99,7 +100,7 @@ resource "openstack_networking_secgroup_rule_v2" "shinyproxy_web_port" {
 resource "openstack_compute_instance_v2" "server" {
   name            = "shinyproxy-server"
   image_name      = "jammy-WTSI-docker_247771_4ea57c30"
-  flavor_name     = "m4.small"
+  flavor_name     = terraform.workspace == "default" ? "m1.xlarge" : "m1.large"
   key_pair        = openstack_compute_keypair_v2.kp.name
   security_groups = [
     "default",
@@ -114,10 +115,8 @@ resource "openstack_compute_instance_v2" "server" {
   user_data       = templatefile("startup.yaml", {
     farm_config       = filebase64(var.farm_config)
     shinyproxy_config = filebase64("./shinyproxy.yml")
-    private_key       = filebase64(var.private_key)
-    proxy_host        = local.farmers_config.tunnel.host
-    proxy_port        = local.farmers_config.elastic.port
-    proxy_user        = local.farmers_config.tunnel.user
+    smbcredentials    = filebase64(var.smbcredentials)
+    nfs_share         = local.farmers_config.nfs.share
   })
 }
 

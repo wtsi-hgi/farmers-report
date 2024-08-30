@@ -1,11 +1,24 @@
 elastic:
-  host: "localhost"
+  host: "real-elastic-host.com"
   port: 12345
   scheme: "http"
   username: "user"
   password: "pass"
   index: "elastic-index"
 
-tunnel:
-  host: "my-host.com"
-  user: "user"
+proxy:
+  host: "docker-network-ip"
+  port: 12321
+  scheme: "http"
+  username: "user"
+  password: "pass"
+  index: "elastic-index"
+
+farmer:
+  host: "0.0.0.0"
+  port: 12321
+  database_dir: "/nfs/path/to/db"
+  pool_size: 4000000
+
+nfs:
+  share: "//nfs-server/share-name"
