@@ -5,11 +5,11 @@ ram_gb_hour <- 0.000217  # in £
 ram_mb_second <- ram_gb_hour / 1024 / 60 / 60
 
 awesomeness_explanation <- "
-Awesome-ness is a 0-to-10 score representing a team performance.
-It is a mean rank of two columns: wasted CPU fraction and wasted RAM fraction, sorted descending.
-To get score 10 a team should waste the smallest fraction of both CPU and RAM.
-If a team requests less than half of median resources (CPU/RAM) across all teams, its rank gets halfed.
-This prevents teams with just a few perfect jobs to get the highest awesomeness.
+Awesome-ness is a 0-to-10 score representing a team performance:
+Teams are first independently ranked (descending) on both wasted CPU fraction and wasted RAM fraction.
+The awesomeness score is the mean of those two (suitably normalised) ranks.
+Therefore, to get an awesomeness score of 10, a team should have the smallest fraction of both wasted CPU and RAM across all teams in the same time period.
+Note: we penalise teams which only request small relative amounts of CPU or RAM resources by halving their ranks before calculating their awesomeness.
 "
 
 awesomeness_formula <- "
