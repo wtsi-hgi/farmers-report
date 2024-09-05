@@ -23,7 +23,7 @@ write_files:
  - path: /etc/systemd/system/go-farmer.service
    content: |
     [Unit]
-    Description=SSH Tunnel
+    Description=go-farmer server
 
     [Service]
     ExecStart=/root/go/bin/farmer server -c /opt/farm-config.yaml
