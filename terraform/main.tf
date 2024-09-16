@@ -23,6 +23,12 @@ variable "public_key" {
   default     = "~/.ssh/id_rsa.pub"
 }
 
+variable "nfs_share" {
+  type        = string
+  description = "Path to NFS share for SMB mount"
+  nullable    = false
+}
+
 variable "smbcredentials" {
   type        = string
   description = "Path to a file with credentials for SMB mount"
@@ -100,7 +106,7 @@ resource "openstack_networking_secgroup_rule_v2" "shinyproxy_web_port" {
 resource "openstack_compute_instance_v2" "server" {
   name            = "shinyproxy-server"
   image_name      = "jammy-WTSI-docker_247771_4ea57c30"
-  flavor_name     = terraform.workspace == "default" ? "m1.xlarge" : "m1.large"
+  flavor_name     = "m2.large"
   key_pair        = openstack_compute_keypair_v2.kp.name
   security_groups = [
     "default",
@@ -116,7 +122,7 @@ resource "openstack_compute_instance_v2" "server" {
     farm_config       = filebase64(var.farm_config)
     shinyproxy_config = filebase64("./shinyproxy.yml")
     smbcredentials    = filebase64(var.smbcredentials)
-    nfs_share         = local.farmers_config.nfs.share
+    nfs_share         = var.nfs_share
   })
 }
 

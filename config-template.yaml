@@ -19,6 +19,3 @@ farmer:
   port: 12321
   database_dir: "/nfs/path/to/db"
   pool_size: 4000000
-
-nfs:
-  share: "//nfs-server/share-name"

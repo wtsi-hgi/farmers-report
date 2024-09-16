@@ -20,9 +20,9 @@ proxy:
       container-volumes: [ "/opt:/opt/farmer" ]
       minimum-seats-available: 1
       seats-per-container: 1
-      allow-container-re-use: true
-  container-log-path: /etc/shinyproxy/apps/
+      allow-container-re-use: false
+  container-log-path: /opt/shinyproxy/apps/
 
 logging:
   file:
-    name: /etc/shinyproxy/server.log
+    name: /opt/shinyproxy/server.log
