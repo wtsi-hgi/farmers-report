@@ -4,6 +4,10 @@ terraform {
       source = "terraform-provider-openstack/openstack"
       version = "2.1.0"
     }
+    infoblox = {
+      source = "infobloxopen/infoblox"
+      version = "2.7.0"
+    }
   }
 
   backend "s3" {
@@ -15,6 +19,12 @@ terraform {
     skip_requesting_account_id  = true
     skip_s3_checksum            = true
   }
+}
+
+provider "infoblox" {
+  server   = var.infoblox_host
+  username = var.infoblox_user
+  password = var.infoblox_pass
 }
 
 variable "public_key" {
@@ -41,13 +51,31 @@ variable "farm_config" {
   default     = "./config.yaml"
 }
 
+locals {
+  farmers_config = yamldecode(file(var.farm_config))
+}
+
+variable "infoblox_user" {
+  type        = string
+  description = "username for infoblox"
+  nullable    = false
+}
+
+variable "infoblox_pass" {
+  type        = string
+  description = "password for infoblox"
+  nullable    = false
+}
+
+variable "infoblox_host" {
+  type        = string
+  description = "infoblox server address"
+  nullable    = false
+}
+
 resource "openstack_compute_keypair_v2" "kp" {
   name       = "shinyproxy-keypair"
   public_key = file(var.public_key)
-}
-
-locals {
-  farmers_config = yamldecode(file(var.farm_config))
 }
 
 data "openstack_networking_network_v2" "external" {
@@ -128,4 +156,10 @@ resource "openstack_compute_instance_v2" "server" {
 
 output "instance_ip_addr" {
   value = openstack_networking_floatingip_v2.floating_ip.address
+}
+
+resource "infoblox_a_record" "dns_record" {
+  fqdn     = "farmer${terraform.workspace == "default" ? "" : "-dev"}.hgi.sanger.ac.uk"
+  dns_view = "internal"
+  ip_addr  = openstack_networking_floatingip_v2.floating_ip.address
 }
