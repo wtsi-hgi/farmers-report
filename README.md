@@ -58,10 +58,11 @@ Now download `openrc.sh` file for your OpenStack tenant.
 #### Deploy
 
 Prepare a config file `config.yaml` based on `config-template.yaml`.
-Now prepare a file `terraform.tfvars` based on `terraform-template.tfvars` where `farm_config` would point to your `config.yaml`. 
+Now prepare a file `terraform/terraform.tfvars` based on `terraform-template.tfvars` where `farm_config` would point to your `config.yaml`. 
 Now execute
 
 ```bash
+cd ./terraform
 source openrc.sh
 terraform apply
 ```
