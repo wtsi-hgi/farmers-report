@@ -13,7 +13,7 @@ source('src/stat_helpers.R')
 source('src/constants.R')
 source('src/config.R')
 
-config <- read_config("config.yaml")
+config <- read_config(section = 'proxy')
 
 elastic_con <- connect(
   host = config$elastic$host,

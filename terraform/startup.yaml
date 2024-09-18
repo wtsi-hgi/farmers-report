@@ -1,0 +1,66 @@
+#cloud-config
+
+write_files:
+ - path: /opt/application.yml
+   content: !!binary |
+    ${shinyproxy_config}
+
+ - path: /opt/farm-config.yaml
+   content: !!binary |
+    ${farm_config}
+
+# for some reason we have to set DNS address manually.
+# should be changed if DNS server gets new IP
+ - path: /etc/systemd/resolved.conf.d/dns.conf
+   content: |
+    [Resolve]
+    DNS=172.18.255.1 172.18.255.2
+
+ - path: /opt/smbcredentials
+   content: !!binary |
+    ${smbcredentials}
+
+ - path: /etc/systemd/system/go-farmer.service
+   content: |
+    [Unit]
+    Description=go-farmer server
+
+    [Service]
+    ExecStart=/root/go/bin/farmer server -c /opt/farm-config.yaml
+    Restart=on-failure
+
+    [Install]
+    WantedBy=multi-user.target
+
+ - path: /etc/systemd/system/nfs.mount
+   content: |
+    [Unit]
+    Description=Mount NFS
+    Before=go-farmer.target
+    
+    [Mount]
+    What=${nfs_share}
+    Where=/nfs
+    Type=cifs
+    Options=credentials=/opt/smbcredentials,vers=2.0
+    
+    [Install]
+    RequiredBy=go-farmer.target
+
+packages:
+ - cifs-utils
+# - openjdk-21-jre-headless
+
+runcmd:
+ - wget https://go.dev/dl/go1.23.0.linux-amd64.tar.gz -O /tmp/go.tar.gz
+ - tar -C /usr/local -xzf /tmp/go.tar.gz
+ - git clone https://github.com/wtsi-hgi/go-farmer.git /tmp/go-farmer
+ - PATH=$PATH:/usr/local/go/bin HOME=/root GOPATH=/root/go make -C /tmp/go-farmer
+ - wget "https://www.shinyproxy.io/downloads/shinyproxy_3.1.1_amd64.deb" -O /tmp/shinyproxy.deb
+ - apt install -y /tmp/shinyproxy.deb
+ - systemctl enable shinyproxy
+ - mv /opt/application.yml /etc/shinyproxy/application.yml
+ - systemctl restart systemd-resolved
+ - systemctl restart nfs.mount
+ - systemctl restart go-farmer
+ - systemctl restart shinyproxy

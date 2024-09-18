@@ -1,0 +1,28 @@
+proxy:
+  title: HGI Shiny Proxy
+  authentication: none
+  container-backend: docker
+  docker:
+    image-pull-policy: Always
+  ldap:
+    user-dn-pattern: uid={0},ou=people
+    group-search-base: ou=group
+    group-search-filter: "(memberUid={1})"
+  admin-groups:
+    - hgi
+  specs:
+    - id: farmer_dashboard
+      display-name: Farmer Dashboard
+      container-cmd: [ "R", "-e", "shiny::runApp('/srv/shiny-server/farm/app.R', port = 3838, host = '0.0.0.0')" ]
+      container-image: mercury/farmers-report:latest
+      container-env:
+        FARMERS_CONFIG: /opt/farmer/farm-config.yaml
+      container-volumes: [ "/opt:/opt/farmer" ]
+      minimum-seats-available: 1
+      seats-per-container: 1
+      allow-container-re-use: false
+  container-log-path: /opt/shinyproxy/apps/
+
+logging:
+  file:
+    name: /opt/shinyproxy/server.log
