@@ -37,7 +37,22 @@ docker run --rm -v $(pwd):/code -w /code mercury/farmers-report:latest Rscript /
 ### Infrastructure 
 
 Infrastructure is managed via Terraform with a remote backend in a s3 bucket to enable shared access to Terraform state file.
-Code contains instructions to create an OpenStack VM and configure it (install software and launch systemd services).
+Code contains instructions to create an OpenStack VM and configure it as follows.
+
+Terraform creates all cloud resources and do not reuse any existing objects. It creates
+* keypair
+* network and subnetwork
+* external floating IP
+* security group with open 8080 port
+* VM
+* DNS record
+
+OpenStack instance is configured using `cloud-config` defined in `terraform/startup.yaml`. It
+* mounts NFS (`nfs.mount` systemd service)
+* writes config files (for SMB mount, go-farmer, farm-dashboard)
+* installs cifs-utils, go, go-farmer, shinyproxy
+* runs go-farmer (`go-farmer.service` systemd service)
+* writes shinyproxy configuration (`terraform/shinyproxy.yml`)
 
 #### Initialisation (needed only once) 
 
@@ -67,9 +82,10 @@ source openrc.sh
 terraform apply
 ```
 
-Terraform will now update infrastructure according to your changes.
+Terraform will now update infrastructure according to `main.tf`.
 
-You can manage different deployments by changing terraform workspaces.
+You can manage different deployments by changing terraform workspaces. 
+You have to use different OpenStack tenants for each deployment.
 
 ### Update application on the server
 
