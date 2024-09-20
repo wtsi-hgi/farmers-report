@@ -21,7 +21,7 @@ test_that("index_by_custom works", {
   expect_s3_class(dt$date, 'Date')
 
   dt <- index_by_custom(df, time_bucket = 'week')
-  expect_s3_class(dt$date, 'yearweek')
+  expect_s3_class(dt$date, 'Date')
 
   dt <- index_by_custom(df, time_bucket = 'month')
   expect_s3_class(dt$date, 'yearmonth')
