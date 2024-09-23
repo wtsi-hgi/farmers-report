@@ -303,10 +303,20 @@ test_that('build_humgen_filters works', {
 
   # with custom filters
   f2 <- build_humgen_filters(
-    custom_filters = list("match_phrase" = list("field" = 'value'))
+    custom_filters = list(list("match_phrase" = list("field" = 'value')))
   )
   expect_length(f2, 4)
   expect_named(f2, NULL)
+
+  # with 2 custom filter items
+  f21 <- build_humgen_filters(
+    custom_filters = list(
+      list("match_phrase" = c("field" = 'value1')),
+      list("match_phrase" = c("field" = 'value2'))
+    )
+  )
+  expect_length(f21, 5)
+  expect_named(f21, NULL)
 
   # with BOM parameter as NULL
   f3 <- build_humgen_filters(BOM = NULL)
@@ -409,7 +419,9 @@ test_that('format_elastic_date_range works', {
 test_that("build_match_phrase_filter works", {
   object <- build_match_phrase_filter("BOM", "Human Genetics")
   expected_object <- list(
-    "match_phrase" = list("BOM" = "Human Genetics")
+    list(
+      "match_phrase" = list("BOM" = "Human Genetics")
+    )
   )
 
   expect_equal(object, expected_object)

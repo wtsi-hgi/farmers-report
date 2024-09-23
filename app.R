@@ -41,7 +41,7 @@ get_accounting_names <- function(con, bom, date_range) {
       date_range = date_range
     )
   ))
-
+  
   res <- Search(con, index = attr(con, 'index'), body = b, asdf = T)
 
   parse_elastic_agg(res, b)$accounting_name
@@ -82,6 +82,7 @@ generate_efficiency <- function (input, con, query, adjust, time_bucket) {
     if (input$user_name == 'all') {
       dt <- get_team_statistics(con, query = query, time_bucket = time_bucket, adjust = adjust)
     } else {
+      # browser()
       dt <- get_user_statistics(con, query = query, adjust = adjust, time_bucket = time_bucket)
     }
   }
@@ -265,11 +266,11 @@ server <- function(input, output, session) {
 
     custom_filters <- NULL
     if(input$accounting_name != 'all'){
-      if(input$user_name == 'all'){
-        custom_filters <- build_match_phrase_filter("ACCOUNTING_NAME", input$accounting_name)
-      } else {
-        custom_filters <- build_match_phrase_filter("USER_NAME", input$user_name)
-      }
+      custom_filters <- build_match_phrase_filter("ACCOUNTING_NAME", input$accounting_name)
+      if(input$user_name != 'all'){
+        user_filter <- build_match_phrase_filter("USER_NAME", input$user_name)
+        custom_filters <- append(custom_filters, user_filter)
+      } 
     }
 
     build_humgen_query(

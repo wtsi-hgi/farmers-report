@@ -47,7 +47,7 @@ build_humgen_filters <- function (BOM = "Human Genetics", custom_filters = NULL,
   }
 
   if (!is.null(custom_filters))
-    filters <- c(filters, list(custom_filters))
+    filters <- append(filters, custom_filters)
 
   return(filters)
 }
@@ -214,7 +214,9 @@ build_elastic_sub_agg <- function (field, agg_fun) {
 
 build_match_phrase_filter <- function (field, value) {
   list(
-    "match_phrase" = as.list(setNames(value, field))
+    list(
+      "match_phrase" = as.list(setNames(value, field))
+    )
   )
 }
 
