@@ -41,7 +41,7 @@ get_accounting_names <- function(con, bom, date_range) {
       date_range = date_range
     )
   ))
-  
+
   res <- Search(con, index = attr(con, 'index'), body = b, asdf = T)
 
   parse_elastic_agg(res, b)$accounting_name
@@ -82,7 +82,6 @@ generate_efficiency <- function (input, con, query, adjust, time_bucket) {
     if (input$user_name == 'all') {
       dt <- get_team_statistics(con, query = query, time_bucket = time_bucket, adjust = adjust)
     } else {
-      # browser()
       dt <- get_user_statistics(con, query = query, adjust = adjust, time_bucket = time_bucket)
     }
   }
