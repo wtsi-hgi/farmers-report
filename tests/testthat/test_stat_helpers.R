@@ -192,6 +192,7 @@ test_that("parse_job_type works", {
   expect_equal(parse_job_type("wrp_c842dac"), "wr")
   expect_equal(parse_job_type("bsub rstudio user ip13"), "interactive")
   expect_equal(parse_job_type("cromwell_ffe311a3_auto_ccs_outputs_barcoded"), "cromwell")
+  expect_equal(parse_job_type("jupyter"), "interactive")
   expect_equal(parse_job_type(""), "other")
 })
 
@@ -297,4 +298,22 @@ test_that("generate_app_wastage_statistics function produces correct app wastage
   # with timestamp
   result <- generate_app_wastage_statistics(df, timed = TRUE)
   expect_equal(result, expected_result)
+})
+
+test_that("assign_jupyter_job_names works", {
+
+  df <- data.frame(
+    '_id' = c(1, 3, 2, 4),
+    'JOB_NAME' = c('job1', NA, NA, NA),
+    check.names = FALSE
+  )
+
+  ids <- c(2, 4)
+
+  dt <- assign_jupyter_job_names(df, ids)
+  expected_job_names <- c('job1', NA, 'jupyter', 'jupyter')
+
+  expect_s3_class(dt,'data.frame')
+  expect_named(dt, names(df))
+  expect_equal(dt$JOB_NAME, expected_job_names)
 })

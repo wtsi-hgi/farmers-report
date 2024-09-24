@@ -154,8 +154,34 @@ get_job_statistics <- function (con, query, time_bucket = 'none') {
               'NUM_EXEC_PROCS', 'AVAIL_CPU_TIME_SEC', 'WASTED_CPU_SECONDS',
               'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS')
   )
+
+  df <- annotate_jupyter_jobs(df, con, query)
+
   df$timestamp <- lubridate::as_datetime(df$timestamp)
+
   dt <- generate_job_statistics(df, time_bucket = time_bucket)
+}
+
+annotate_jupyter_jobs <- function (df, con, query) {
+  ids <- get_jupyter_jobs(con, query)
+  df <- assign_jupyter_job_names(df, ids)
+  return(df)
+}
+
+get_jupyter_jobs <- function (con, query) {
+  jupyter_filter <- build_match_phrase_filter("Command", "jupyterhub-singleuser")
+  query$bool$filter <- append(query$bool$filter, jupyter_filter)
+  b <- list(query = query)
+
+  res <- Search(con, index = attr(con, 'index'), body = b, asdf = T, size = 1e4, source = FALSE)
+
+  df <- extract_hits_from_elastic_response(res)
+  df[['_id']]
+}
+
+assign_jupyter_job_names <- function (df, ids) {
+  df %>%
+    mutate(JOB_NAME = ifelse(`_id` %in% ids, "jupyter", JOB_NAME))
 }
 
 generate_job_statistics <- function (df, time_bucket = 'none') {
@@ -211,7 +237,7 @@ parse_job_type <- function (job_name) {
   if (startsWith(job_name, 'wrp_'))
     return('wr')
 
-  if (startsWith(job_name, 'bsub rstudio'))
+  if (any(startsWith(job_name, c('bsub rstudio', 'jupyter'))))
     return('interactive')
 
   if (startsWith(job_name, 'cromwell'))
