@@ -265,11 +265,11 @@ server <- function(input, output, session) {
 
     custom_filters <- NULL
     if(input$accounting_name != 'all'){
-      if(input$user_name == 'all'){
-        custom_filters <- build_match_phrase_filter("ACCOUNTING_NAME", input$accounting_name)
-      } else {
-        custom_filters <- build_match_phrase_filter("USER_NAME", input$user_name)
-      }
+      custom_filters <- build_match_phrase_filter("ACCOUNTING_NAME", input$accounting_name)
+      if(input$user_name != 'all'){
+        user_filter <- build_match_phrase_filter("USER_NAME", input$user_name)
+        custom_filters <- append(custom_filters, user_filter)
+      } 
     }
 
     build_humgen_query(
