@@ -34,10 +34,12 @@ get_bom_names <- function(con) {
   parse_elastic_agg(res, b)$BOM
 }
 
-get_accounting_names <- function(con, bom, date_range) {
+get_accounting_names <- function(con, bom, user_name, date_range) {
+  if (user_name %in% c('all', '')) user_name <- NULL
   b <- build_agg_query("ACCOUNTING_NAME", query = build_humgen_query(
     filters = build_humgen_filters(
       BOM = bom,
+      user_name = user_name,
       date_range = date_range
     )
   ))
@@ -48,11 +50,12 @@ get_accounting_names <- function(con, bom, date_range) {
 }
 
 get_user_names <- function(con, bom, accounting_name, date_range) {
+  if (accounting_name %in% c('all', '')) accounting_name <- NULL
   b <- list(
     query = build_humgen_query(
       filters = build_humgen_filters(
         BOM = bom,
-        custom_filters = build_match_phrase_filter("ACCOUNTING_NAME", accounting_name),
+        accounting_name = accounting_name,
         date_range = date_range
       )
     )
@@ -207,11 +210,12 @@ ui <- page_navbar(
 )
 
 server <- function(input, output, session) {
-  observeEvent(c(input$bom, input$period), {
+  observeEvent(c(input$bom, input$user_name, input$period), {
     req(input$bom, input$period)
     req(all(!isInvalidDate(input$period)))
     req(input$period[1] <= input$period[2])
-    accounting_names <- get_accounting_names(elastic_con, input$bom, input$period)
+    browser()
+    accounting_names <- get_accounting_names(elastic_con, input$bom, input$user_name, input$period)
     team_names <- set_team_names(accounting_names, mapping = team_map)
 
     selected_accounting_name <- isolate(input$accounting_name)
@@ -229,17 +233,17 @@ server <- function(input, output, session) {
   }, priority = 2)
 
   observeEvent(c(input$accounting_name, input$period), {
-    req(input$bom, input$accounting_name, input$period)
+    req(input$bom, input$period)
     req(all(!isInvalidDate(input$period)))
     req(input$period[1] <= input$period[2])
-    if (input$accounting_name == 'all') {
-       user_names <- c("Select a group" = "")
-    } else {
+    # if (input$accounting_name == 'all') {
+    #    user_names <- c("Select a group" = "")
+    # } else {
       user_names <- get_user_names(elastic_con, input$bom, input$accounting_name, input$period)
       if (length(user_names) > 1){
         user_names <- c('all', user_names)
       }
-    }
+    # }
 
     selected_user_name <- isolate(input$user_name)
     if ( !is.null(input$user_name) && !(selected_user_name %in% user_names)) {
