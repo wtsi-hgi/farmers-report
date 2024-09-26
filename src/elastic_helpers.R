@@ -51,7 +51,7 @@ build_humgen_filters <- function (
   }
 
   if (!is.null(user_name)) {
-    user_name_filter <- build_match_phrase_filter("USER_NAME", accounting_name)
+    user_name_filter <- build_match_phrase_filter("USER_NAME", user_name)
     filters <- append(filters, user_name_filter)
   }
 
