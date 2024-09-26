@@ -34,12 +34,10 @@ get_bom_names <- function(con) {
   parse_elastic_agg(res, b)$BOM
 }
 
-get_accounting_names <- function(con, bom, user_name, date_range) {
-  if (user_name %in% c('all', '')) user_name <- NULL
+get_accounting_names <- function(con, bom, date_range) {
   b <- build_agg_query("ACCOUNTING_NAME", query = build_humgen_query(
     filters = build_humgen_filters(
       BOM = bom,
-      user_name = user_name,
       date_range = date_range
     )
   ))
@@ -73,24 +71,23 @@ get_user_names <- function(con, bom, accounting_name, date_range) {
   as.character(httr::content(res))
 }
 
-generate_efficiency <- function (input, con, query, adjust, time_bucket) {
-  req(input$accounting_name)
+decide_statistics_function <- function (input) {
+  if (input$user_name != 'all') {
+    return(get_user_statistics)
+  }
+
   if (input$accounting_name != 'all') {
-    req(input$user_name)
+    return(get_team_statistics)
   }
 
-  if (input$accounting_name == 'all') {
-    dt <- get_bom_statistics(con, query = query, adjust = adjust, time_bucket = time_bucket)
-  } else {
-    if (input$user_name == 'all') {
-      dt <- get_team_statistics(con, query = query, time_bucket = time_bucket, adjust = adjust)
-    } else {
-      dt <- get_user_statistics(con, query = query, adjust = adjust, time_bucket = time_bucket)
-    }
-  }
+  return(get_bom_statistics)
+}
 
-  # make_dt(dt, table_view_opts = 'ftp')
-  dt
+generate_efficiency <- function (input, con, query, adjust, time_bucket) {
+  req(input$accounting_name, input$user_name)
+
+  get_statistics <- decide_statistics_function(input)
+  get_statistics(con, query = query, time_bucket = time_bucket, adjust = adjust)
 }
 
 doc_link <- tags$a(
@@ -210,12 +207,11 @@ ui <- page_navbar(
 )
 
 server <- function(input, output, session) {
-  observeEvent(c(input$bom, input$user_name, input$period), {
+  observeEvent(c(input$bom, input$period), {
     req(input$bom, input$period)
     req(all(!isInvalidDate(input$period)))
     req(input$period[1] <= input$period[2])
-    browser()
-    accounting_names <- get_accounting_names(elastic_con, input$bom, input$user_name, input$period)
+    accounting_names <- get_accounting_names(elastic_con, input$bom, input$period)
     team_names <- set_team_names(accounting_names, mapping = team_map)
 
     selected_accounting_name <- isolate(input$accounting_name)
@@ -232,7 +228,7 @@ server <- function(input, output, session) {
     )
   }, priority = 2)
 
-  observeEvent(c(input$accounting_name, input$period), {
+  observeEvent(c(input$bom, input$accounting_name, input$period), {
     req(input$bom, input$period)
     req(all(!isInvalidDate(input$period)))
     req(input$period[1] <= input$period[2])
@@ -267,19 +263,11 @@ server <- function(input, output, session) {
     req(all(!isInvalidDate(input$period)))
     req(input$period[1] <= input$period[2])
 
-    custom_filters <- NULL
-    if(input$accounting_name != 'all'){
-      custom_filters <- build_match_phrase_filter("ACCOUNTING_NAME", input$accounting_name)
-      if(input$user_name != 'all'){
-        user_filter <- build_match_phrase_filter("USER_NAME", input$user_name)
-        custom_filters <- append(custom_filters, user_filter)
-      } 
-    }
-
     build_humgen_query(
       filters = build_humgen_filters(
         BOM = input$bom,
-        custom_filters = custom_filters,
+        accounting_name = input$accounting_name,
+        user_name = input$user_name,
         date_range = input$period
       )
     )

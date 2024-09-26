@@ -22,7 +22,7 @@ build_humgen_filters <- function (
   custom_filters = NULL, date_range = c(Sys.Date()-7, Sys.Date())
 ) {
   date_range <- format_elastic_date_range(date_range)
-  
+
   filters <- list(
     list(
       "match_phrase" = list(
@@ -45,12 +45,12 @@ build_humgen_filters <- function (
     filters <- append(filters, bom_filter)
   }
 
-  if (!is.null(accounting_name)) {
+  if (!is.null(accounting_name) && accounting_name != 'all') {
     accounting_name_filter <- build_match_phrase_filter("ACCOUNTING_NAME", accounting_name)
     filters <- append(filters, accounting_name_filter)
   }
 
-  if (!is.null(user_name)) {
+  if (!is.null(user_name) && user_name != 'all') {
     user_name_filter <- build_match_phrase_filter("USER_NAME", user_name)
     filters <- append(filters, user_name_filter)
   }
