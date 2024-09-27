@@ -317,3 +317,10 @@ test_that("assign_jupyter_job_names works", {
   expect_named(dt, names(df))
   expect_equal(dt$JOB_NAME, expected_job_names)
 })
+
+test_that("decide_statistics_function works", {
+  expect_identical(decide_statistics_function('all', 'all'), get_bom_statistics)
+  expect_identical(decide_statistics_function('user1', 'all'), get_user_statistics)
+  expect_identical(decide_statistics_function('all', 'team1'), get_team_statistics)
+  expect_identical(decide_statistics_function('user1', 'team1'), get_user_statistics)
+})

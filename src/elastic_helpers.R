@@ -17,6 +17,14 @@ format_elastic_date_range <- function(date_range) {
   strftime(date_range, format = "%Y-%m-%dT%H:%M:%SZ")
 }
 
+build_match_phrase_filter <- function (field, value) {
+  list(
+    list(
+      "match_phrase" = as.list(setNames(value, field))
+    )
+  )
+}
+
 build_humgen_filters <- function (
   BOM = "Human Genetics", accounting_name = NULL, user_name = NULL,
   custom_filters = NULL, date_range = c(Sys.Date()-7, Sys.Date())
@@ -218,14 +226,6 @@ build_elastic_sub_agg <- function (field, agg_fun) {
       list("field" = field)
     ),
     agg_fun
-  )
-}
-
-build_match_phrase_filter <- function (field, value) {
-  list(
-    list(
-      "match_phrase" = as.list(setNames(value, field))
-    )
   )
 }
 

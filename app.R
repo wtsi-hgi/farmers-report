@@ -71,22 +71,10 @@ get_user_names <- function(con, bom, accounting_name, date_range) {
   as.character(httr::content(res))
 }
 
-decide_statistics_function <- function (input) {
-  if (input$user_name != 'all') {
-    return(get_user_statistics)
-  }
-
-  if (input$accounting_name != 'all') {
-    return(get_team_statistics)
-  }
-
-  return(get_bom_statistics)
-}
-
 generate_efficiency <- function (input, con, query, adjust, time_bucket) {
   req(input$accounting_name, input$user_name)
 
-  get_statistics <- decide_statistics_function(input)
+  get_statistics <- decide_statistics_function(input$user_name, input$accounting_name)
   get_statistics(con, query = query, time_bucket = time_bucket, adjust = adjust)
 }
 
