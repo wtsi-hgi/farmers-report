@@ -386,7 +386,7 @@ server <- function(input, output, session) {
   })
 
   output$job_breakdown <- DT::renderDT({
-    if (input$accounting_name != 'all') {
+    if (input$accounting_name != 'all' || input$user_name != 'all') {
       dt <- get_job_statistics(elastic_con, query = elastic_query())
       make_dt(dt, table_view_opts = 'ftp')
     }
@@ -418,7 +418,7 @@ server <- function(input, output, session) {
   })
 
   output$gpu_statistics <- DT::renderDT({
-    if(input$accounting_name != 'all'){
+    if (input$accounting_name != 'all' || input$user_name != 'all'){
       dt <- generate_gpu_statistics(gpu_records())
       make_dt(dt, table_view_opts = 'ftp')
     }
@@ -439,7 +439,7 @@ server <- function(input, output, session) {
   })
 
   observe({
-    if (input$accounting_name != 'all') {
+    if (input$accounting_name != 'all' || input$user_name != 'all') {
       accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
         shinycssloaders::withSpinner(
           DT::DTOutput("gpu_statistics")
@@ -459,7 +459,7 @@ server <- function(input, output, session) {
       )
     } else {
       accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
-        "To see GPU statistics please pick a LSF Group in the left panel"
+        "To see GPU statistics please pick a LSF Group or a user in the left panel"
       )
     }
   })
@@ -567,7 +567,7 @@ server <- function(input, output, session) {
   })
 
   observe({
-    if (input$accounting_name != 'all') {
+    if (input$accounting_name != 'all' || input$user_name != 'all') {
       accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
         shinycssloaders::withSpinner(
           DT::DTOutput("job_breakdown")
@@ -587,7 +587,7 @@ server <- function(input, output, session) {
       )
     } else {
       accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
-        "To see job breakdown statistics please pick a LSF Group in the left panel"
+        "To see job breakdown statistics please pick a LSF Group or a user in the left panel"
       )
     }
   })
