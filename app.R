@@ -220,14 +220,10 @@ server <- function(input, output, session) {
     req(input$bom, input$period)
     req(all(!isInvalidDate(input$period)))
     req(input$period[1] <= input$period[2])
-    # if (input$accounting_name == 'all') {
-    #    user_names <- c("Select a group" = "")
-    # } else {
-      user_names <- get_user_names(elastic_con, input$bom, input$accounting_name, input$period)
-      if (length(user_names) > 1){
+    user_names <- get_user_names(elastic_con, input$bom, input$accounting_name, input$period)
+    if (length(user_names) > 1){
         user_names <- c('all', user_names)
       }
-    # }
 
     selected_user_name <- isolate(input$user_name)
     if ( !is.null(input$user_name) && !(selected_user_name %in% user_names)) {
