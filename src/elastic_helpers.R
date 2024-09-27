@@ -17,9 +17,20 @@ format_elastic_date_range <- function(date_range) {
   strftime(date_range, format = "%Y-%m-%dT%H:%M:%SZ")
 }
 
-build_humgen_filters <- function (BOM = "Human Genetics", custom_filters = NULL, date_range = c(Sys.Date()-7, Sys.Date())) {
+build_match_phrase_filter <- function (field, value) {
+  list(
+    list(
+      "match_phrase" = as.list(setNames(value, field))
+    )
+  )
+}
+
+build_humgen_filters <- function (
+  BOM = "Human Genetics", accounting_name = NULL, user_name = NULL,
+  custom_filters = NULL, date_range = c(Sys.Date()-7, Sys.Date())
+) {
   date_range <- format_elastic_date_range(date_range)
-  
+
   filters <- list(
     list(
       "match_phrase" = list(
@@ -38,12 +49,18 @@ build_humgen_filters <- function (BOM = "Human Genetics", custom_filters = NULL,
   )
 
   if (!is.null(BOM)) {
-    bom_filter <- list(
-      "match_phrase" = list(
-        "BOM" = BOM
-      )
-    )
-    filters <- c(filters, list(bom_filter))
+    bom_filter <- build_match_phrase_filter("BOM", BOM)
+    filters <- append(filters, bom_filter)
+  }
+
+  if (!is.null(accounting_name) && accounting_name != 'all') {
+    accounting_name_filter <- build_match_phrase_filter("ACCOUNTING_NAME", accounting_name)
+    filters <- append(filters, accounting_name_filter)
+  }
+
+  if (!is.null(user_name) && user_name != 'all') {
+    user_name_filter <- build_match_phrase_filter("USER_NAME", user_name)
+    filters <- append(filters, user_name_filter)
   }
 
   if (!is.null(custom_filters))
@@ -209,14 +226,6 @@ build_elastic_sub_agg <- function (field, agg_fun) {
       list("field" = field)
     ),
     agg_fun
-  )
-}
-
-build_match_phrase_filter <- function (field, value) {
-  list(
-    list(
-      "match_phrase" = as.list(setNames(value, field))
-    )
   )
 }
 

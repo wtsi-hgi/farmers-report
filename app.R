@@ -48,11 +48,12 @@ get_accounting_names <- function(con, bom, date_range) {
 }
 
 get_user_names <- function(con, bom, accounting_name, date_range) {
+  if (accounting_name %in% c('all', '')) accounting_name <- NULL
   b <- list(
     query = build_humgen_query(
       filters = build_humgen_filters(
         BOM = bom,
-        custom_filters = build_match_phrase_filter("ACCOUNTING_NAME", accounting_name),
+        accounting_name = accounting_name,
         date_range = date_range
       )
     )
@@ -71,23 +72,10 @@ get_user_names <- function(con, bom, accounting_name, date_range) {
 }
 
 generate_efficiency <- function (input, con, query, adjust, time_bucket) {
-  req(input$accounting_name)
-  if (input$accounting_name != 'all') {
-    req(input$user_name)
-  }
+  req(input$accounting_name, input$user_name)
 
-  if (input$accounting_name == 'all') {
-    dt <- get_bom_statistics(con, query = query, adjust = adjust, time_bucket = time_bucket)
-  } else {
-    if (input$user_name == 'all') {
-      dt <- get_team_statistics(con, query = query, time_bucket = time_bucket, adjust = adjust)
-    } else {
-      dt <- get_user_statistics(con, query = query, adjust = adjust, time_bucket = time_bucket)
-    }
-  }
-
-  # make_dt(dt, table_view_opts = 'ftp')
-  dt
+  get_statistics <- decide_statistics_function(input$user_name, input$accounting_name)
+  get_statistics(con, query = query, time_bucket = time_bucket, adjust = adjust)
 }
 
 doc_link <- tags$a(
@@ -228,18 +216,14 @@ server <- function(input, output, session) {
     )
   }, priority = 2)
 
-  observeEvent(c(input$accounting_name, input$period), {
-    req(input$bom, input$accounting_name, input$period)
+  observeEvent(c(input$bom, input$accounting_name, input$period), {
+    req(input$bom, input$period)
     req(all(!isInvalidDate(input$period)))
     req(input$period[1] <= input$period[2])
-    if (input$accounting_name == 'all') {
-       user_names <- c("Select a group" = "")
-    } else {
-      user_names <- get_user_names(elastic_con, input$bom, input$accounting_name, input$period)
-      if (length(user_names) > 1){
+    user_names <- get_user_names(elastic_con, input$bom, input$accounting_name, input$period)
+    if (length(user_names) > 1){
         user_names <- c('all', user_names)
       }
-    }
 
     selected_user_name <- isolate(input$user_name)
     if ( !is.null(input$user_name) && !(selected_user_name %in% user_names)) {
@@ -263,19 +247,11 @@ server <- function(input, output, session) {
     req(all(!isInvalidDate(input$period)))
     req(input$period[1] <= input$period[2])
 
-    custom_filters <- NULL
-    if(input$accounting_name != 'all'){
-      custom_filters <- build_match_phrase_filter("ACCOUNTING_NAME", input$accounting_name)
-      if(input$user_name != 'all'){
-        user_filter <- build_match_phrase_filter("USER_NAME", input$user_name)
-        custom_filters <- append(custom_filters, user_filter)
-      } 
-    }
-
     build_humgen_query(
       filters = build_humgen_filters(
         BOM = input$bom,
-        custom_filters = custom_filters,
+        accounting_name = input$accounting_name,
+        user_name = input$user_name,
         date_range = input$period
       )
     )
@@ -410,7 +386,7 @@ server <- function(input, output, session) {
   })
 
   output$job_breakdown <- DT::renderDT({
-    if (input$accounting_name != 'all') {
+    if (input$accounting_name != 'all' || input$user_name != 'all') {
       dt <- get_job_statistics(elastic_con, query = elastic_query())
       make_dt(dt, table_view_opts = 'ftp')
     }
@@ -442,7 +418,7 @@ server <- function(input, output, session) {
   })
 
   output$gpu_statistics <- DT::renderDT({
-    if(input$accounting_name != 'all'){
+    if (input$accounting_name != 'all' || input$user_name != 'all'){
       dt <- generate_gpu_statistics(gpu_records())
       make_dt(dt, table_view_opts = 'ftp')
     }
@@ -463,7 +439,7 @@ server <- function(input, output, session) {
   })
 
   observe({
-    if (input$accounting_name != 'all') {
+    if (input$accounting_name != 'all' || input$user_name != 'all') {
       accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
         shinycssloaders::withSpinner(
           DT::DTOutput("gpu_statistics")
@@ -483,7 +459,7 @@ server <- function(input, output, session) {
       )
     } else {
       accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
-        "To see GPU statistics please pick a LSF Group in the left panel"
+        "To see GPU statistics please pick a LSF Group or a user in the left panel"
       )
     }
   })
@@ -591,7 +567,7 @@ server <- function(input, output, session) {
   })
 
   observe({
-    if (input$accounting_name != 'all') {
+    if (input$accounting_name != 'all' || input$user_name != 'all') {
       accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
         shinycssloaders::withSpinner(
           DT::DTOutput("job_breakdown")
@@ -611,7 +587,7 @@ server <- function(input, output, session) {
       )
     } else {
       accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
-        "To see job breakdown statistics please pick a LSF Group in the left panel"
+        "To see job breakdown statistics please pick a LSF Group or a user in the left panel"
       )
     }
   })

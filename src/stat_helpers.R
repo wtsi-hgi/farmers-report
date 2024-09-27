@@ -297,3 +297,15 @@ generate_app_wastage_statistics <- function(df, adjust = TRUE, timed = FALSE) {
     )) %>%
     select(all_of(cols))
 }
+
+decide_statistics_function <- function (user_name, accounting_name) {
+  if (user_name != 'all') {
+    return(get_user_statistics)
+  }
+
+  if (accounting_name != 'all') {
+    return(get_team_statistics)
+  }
+
+  return(get_bom_statistics)
+}
