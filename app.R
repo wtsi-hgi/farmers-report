@@ -380,7 +380,7 @@ server <- function(input, output, session) {
   })
 
   output$awesomeness_formula <- renderUI({
-    if (input$accounting_name == 'all') {
+    if (input$accounting_name == 'all' && input$user_name == 'all') {
       withMathJax(awesomeness_explanation, awesomeness_formula)
     }
   })
@@ -393,8 +393,9 @@ server <- function(input, output, session) {
   })
 
   timed_job_statistics <- reactive({
-    if (input$accounting_name != 'all')
+    if (input$accounting_name != 'all' || input$user_name != 'all') {
       get_job_statistics(elastic_con, time_bucket = input$time_bucket, query = elastic_query())
+    }
   })
 
   timed_job_statistics_colnames <- reactive({
