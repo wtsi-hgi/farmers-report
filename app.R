@@ -380,7 +380,7 @@ server <- function(input, output, session) {
   })
 
   output$awesomeness_formula <- renderUI({
-    if (input$accounting_name == 'all') {
+    if (input$accounting_name == 'all' && input$user_name == 'all') {
       withMathJax(awesomeness_explanation, awesomeness_formula)
     }
   })
