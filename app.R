@@ -12,6 +12,7 @@ source('src/plot_helpers.R')
 source('src/stat_helpers.R')
 source('src/constants.R')
 source('src/config.R')
+source('src/logging.R')
 
 config <- read_config(section = 'proxy')
 
@@ -29,7 +30,7 @@ attr(elastic_con, 'index') <- config$elastic$index
 get_bom_names <- function(con) {
   b <- build_agg_query("BOM", query = build_humgen_query(filters = build_humgen_filters(BOM = NULL)))
 
-  res <- Search(con, index = attr(con, 'index'), body = b, asdf = T)
+  res <- elastic_search(con, index = attr(con, 'index'), body = b, asdf = T)
 
   parse_elastic_agg(res, b)$BOM
 }
@@ -42,7 +43,7 @@ get_accounting_names <- function(con, bom, date_range) {
     )
   ))
 
-  res <- Search(con, index = attr(con, 'index'), body = b, asdf = T)
+  res <- elastic_search(con, index = attr(con, 'index'), body = b, asdf = T)
 
   parse_elastic_agg(res, b)$accounting_name
 }
@@ -288,7 +289,7 @@ server <- function(input, output, session) {
   output$job_failure <- renderPlot({
     b <- build_agg_query("Job", query = elastic_query())
 
-    res <- Search(elastic_con, index = attr(elastic_con, 'index'), body = b, asdf = T)
+    res <- elastic_search(elastic_con, index = attr(elastic_con, 'index'), body = b, asdf = T)
 
     df <- parse_elastic_agg(res, b) %>%
       mutate_for_piechart()
@@ -604,6 +605,10 @@ server <- function(input, output, session) {
         )
       }
     }
+  })
+
+  observe({
+    log_action(input$myaccordion, input$bom, input$accounting_name, input$user_name, input$period, input$time_bucket)
   })
 }
 
