@@ -1,6 +1,7 @@
 library(dplyr)
 
 source("src/constants.R")
+source("src/logging.R")
 source('src/timeseries_helpers.R')
 loadNamespace('tidyr')
 
