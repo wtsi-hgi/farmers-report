@@ -1,6 +1,7 @@
 library(dplyr)
 
 source("src/constants.R")
+source("src/logging.R")
 source('src/timeseries_helpers.R')
 loadNamespace('tidyr')
 
@@ -321,8 +322,13 @@ get_numerical_colnames <- function(df) {
     colnames()
 }
 
+elastic_search <- function (...){
+  log_request(...)
+  Search(...)
+}
+
 scroll_elastic <- function(con, body, fields) {
-  res <- Search(
+  res <- elastic_search(
     con,
     index = attr(con, 'index'),
     time_scroll="1m",

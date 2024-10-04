@@ -16,7 +16,7 @@ generate_efficiency_extra_stats <- list(
 
 get_user_statistics <- function (con, query, adjust = TRUE, time_bucket = 'none') {
   b <- build_user_statistics_query(query, time_bucket = time_bucket)
-  res <- Search(con, index = attr(con, 'index'), body = b, asdf = T)
+  res <- elastic_search(con, index = attr(con, 'index'), body = b, asdf = T)
 
   df <- parse_elastic_agg(res, b)
 
@@ -138,7 +138,7 @@ generate_bom_statistics <- function(df, timed = FALSE, adjust = TRUE) {
 
 get_bom_statistics <- function (con, query, adjust = TRUE, time_bucket = 'none') {
   b <- build_bom_aggregation(query, time_bucket)
-  res <- Search(con, index = attr(con, 'index'), body = b, asdf = T)
+  res <- elastic_search(con, index = attr(con, 'index'), body = b, asdf = T)
 
   df <- parse_elastic_agg(res, b) %>%
     select(-doc_count)
@@ -173,7 +173,7 @@ get_jupyter_jobs <- function (con, query) {
   query$bool$filter <- append(query$bool$filter, jupyter_filter)
   b <- list(query = query)
 
-  res <- Search(con, index = attr(con, 'index'), body = b, asdf = T, size = 1e4, source = FALSE)
+  res <- elastic_search(con, index = attr(con, 'index'), body = b, asdf = T, size = 1e4, source = FALSE)
 
   df <- extract_hits_from_elastic_response(res)
   df[['_id']]
@@ -220,7 +220,7 @@ get_job_failure_statistics <- function(con, query, fields, time_bucket = "none")
 
   b <- build_elasic_agg(aggs = aggs, query = query)
 
-  res <- Search(con, index = attr(con, 'index'), body = b, asdf = T)
+  res <- elastic_search(con, index = attr(con, 'index'), body = b, asdf = T)
 
   df <- parse_elastic_agg(res, b)
 
