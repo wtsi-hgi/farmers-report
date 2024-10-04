@@ -7,7 +7,7 @@ log_action <- function (accordions, bom, group, user, period, time_bucket) {
     "USER-ACTION",
     jsonlite::toJSON(
       list(
-        accordions = as.list(accordions),
+        accordions = as.character(accordions),
         filters = list(
           bom = jsonlite::unbox(bom),
           accounting_name = jsonlite::unbox(group),
