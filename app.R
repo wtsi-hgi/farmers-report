@@ -87,6 +87,7 @@ doc_link <- tags$a(
 
 ui <- page_navbar(
   title = "HGI Farm Dashboard",
+  id = 'nav',
   nav_spacer(),
   sidebar = sidebar(
     width = 270,
@@ -104,7 +105,7 @@ ui <- page_navbar(
       choices = NULL
     ),
     dateRangeInput(
-      "period", 
+      "period",
       label = tooltip(
         trigger = list(
           "Period",
@@ -118,12 +119,15 @@ ui <- page_navbar(
       max = Sys.Date(),
       weekstart = 1
     ),
-    selectInput(
-      "time_bucket", "Time Bucket",
-      choices = c("none", "day", "week", "month")
+    conditionalPanel(
+      "input.nav === 'Dashboard'",
+      selectInput(
+        "time_bucket", "Time Bucket",
+        choices = c("none", "day", "week", "month")
+      )
     )
   ),
-  nav_panel(title = "Dashboard", 
+  nav_panel(title = "Dashboard",
     accordion(
       accordion_panel(
         "Job failure statistics",
@@ -192,6 +196,7 @@ ui <- page_navbar(
       open = FALSE
     )
   ),
+  nav_panel(title = 'Nextflow report'),
   nav_item(doc_link)
 )
 
