@@ -248,10 +248,10 @@ parse_job_type <- function (job_name) {
 
 get_gpu_records <- function(con, query) {
   queue_filter <- list(
-    "prefix" = list("QUEUE_NAME" = "gpu")
+    "prefix" = list("JOB_NAME" = "gpu")
   )
   query$bool$filter <- c(query$bool$filter, list(queue_filter))
-
+  
   df <- scroll_elastic(
     con = con,
     body = list(query = query),
@@ -260,6 +260,21 @@ get_gpu_records <- function(con, query) {
 
   df$timestamp <- lubridate::as_datetime(df$timestamp)
 
+  return(df)
+}
+
+get_nf_records <- function(con, query) {
+  queue_filter <- list(
+    "prefix" = list("JOB_NAME" = "nf")
+  )
+  query$bool$filter <- c(query$bool$filter, list(queue_filter))
+
+  df <- scroll_elastic(
+    con = con,
+    body = list(query = query),
+    fields = c('JOB_NAME')
+  )
+  print(head(df, 5))
   return(df)
 }
 

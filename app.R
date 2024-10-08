@@ -72,6 +72,19 @@ get_user_names <- function(con, bom, accounting_name, date_range) {
   as.character(httr::content(res))
 }
 
+get_nf_job_names <- function(df, index) {
+  # names <- df$JOB_NAME
+  # logging::loginfo("split")
+  # splitted <- stringr::str_split_i(names, "_", index)
+  # logging::loginfo("unique")
+  # names <- unique(splitted)
+  # logging::loginfo("gsub")
+  # if(index == 1){
+  #   names <- gsub("^nf-", "", names)
+  # }
+  "names"
+}
+
 generate_efficiency <- function (input, con, query, adjust, time_bucket) {
   req(input$accounting_name, input$user_name)
 
@@ -127,76 +140,85 @@ ui <- page_navbar(
       )
     )
   ),
-  nav_panel(title = "Dashboard",
-    accordion(
-      accordion_panel(
-        "Job failure statistics",
-        shinycssloaders::withSpinner(
-          tagList(
-            plotOutput("job_failure"),
-            plotOutput("per_bucket_job_failure"),
-            DT::DTOutput("per_bucket_job_failure_table"),
-            plotOutput("job_failure_time_plot")
-          )
-        ),
-        value = "job_failure_panel"
-      ),
-      accordion_panel(
-        "Unadjusted Efficiency",
-        shinycssloaders::withSpinner(
-          tagList(
-            DT::DTOutput("unadjusted_efficiency"),
-            selectInput(
-              "unadjusted_efficiency_column", "Column to plot",
-              choices = NULL
-            ),
-            plotOutput("unadjusted_efficiency_plot")
-          )
-        ),
-        value = 'unadjusted_efficiency_panel'
-      ),
-      accordion_panel(
-        "Efficiency",
-        shinycssloaders::withSpinner(
-          tagList(
-            textOutput("adjustments_explanation"),
-            DT::DTOutput("efficiency"),
-            htmlOutput("awesomeness_formula"),
-            selectInput(
-              "efficiency_column", "Column to plot",
-              choices = NULL
-            ),
-            plotOutput("efficiency_plot")
-          )
-        ),
-        value = 'efficiency_panel'
-      ),
-      accordion_panel(
-        "Job Breakdown",
-        shinycssloaders::withSpinner(
-          tagList(
-            DT::DTOutput("job_breakdown"),
-            selectInput(
-              "job_breakdown_column", "Column to plot",
-              choices = NULL
-            ),
-            plotOutput("job_breakdown_plot")
-          )
-        ),
-        value = "job_breakdown_panel"
-      ),
-      accordion_panel(
-        "GPU Statistics",
-        shinycssloaders::withSpinner(
-          DT::DTOutput("gpu_statistics")
-        ),
-        value = "gpu_statistics_panel"
-      ),
-      id = "myaccordion",
-      open = FALSE
-    )
+  # nav_panel(title = "Dashboard",
+  #   accordion(
+  #     accordion_panel(
+  #       "Job failure statistics",
+  #       shinycssloaders::withSpinner(
+  #         tagList(
+  #           plotOutput("job_failure"),
+  #           plotOutput("per_bucket_job_failure"),
+  #           DT::DTOutput("per_bucket_job_failure_table"),
+  #           plotOutput("job_failure_time_plot")
+  #         )
+  #       ),
+  #       value = "job_failure_panel"
+  #     ),
+  #     accordion_panel(
+  #       "Unadjusted Efficiency",
+  #       shinycssloaders::withSpinner(
+  #         tagList(
+  #           DT::DTOutput("unadjusted_efficiency"),
+  #           selectInput(
+  #             "unadjusted_efficiency_column", "Column to plot",
+  #             choices = NULL
+  #           ),
+  #           plotOutput("unadjusted_efficiency_plot")
+  #         )
+  #       ),
+  #       value = 'unadjusted_efficiency_panel'
+  #     ),
+  #     accordion_panel(
+  #       "Efficiency",
+  #       shinycssloaders::withSpinner(
+  #         tagList(
+  #           textOutput("adjustments_explanation"),
+  #           DT::DTOutput("efficiency"),
+  #           htmlOutput("awesomeness_formula"),
+  #           selectInput(
+  #             "efficiency_column", "Column to plot",
+  #             choices = NULL
+  #           ),
+  #           plotOutput("efficiency_plot")
+  #         )
+  #       ),
+  #       value = 'efficiency_panel'
+  #     ),
+  #     accordion_panel(
+  #       "Job Breakdown",
+  #       shinycssloaders::withSpinner(
+  #         tagList(
+  #           DT::DTOutput("job_breakdown"),
+  #           selectInput(
+  #             "job_breakdown_column", "Column to plot",
+  #             choices = NULL
+  #           ),
+  #           plotOutput("job_breakdown_plot")
+  #         )
+  #       ),
+  #       value = "job_breakdown_panel"
+  #     ),
+  #     accordion_panel(
+  #       "GPU Statistics",
+  #       shinycssloaders::withSpinner(
+  #         DT::DTOutput("gpu_statistics")
+  #       ),
+  #       value = "gpu_statistics_panel"
+  #     ),
+  #     id = "myaccordion",
+  #     open = FALSE
+  #   )
+  # ),
+  nav_panel(title = 'Nextflow Report',
+    selectInput("element1", "Nextflow Pipeline", choices = c("Loading pipeline names..." = "")),
+    lapply(2:6, function(i) {
+        conditionalPanel(
+          condition = paste0("input.element", i - 1, " !== ''"),
+          selectInput(paste0("element", i), paste0("Next Element"), choices = c("names" = "", "choice"))
+        )
+      }),
+    actionButton("submit_button", "Submit")
   ),
-  nav_panel(title = 'Nextflow report'),
   nav_item(doc_link)
 )
 
@@ -221,6 +243,14 @@ server <- function(input, output, session) {
       selected = selected_accounting_name
     )
   }, priority = 2)
+
+  observe({
+    elastic_query()
+    updateSelectInput(
+      inputId = "element1",
+      choices = c("Select pipeline name..." = "", get_nf_job_names(df = nf_job_names(), index = 1))
+    )
+  }) 
 
   observeEvent(c(input$bom, input$accounting_name, input$period), {
     req(input$bom, input$period)
@@ -261,6 +291,10 @@ server <- function(input, output, session) {
         date_range = input$period
       )
     )
+  })
+  
+  nf_job_names <- reactive({
+    get_nf_job_names(elastic_con, elastic_query())
   })
 
   per_bucket_job_failure_df <- reactive({
