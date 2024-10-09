@@ -274,7 +274,9 @@ get_nf_records <- function(con, query) {
     body = list(query = query),
     fields = c('JOB_NAME')
   )
-  print(head(df, 5))
+  # manally filter the nf- job names for now until Sendu has fixed the bug
+  df <- df %>%
+    filter(startsWith(JOB_NAME, "nf-"))
   return(df)
 }
 

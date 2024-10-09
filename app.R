@@ -72,17 +72,22 @@ get_user_names <- function(con, bom, accounting_name, date_range) {
   as.character(httr::content(res))
 }
 
-get_nf_job_names <- function(df, index) {
-  # names <- df$JOB_NAME
-  # logging::loginfo("split")
-  # splitted <- stringr::str_split_i(names, "_", index)
-  # logging::loginfo("unique")
-  # names <- unique(splitted)
-  # logging::loginfo("gsub")
-  # if(index == 1){
-  #   names <- gsub("^nf-", "", names)
-  # }
-  "names"
+get_nf_job_names_parts <- function(df) {
+  names <- df$JOB_NAME
+  logging::loginfo("split")
+  splitted <- stringr::str_split_fixed(names, "_", 4)
+  combined_names <- c(
+    splitted[, 1],
+    paste(splitted[, 1], splitted[, 2], sep = "_"),
+    paste(splitted[, 1], splitted[, 2], splitted[, 3], sep = "_")
+  )
+  logging::loginfo("unique")
+  names <- unique(combined_names)
+  logging::loginfo("gsub")
+  names <- gsub("^nf-", "", names)
+  names <- gsub("_+$", "", names)
+  names <- names[!grepl("\\(", names)]
+  unique(names)
 }
 
 generate_efficiency <- function (input, con, query, adjust, time_bucket) {
@@ -210,13 +215,7 @@ ui <- page_navbar(
   #   )
   # ),
   nav_panel(title = 'Nextflow Report',
-    selectInput("element1", "Nextflow Pipeline", choices = c("Loading pipeline names..." = "")),
-    lapply(2:6, function(i) {
-        conditionalPanel(
-          condition = paste0("input.element", i - 1, " !== ''"),
-          selectInput(paste0("element", i), paste0("Next Element"), choices = c("names" = "", "choice"))
-        )
-      }),
+    selectInput("pipeline_name", "Nextflow Pipeline", choices = c(default_pipeline_name() = "")),
     actionButton("submit_button", "Submit")
   ),
   nav_item(doc_link)
@@ -245,10 +244,25 @@ server <- function(input, output, session) {
   }, priority = 2)
 
   observe({
+      input$user_name
+        updateSelectInput(
+      inputId = "pipeline_name",
+      choices = c("Loading pipeline names..." = "")
+    )
+  }, priority = 1)
+
+  observe({
+
     elastic_query()
+    job_name_parts <- get_nf_job_names_parts(df = nf_job_names())
+    if (length(job_name_parts) >= 1) {
+      choices <- c("Select pipeline name..." = "", job_name_parts)
+    } else {
+      choices <- c("No pipelines found" = "")
+    }
     updateSelectInput(
-      inputId = "element1",
-      choices = c("Select pipeline name..." = "", get_nf_job_names(df = nf_job_names(), index = 1))
+      inputId = "pipeline_name",
+      choices = choices
     )
   }) 
 
@@ -271,7 +285,7 @@ server <- function(input, output, session) {
     updateSelectInput(
       inputId = "user_name",
       choices = user_names,
-      selected = selected_user_name
+      selected = "al37"
     )
   }, priority = 1)
 
@@ -294,8 +308,10 @@ server <- function(input, output, session) {
   })
   
   nf_job_names <- reactive({
-    get_nf_job_names(elastic_con, elastic_query())
+    get_nf_records(elastic_con, elastic_query())
   })
+  
+  default_pipeline_name <- reactiveVal("")
 
   per_bucket_job_failure_df <- reactive({
     if (input$accounting_name == 'all') {
