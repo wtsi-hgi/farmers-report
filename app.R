@@ -13,6 +13,7 @@ source('src/stat_helpers.R')
 source('src/constants.R')
 source('src/config.R')
 source('src/logging.R')
+source('src/nextflow_helpers.R')
 
 config <- read_config(section = 'proxy')
 
@@ -70,24 +71,6 @@ get_user_names <- function(con, bom, accounting_name, date_range) {
   httr::stop_for_status(res, task = paste("get list of users for LSF group", accounting_name))
 
   as.character(httr::content(res))
-}
-
-get_nf_job_names_parts <- function(df) {
-  names <- df$JOB_NAME
-  logging::loginfo("split")
-  splitted <- stringr::str_split_fixed(names, "_", 4)
-  combined_names <- c(
-    splitted[, 1],
-    paste(splitted[, 1], splitted[, 2], sep = "_"),
-    paste(splitted[, 1], splitted[, 2], splitted[, 3], sep = "_")
-  )
-  logging::loginfo("unique")
-  names <- unique(combined_names)
-  logging::loginfo("gsub")
-  names <- gsub("^nf-", "", names)
-  names <- gsub("_+$", "", names)
-  names <- names[!grepl("\\(", names)]
-  sort(unique(names))
 }
 
 generate_efficiency <- function (input, con, query, adjust, time_bucket) {
