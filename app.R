@@ -87,7 +87,7 @@ get_nf_job_names_parts <- function(df) {
   names <- gsub("^nf-", "", names)
   names <- gsub("_+$", "", names)
   names <- names[!grepl("\\(", names)]
-  unique(names)
+  sort(unique(names))
 }
 
 generate_efficiency <- function (input, con, query, adjust, time_bucket) {
@@ -215,7 +215,7 @@ ui <- page_navbar(
   #   )
   # ),
   nav_panel(title = 'Nextflow Report',
-    selectInput("pipeline_name", "Nextflow Pipeline", choices = c(default_pipeline_name() = "")),
+    selectInput("pipeline_name", "Nextflow Pipeline", choices = c("Loading pipeline names..." = "")),
     actionButton("submit_button", "Submit")
   ),
   nav_item(doc_link)
@@ -244,16 +244,7 @@ server <- function(input, output, session) {
   }, priority = 2)
 
   observe({
-      input$user_name
-        updateSelectInput(
-      inputId = "pipeline_name",
-      choices = c("Loading pipeline names..." = "")
-    )
-  }, priority = 1)
-
-  observe({
-
-    elastic_query()
+    shinycssloaders::showPageSpinner()
     job_name_parts <- get_nf_job_names_parts(df = nf_job_names())
     if (length(job_name_parts) >= 1) {
       choices <- c("Select pipeline name..." = "", job_name_parts)
@@ -264,6 +255,7 @@ server <- function(input, output, session) {
       inputId = "pipeline_name",
       choices = choices
     )
+    shinycssloaders::hidePageSpinner()
   }) 
 
   observeEvent(c(input$bom, input$accounting_name, input$period), {
@@ -311,8 +303,6 @@ server <- function(input, output, session) {
     get_nf_records(elastic_con, elastic_query())
   })
   
-  default_pipeline_name <- reactiveVal("")
-
   per_bucket_job_failure_df <- reactive({
     if (input$accounting_name == 'all') {
       get_job_failure_statistics(con = elastic_con, query = elastic_query(), fields = c("ACCOUNTING_NAME", "Job"))
