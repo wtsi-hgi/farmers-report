@@ -263,23 +263,6 @@ get_gpu_records <- function(con, query) {
   return(df)
 }
 
-get_nf_records <- function(con, query) {
-  queue_filter <- list(
-    "prefix" = list("JOB_NAME" = "nf")
-  )
-  query$bool$filter <- c(query$bool$filter, list(queue_filter))
-
-  df <- scroll_elastic(
-    con = con,
-    body = list(query = query),
-    fields = c('JOB_NAME')
-  )
-  # manally filter the nf- job names for now until Sendu has fixed the bug
-  df <- df %>%
-    filter(startsWith(JOB_NAME, "nf-"))
-  return(df)
-}
-
 generate_gpu_statistics <- function(df) {
   dt <- df %>%
     group_by(USER_NAME, QUEUE_NAME) %>%
