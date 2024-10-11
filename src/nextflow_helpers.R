@@ -47,9 +47,5 @@ get_records <- function (con, query, prefix, fields) {
     fields = fields
   )
 
-  # manally filter the nf- job names for now until Sendu has fixed the bug
-  df <- df %>%
-    filter(startsWith(JOB_NAME, prefix))
-
   return(df)
 }
