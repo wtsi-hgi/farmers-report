@@ -27,13 +27,23 @@ get_nf_records <- function(con, query) {
 }
 
 get_pipeline_records <- function (con, query, pipeline_name) {
-  get_records(
+  pipeline_prefix <- paste("nf", pipeline_name, sep = "-")
+  df <- get_records(
     con = con,
     query = query,
-    prefix = paste("nf", pipeline_name, sep = "-"),
-    fields = c('JOB_NAME', 'MAX_MEM_EFFICIENCY_PERCENT', 'Job_Efficiency_Percent',
-               'MEM_REQUESTED_MB', 'MAX_MEM_USAGE_MB', 'NUM_EXEC_PROCS')
+    prefix = pipeline_prefix,
+    fields = c('JOB_NAME', 'Job',
+               'NUM_EXEC_PROCS', 'AVAIL_CPU_TIME_SEC', 'WASTED_CPU_SECONDS',
+               'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS'
+    )
   )
+
+  df %>%
+    mutate(
+      step = stringr::str_remove_all(JOB_NAME, stringr::str_glue('^{pipeline_prefix}_|_\\(.*\\)?$')),
+      Job_Efficiency_Percent = 100 * (AVAIL_CPU_TIME_SEC - WASTED_CPU_SECONDS) / AVAIL_CPU_TIME_SEC,
+      MAX_MEM_EFFICIENCY_PERCENT = 100 * (MEM_REQUESTED_MB_SEC - WASTED_MB_SECONDS) / MEM_REQUESTED_MB_SEC
+    )
 }
 
 get_records <- function (con, query, prefix, fields) {
@@ -41,6 +51,7 @@ get_records <- function (con, query, prefix, fields) {
     "prefix" = list("JOB_NAME" = prefix)
   )
   query$bool$filter <- c(query$bool$filter, list(queue_filter))
+
   df <- scroll_elastic(
     con = con,
     body = list(query = query),
