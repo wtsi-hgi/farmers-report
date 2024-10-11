@@ -37,6 +37,7 @@ generate_efficiency <- function (input, con, query, adjust, time_bucket) {
 server <- function(input, output, session) {
   # set bom names
   observe({
+    req(all(!isInvalidDate(input$period)))
     req(input$period[1] <= input$period[2])
     bom_names <- get_bom_names(elastic_con, input$period)
     selected_bom_name <- isolate(input$bom)
@@ -72,10 +73,10 @@ server <- function(input, output, session) {
 
   # set pipeline name
   observe({
-    req(input$accounting_name, input$user_name)
     if (input$nav == 'Nextflow Report'){
+      query <- elastic_query()  # to evaluate reqs before spinner
       shinycssloaders::showPageSpinner()
-      job_name_parts <- get_nf_job_names_parts(df = nf_job_names())
+      job_name_parts <- get_nf_job_names_parts(df = get_nf_records(elastic_con, query))
       if (length(job_name_parts) >= 1) {
         choices <- c("Select pipeline name..." = "", job_name_parts)
       } else {
@@ -92,7 +93,7 @@ server <- function(input, output, session) {
 
   # set user names
   observeEvent(c(input$bom, input$accounting_name, input$period), {
-    req(input$bom, input$period)
+    req(input$bom, input$accounting_name, input$period)
     req(all(!isInvalidDate(input$period)))
     req(input$period[1] <= input$period[2])
     user_names <- get_user_names(elastic_con, input$bom, input$accounting_name, input$period)
@@ -115,10 +116,7 @@ server <- function(input, output, session) {
   }, priority = 1)
 
   elastic_query <- reactive({
-    req(input$bom, input$accounting_name)
-    if (input$accounting_name != 'all'){
-      req(input$user_name)
-    }
+    req(input$bom, input$accounting_name, input$user_name)
     req(all(!isInvalidDate(input$period)))
     req(input$period[1] <= input$period[2])
 
@@ -130,10 +128,6 @@ server <- function(input, output, session) {
         date_range = input$period
       )
     )
-  })
-
-  nf_job_names <- reactive({
-    get_nf_records(elastic_con, elastic_query())
   })
 
   per_bucket_job_failure_df <- reactive({
@@ -316,6 +310,16 @@ server <- function(input, output, session) {
         df = gpu_records(),
         time_bucket = input$time_bucket,
         metric = input$gpu_statistics_column)
+  })
+
+  pipeline_records <- reactive({
+    req(input$pipeline_name)
+    get_pipeline_records(elastic_con, query = elastic_query(), pipeline_name = input$pipeline_name)
+  })
+
+  output$nextflow_set_freq <- DT::renderDT({
+    df <- generate_nextflow_step_freq(pipeline_records())
+    make_dt(df, table_view_opts = 'ftp')
   })
 
   observe({

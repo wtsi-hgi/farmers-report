@@ -121,7 +121,15 @@ ui <- page_navbar(
   # ),
   nav_panel(title = 'Nextflow Report',
     selectInput("pipeline_name", "Nextflow Pipeline", choices = c("Loading pipeline names..." = "")),
-    actionButton("submit_button", "Submit")
+    # actionButton("submit_button", "Submit"),
+    shinycssloaders::withSpinner(
+      tagList(
+        h3("Step frequency"),
+        p(paste("This table shows the frequency of each pipeline step.",
+                "This should help you decide which step should be optimised first.")),
+        DT::DTOutput("nextflow_set_freq")
+      )
+    )
   ),
   nav_item(doc_link)
 )

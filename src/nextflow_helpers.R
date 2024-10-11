@@ -1,4 +1,5 @@
 library(dplyr)
+loadNamespace('stringr')
 
 source("src/elastic_helpers.R")
 
@@ -43,7 +44,8 @@ get_pipeline_records <- function (con, query, pipeline_name) {
       step = stringr::str_remove_all(JOB_NAME, stringr::str_glue('^{pipeline_prefix}_|_\\(.*\\)?$')),
       Job_Efficiency_Percent = 100 * (AVAIL_CPU_TIME_SEC - WASTED_CPU_SECONDS) / AVAIL_CPU_TIME_SEC,
       MAX_MEM_EFFICIENCY_PERCENT = 100 * (MEM_REQUESTED_MB_SEC - WASTED_MB_SECONDS) / MEM_REQUESTED_MB_SEC
-    )
+    ) %>%
+    rename_raw_elastic_fields()
 }
 
 get_records <- function (con, query, prefix, fields) {
@@ -59,4 +61,11 @@ get_records <- function (con, query, prefix, fields) {
   )
 
   return(df)
+}
+
+generate_nextflow_step_freq <- function (df) {
+  df %>%
+    group_by(step) %>%
+    tally() %>%
+    arrange(desc(n))
 }
