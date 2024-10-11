@@ -1,11 +1,9 @@
 library(shiny)
-library(bslib)
-library(elastic)
-library(ggplot2)
 library(dplyr)
 loadNamespace('shinycssloaders')
-loadNamespace('stringr')
+loadNamespace('elastic')
 
+source('src/ui.R')
 source('src/table_helpers.R')
 source('src/elastic_helpers.R')
 source('src/plot_helpers.R')
@@ -14,10 +12,11 @@ source('src/constants.R')
 source('src/config.R')
 source('src/logging.R')
 source('src/nextflow_helpers.R')
+source('src/app_helpers.R')
 
 config <- read_config(section = 'proxy')
 
-elastic_con <- connect(
+elastic_con <- elastic::connect(
   host = config$elastic$host,
   path = "",
   user = config$elastic$username,
@@ -28,51 +27,6 @@ elastic_con <- connect(
 
 attr(elastic_con, 'index') <- config$elastic$index
 
-get_bom_names <- function(con) {
-  b <- build_agg_query("BOM", query = build_humgen_query(filters = build_humgen_filters(BOM = NULL)))
-
-  res <- elastic_search(con, index = attr(con, 'index'), body = b, asdf = T)
-
-  parse_elastic_agg(res, b)$BOM
-}
-
-get_accounting_names <- function(con, bom, date_range) {
-  b <- build_agg_query("ACCOUNTING_NAME", query = build_humgen_query(
-    filters = build_humgen_filters(
-      BOM = bom,
-      date_range = date_range
-    )
-  ))
-
-  res <- elastic_search(con, index = attr(con, 'index'), body = b, asdf = T)
-
-  parse_elastic_agg(res, b)$accounting_name
-}
-
-get_user_names <- function(con, bom, accounting_name, date_range) {
-  if (accounting_name %in% c('all', '')) accounting_name <- NULL
-  b <- list(
-    query = build_humgen_query(
-      filters = build_humgen_filters(
-        BOM = bom,
-        accounting_name = accounting_name,
-        date_range = date_range
-      )
-    )
-  )
-
-  res <- httr::POST(
-    url = con$make_url(),
-    path = 'get_usernames',
-    body = b,
-    encode = "json"
-  )
-
-  httr::stop_for_status(res, task = paste("get list of users for LSF group", accounting_name))
-
-  as.character(httr::content(res))
-}
-
 generate_efficiency <- function (input, con, query, adjust, time_bucket) {
   req(input$accounting_name, input$user_name)
 
@@ -80,131 +34,21 @@ generate_efficiency <- function (input, con, query, adjust, time_bucket) {
   get_statistics(con, query = query, time_bucket = time_bucket, adjust = adjust)
 }
 
-doc_link <- tags$a(
-  shiny::icon("book"), "Docs",
-  href = "https://docs.google.com/document/d/1U55kxuEJpvksGG2we_tMhzYeVLXv5YakOGNwH2Rscd8/edit?usp=sharing",
-  target = "_blank"
-)
-
-ui <- page_navbar(
-  title = "HGI Farm Dashboard",
-  id = 'nav',
-  nav_spacer(),
-  sidebar = sidebar(
-    width = 270,
-    selectInput(
-      "bom", "BOM",
-      selected = "Human Genetics",
-      choices = get_bom_names(elastic_con)
-    ),
-    selectInput(
-      "accounting_name", "LSF Group",
-      choices = NULL
-    ),
-    selectInput(
-      "user_name", "User",
-      choices = NULL
-    ),
-    dateRangeInput(
-      "period",
-      label = tooltip(
-        trigger = list(
-          "Period",
-          shiny::icon("circle-exclamation")
-        ),
-        "The dashboard is responsive for periods up to 6 months. Expect longer waiting time for periods over one year."
-      ),
-      start = Sys.Date() - 30,
-      end = Sys.Date(),
-      min = as.Date("2014-09-21"),
-      max = Sys.Date(),
-      weekstart = 1
-    ),
-    conditionalPanel(
-      "input.nav === 'Dashboard'",
-      selectInput(
-        "time_bucket", "Time Bucket",
-        choices = c("none", "day", "week", "month")
-      )
-    )
-  ),
-  # nav_panel(title = "Dashboard",
-  #   accordion(
-  #     accordion_panel(
-  #       "Job failure statistics",
-  #       shinycssloaders::withSpinner(
-  #         tagList(
-  #           plotOutput("job_failure"),
-  #           plotOutput("per_bucket_job_failure"),
-  #           DT::DTOutput("per_bucket_job_failure_table"),
-  #           plotOutput("job_failure_time_plot")
-  #         )
-  #       ),
-  #       value = "job_failure_panel"
-  #     ),
-  #     accordion_panel(
-  #       "Unadjusted Efficiency",
-  #       shinycssloaders::withSpinner(
-  #         tagList(
-  #           DT::DTOutput("unadjusted_efficiency"),
-  #           selectInput(
-  #             "unadjusted_efficiency_column", "Column to plot",
-  #             choices = NULL
-  #           ),
-  #           plotOutput("unadjusted_efficiency_plot")
-  #         )
-  #       ),
-  #       value = 'unadjusted_efficiency_panel'
-  #     ),
-  #     accordion_panel(
-  #       "Efficiency",
-  #       shinycssloaders::withSpinner(
-  #         tagList(
-  #           textOutput("adjustments_explanation"),
-  #           DT::DTOutput("efficiency"),
-  #           htmlOutput("awesomeness_formula"),
-  #           selectInput(
-  #             "efficiency_column", "Column to plot",
-  #             choices = NULL
-  #           ),
-  #           plotOutput("efficiency_plot")
-  #         )
-  #       ),
-  #       value = 'efficiency_panel'
-  #     ),
-  #     accordion_panel(
-  #       "Job Breakdown",
-  #       shinycssloaders::withSpinner(
-  #         tagList(
-  #           DT::DTOutput("job_breakdown"),
-  #           selectInput(
-  #             "job_breakdown_column", "Column to plot",
-  #             choices = NULL
-  #           ),
-  #           plotOutput("job_breakdown_plot")
-  #         )
-  #       ),
-  #       value = "job_breakdown_panel"
-  #     ),
-  #     accordion_panel(
-  #       "GPU Statistics",
-  #       shinycssloaders::withSpinner(
-  #         DT::DTOutput("gpu_statistics")
-  #       ),
-  #       value = "gpu_statistics_panel"
-  #     ),
-  #     id = "myaccordion",
-  #     open = FALSE
-  #   )
-  # ),
-  nav_panel(title = 'Nextflow Report',
-    selectInput("pipeline_name", "Nextflow Pipeline", choices = c("Loading pipeline names..." = "")),
-    actionButton("submit_button", "Submit")
-  ),
-  nav_item(doc_link)
-)
-
 server <- function(input, output, session) {
+  # set bom names
+  observe({
+    req(input$period[1] <= input$period[2])
+    bom_names <- get_bom_names(elastic_con, input$period)
+    selected_bom_name <- isolate(input$bom)
+    freezeReactiveValue(input, "bom")
+    updateSelectInput(
+      inputId = "bom",
+      choices = bom_names,
+      selected = selected_bom_name
+    )
+  }, priority = 3)
+
+  # set accounting names
   observeEvent(c(input$bom, input$period), {
     req(input$bom, input$period)
     req(all(!isInvalidDate(input$period)))
@@ -226,21 +70,27 @@ server <- function(input, output, session) {
     )
   }, priority = 2)
 
+  # set pipeline name
   observe({
-    shinycssloaders::showPageSpinner()
-    job_name_parts <- get_nf_job_names_parts(df = nf_job_names())
-    if (length(job_name_parts) >= 1) {
-      choices <- c("Select pipeline name..." = "", job_name_parts)
-    } else {
-      choices <- c("No pipelines found" = "")
+    req(input$accounting_name, input$user_name)
+    if (input$nav == 'Nextflow Report'){
+      shinycssloaders::showPageSpinner()
+      job_name_parts <- get_nf_job_names_parts(df = nf_job_names())
+      if (length(job_name_parts) >= 1) {
+        choices <- c("Select pipeline name..." = "", job_name_parts)
+      } else {
+        choices <- c("No pipelines found" = "")
+      }
+      freezeReactiveValue(input, "pipeline_name")
+      updateSelectInput(
+        inputId = "pipeline_name",
+        choices = choices
+      )
+      shinycssloaders::hidePageSpinner()
     }
-    updateSelectInput(
-      inputId = "pipeline_name",
-      choices = choices
-    )
-    shinycssloaders::hidePageSpinner()
-  }) 
+  })
 
+  # set user names
   observeEvent(c(input$bom, input$accounting_name, input$period), {
     req(input$bom, input$period)
     req(all(!isInvalidDate(input$period)))
@@ -281,11 +131,11 @@ server <- function(input, output, session) {
       )
     )
   })
-  
+
   nf_job_names <- reactive({
     get_nf_records(elastic_con, elastic_query())
   })
-  
+
   per_bucket_job_failure_df <- reactive({
     if (input$accounting_name == 'all') {
       get_job_failure_statistics(con = elastic_con, query = elastic_query(), fields = c("ACCOUNTING_NAME", "Job"))
@@ -367,12 +217,12 @@ server <- function(input, output, session) {
     names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
     names(cols)[grep('mem_wasted_frac', cols)] <- 'Memory Efficiency'
     cols
-  }) 
+  })
 
   output$unadjusted_efficiency_plot <- renderPlot({
     if(input$time_bucket != "none")
       generate_efficiency_plot(
-        df = unadjusted_efficiency_timed_table(), 
+        df = unadjusted_efficiency_timed_table(),
         column_to_plot = input$unadjusted_efficiency_column
       )
   })
@@ -504,13 +354,13 @@ server <- function(input, output, session) {
               DT::DTOutput("per_bucket_job_failure_table")
             )
           )
-        ) 
+        )
       } else {
         accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
           shinycssloaders::withSpinner(
             plotOutput("job_failure")
           )
-        ) 
+        )
       }
     } else {
       if (input$accounting_name == 'all' || input$user_name == 'all') {
@@ -524,7 +374,7 @@ server <- function(input, output, session) {
           shinycssloaders::withSpinner(
             plotOutput("job_failure_time_plot")
           )
-        ) 
+        )
       } else {
         accordion_panel_update('myaccordion', target = 'job_failure_panel',
           shinycssloaders::withSpinner(
@@ -533,7 +383,7 @@ server <- function(input, output, session) {
           shinycssloaders::withSpinner(
             plotOutput("job_failure_time_plot")
           )
-        ) 
+        )
       }
     }
   })
@@ -612,7 +462,7 @@ server <- function(input, output, session) {
               ),
               plotOutput("job_breakdown_plot")
             )
-          ) 
+          )
         }
       )
     } else {
@@ -622,6 +472,7 @@ server <- function(input, output, session) {
     }
   })
 
+  # correct date
   observe({
     if(any(isInvalidDate(input$period))) {
       showNotification("Please enter a valid date", type = "error")
