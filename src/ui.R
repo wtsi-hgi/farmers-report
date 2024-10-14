@@ -124,10 +124,23 @@ ui <- page_navbar(
     # actionButton("submit_button", "Submit"),
     shinycssloaders::withSpinner(
       tagList(
+        # --- Step frequency ---
         h3("Step frequency"),
         p(paste("This table shows the frequency of each pipeline step.",
                 "This should help you decide which step should be optimised first.")),
-        DT::DTOutput("nextflow_set_freq")
+        DT::DTOutput("nextflow_step_freq"),
+
+        # --- CPU Efficiency ---
+        h3("CPU Efficiency"),
+        p("This table shows the CPU efficiency of each pipeline step."),
+        DT::DTOutput("nextflow_cpu_efficiency"),
+        p("This plot shows the CPU efficiency of each pipeline step."),
+        selectInput('nextflow_cpu_plots', 'Steps to plot', 
+          choices = c("Select pipeline name..." = ""),
+          multiple = TRUE
+        ),
+        plotOutput("nextflow_cpu_efficiency_plot")
+
       )
     )
   ),

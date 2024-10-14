@@ -42,8 +42,8 @@ get_pipeline_records <- function (con, query, pipeline_name) {
   df %>%
     mutate(
       step = parse_nextflow_step(JOB_NAME, pipeline_name),
-      Job_Efficiency_Percent = 100 * (AVAIL_CPU_TIME_SEC - WASTED_CPU_SECONDS) / AVAIL_CPU_TIME_SEC,
-      MAX_MEM_EFFICIENCY_PERCENT = 100 * (MEM_REQUESTED_MB_SEC - WASTED_MB_SECONDS) / MEM_REQUESTED_MB_SEC
+      Job_Efficiency_Percent = (AVAIL_CPU_TIME_SEC - WASTED_CPU_SECONDS) / AVAIL_CPU_TIME_SEC,
+      MAX_MEM_EFFICIENCY_PERCENT = (MEM_REQUESTED_MB_SEC - WASTED_MB_SECONDS) / MEM_REQUESTED_MB_SEC
     ) %>%
     rename_raw_elastic_fields()
 }
@@ -76,4 +76,19 @@ generate_nextflow_step_freq <- function (df) {
     group_by(step) %>%
     tally() %>%
     arrange(desc(n))
+}
+
+generate_nextflow_cpu_efficiency <- function (df) {
+  browser()
+  df %>%
+  group_by(step, procs) %>%
+    summarise(
+      N = n(),
+      best_eff = max(Job_Efficiency_Percent, na.rm = TRUE)
+    ) 
+}
+
+add_zero_length_space <- function(pipeline_names) {
+  pipeline_names <- gsub("_", "_\u200B", pipeline_names)
+  return(pipeline_names)
 }

@@ -19,7 +19,8 @@ column_rename <- c(
   'Median Wait Time' = 'median_wait_time',
   'Median Run Time' = 'median_run_time',
   'Wait Time' = 'PENDING_TIME_SEC',
-  'Run Time' = 'RUN_TIME_SEC'
+  'Run Time' = 'RUN_TIME_SEC',
+  'Best efficiency' = 'best_eff'
 )
 
 team_map <- tibble::enframe(
@@ -141,6 +142,9 @@ make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
 
   if('mem_wasted_frac' %in% colnames(df))
     dt <- DT::formatPercentage(dt, 'Wasted memory fraction', 2)
+
+  if('best_eff' %in% colnames(df))
+    dt <- DT::formatPercentage(dt, 'Best efficiency', 2)
 
   if('cpu_avail_hrs' %in% colnames(df))
     dt <- DT::formatRound(dt, 'Requested CPU (hrs)', 0)

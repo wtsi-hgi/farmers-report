@@ -75,7 +75,7 @@ server <- function(input, output, session) {
   observe({
     if (input$nav == 'Nextflow Report'){
       if (input$user_name == "" || input$accounting_name == "") {
-        choices <- c("Please select both User and Group" = "")
+        choices <- c("Select both User and Group" = "")
       }
       else {
         query <- elastic_query()  # to evaluate reqs before spinner
@@ -322,9 +322,32 @@ server <- function(input, output, session) {
     get_pipeline_records(elastic_con, query = elastic_query(), pipeline_name = input$pipeline_name)
   })
 
-  output$nextflow_set_freq <- DT::renderDT({
+  output$nextflow_step_freq <- DT::renderDT({
     df <- generate_nextflow_step_freq(pipeline_records())
     make_dt(df, table_view_opts = 'ftp')
+  })
+
+  output$nextflow_cpu_efficiency <- DT::renderDT({
+    df <- generate_nextflow_cpu_efficiency(pipeline_records())
+    make_dt(df, table_view_opts = 'ftp')
+  })
+
+  observe({
+    req(input$nav == "Nextflow Report")
+    if (input$user_name == "" || input$accounting_name == "") {
+      choices <- c("Select both User and Group" = "")
+    } else if(input$pipeline_name == "") {
+      choices <- c("Select pipeline name" = "")
+    } else {
+      steps <- pipeline_records() %>% pull(step) %>% unique()
+      choices <- c("Select steps to plot..." = "", setNames(steps, add_zero_length_space(steps)))
+    }
+      
+    freezeReactiveValue(input, "nextflow_cpu_plots")    
+    updateSelectInput(
+      inputId = "nextflow_cpu_plots",
+      choices = choices
+    )
   })
 
   observe({
