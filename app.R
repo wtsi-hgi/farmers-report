@@ -74,13 +74,18 @@ server <- function(input, output, session) {
   # set pipeline name
   observe({
     if (input$nav == 'Nextflow Report'){
-      query <- elastic_query()  # to evaluate reqs before spinner
-      shinycssloaders::showPageSpinner()
-      job_name_parts <- get_nf_job_names_parts(df = get_nf_records(elastic_con, query))
-      if (length(job_name_parts) >= 1) {
-        choices <- c("Select pipeline name..." = "", job_name_parts)
-      } else {
-        choices <- c("No pipelines found" = "")
+      if (input$user_name == "" || input$accounting_name == "") {
+        choices <- c("Please select both User and Group" = "")
+      }
+      else {
+        query <- elastic_query()  # to evaluate reqs before spinner
+        shinycssloaders::showPageSpinner()
+        job_name_parts <- get_nf_job_names_parts(df = get_nf_records(elastic_con, query))
+        if (length(job_name_parts) >= 1) {
+          choices <- c("Select pipeline name..." = "", job_name_parts)
+        } else {
+          choices <- c("No pipelines found" = "")
+        }
       }
       freezeReactiveValue(input, "pipeline_name")
       updateSelectInput(

@@ -26,3 +26,13 @@ test_that("get_nf_job_names_parts works", {
   )
   expect_equal(result, expected_result)
 })
+
+test_that("parse_nextflow_step works", {
+  expect_equal(
+    parse_nextflow_step(
+      c("nf-MAIN_YASCP_sillyprocess_(rnatag1)", "nf-MAIN_YASCP_sillyprocess_2_(rnatag2)", "nf-MAIN_YASCP_(rnatag2)", "nf-MAIN_YASCP_process", "nf-MAIN_YASCP"),
+      "MAIN_YASCP"
+    ),
+    c("sillyprocess", "sillyprocess_2", "MAIN_YASCP", "process", "MAIN_YASCP")
+  )
+})

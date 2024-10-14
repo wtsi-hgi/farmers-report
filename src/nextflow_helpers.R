@@ -41,11 +41,19 @@ get_pipeline_records <- function (con, query, pipeline_name) {
 
   df %>%
     mutate(
-      step = stringr::str_remove_all(JOB_NAME, stringr::str_glue('^{pipeline_prefix}_|_\\(.*\\)?$')),
+      step = parse_nextflow_step(JOB_NAME, pipeline_name),
       Job_Efficiency_Percent = 100 * (AVAIL_CPU_TIME_SEC - WASTED_CPU_SECONDS) / AVAIL_CPU_TIME_SEC,
       MAX_MEM_EFFICIENCY_PERCENT = 100 * (MEM_REQUESTED_MB_SEC - WASTED_MB_SECONDS) / MEM_REQUESTED_MB_SEC
     ) %>%
     rename_raw_elastic_fields()
+}
+
+parse_nextflow_step <- function(job_names, pipeline_name) {
+  # if the result of the parsing is empty, we replace it with prefix
+  # this is to handle the case where there is no process name in the job name
+  step <- stringr::str_remove_all(job_names, stringr::str_glue('^nf-{pipeline_name}_?|_?\\(.*\\)?$'))
+  step <- ifelse(step == "", pipeline_name, step)
+  return(step)
 }
 
 get_records <- function (con, query, prefix, fields) {
