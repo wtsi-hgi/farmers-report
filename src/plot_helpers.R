@@ -132,3 +132,14 @@ make_job_failure_timeplot <- function(df) {
     theme_bw() +
     labs(x = 'Date', y = 'Number of jobs', fill = 'Job status')
 }
+
+generate_nextflow_cpu_plots <- function (df, steps) {
+  assert_colnames(df, c('step', 'procs', 'Job_Efficiency'))
+  df %>%
+    filter(step %in% steps) %>%
+    ggplot(aes(x = procs, y = Job_Efficiency, group = interaction(procs, job_status), fill = job_status)) +
+      geom_violin() +
+      facet_wrap(. ~ step, scales = 'free_x') +
+      theme_bw() +
+      scale_y_continuous(labels = scales::percent_format())
+}

@@ -137,7 +137,8 @@ ui <- page_navbar(
         p("This plot shows the CPU efficiency of each pipeline step."),
         selectInput('nextflow_cpu_plots', 'Steps to plot', 
           choices = c("Select pipeline name..." = ""),
-          multiple = TRUE
+          multiple = TRUE,
+          width = '100%'
         ),
         plotOutput("nextflow_cpu_efficiency_plot")
 

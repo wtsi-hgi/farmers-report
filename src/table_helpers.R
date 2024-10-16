@@ -20,7 +20,8 @@ column_rename <- c(
   'Median Run Time' = 'median_run_time',
   'Wait Time' = 'PENDING_TIME_SEC',
   'Run Time' = 'RUN_TIME_SEC',
-  'Best efficiency' = 'best_eff'
+  'Best efficiency' = 'best_eff',
+  'Number of CPUs' = 'procs'
 )
 
 team_map <- tibble::enframe(

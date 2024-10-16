@@ -339,7 +339,7 @@ server <- function(input, output, session) {
     } else if(input$pipeline_name == "") {
       choices <- c("Select pipeline name" = "")
     } else {
-      steps <- pipeline_records() %>% pull(step) %>% unique()
+      steps <- pipeline_records() %>% group_by(step) %>% tally() %>% filter(n > 1) %>% pull(step)
       choices <- c("Select steps to plot..." = "", setNames(steps, add_zero_length_space(steps)))
     }
       
@@ -347,6 +347,14 @@ server <- function(input, output, session) {
     updateSelectInput(
       inputId = "nextflow_cpu_plots",
       choices = choices
+    )
+  })
+
+  output$nextflow_cpu_efficiency_plot <- renderPlot({
+    req(input$nextflow_cpu_plots)
+    generate_nextflow_cpu_plots(
+      df = pipeline_records(),
+      steps = input$nextflow_cpu_plots
     )
   })
 
