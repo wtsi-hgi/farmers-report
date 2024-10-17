@@ -144,3 +144,20 @@ test_that("generate_efficiency_plot works with job statistics", {
   expect_equal(as.character(p$layers[[1]]$constructor[[1]]), 'geom_line')
   expect_equal(p$data$cpu_efficiency, c(2400/3000, 2000/4000, 2700/3000))
 })
+
+test_that("generate_nextflow_cpu_plots works", {
+  df <- data.frame(
+    step = c('step1', 'step2', 'step2', 'step3'),
+    procs = c(2, 1, 1, 4),
+    job_status = rep('Success', 4),
+    Job_Efficiency = c(0.5, 0.8, 0.7, 0.1)
+  )
+
+  p <- generate_nextflow_cpu_plots(df, steps = 'step2')
+
+  expect_equal(p$labels$x, 'Number of requested CPUs')
+  expect_equal(p$labels$y, 'CPU efficiency')
+  expect_equal(p$labels$fill, 'Job status')
+  expect_equal(as.character(p$layers[[1]]$constructor[[1]]), 'geom_violin')
+  expect_equal(p$facet$params$ncol, 3)
+})

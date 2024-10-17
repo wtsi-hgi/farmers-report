@@ -3,6 +3,7 @@ library(dplyr)
 loadNamespace('ggrepel')
 
 source('src/timeseries_helpers.R')
+source('src/constants.R')
 
 # throw an error if not all colnames are in df
 assert_colnames <- function (df, colnames) {
@@ -134,12 +135,18 @@ make_job_failure_timeplot <- function(df) {
 }
 
 generate_nextflow_cpu_plots <- function (df, steps) {
-  assert_colnames(df, c('step', 'procs', 'Job_Efficiency'))
+  assert_colnames(df, c('step', 'procs', 'job_status', 'Job_Efficiency'))
   df %>%
     filter(step %in% steps) %>%
+    filter(job_status == 'Success') %>%  # should be removed once Failed statistics is correct
     ggplot(aes(x = procs, y = Job_Efficiency, group = interaction(procs, job_status), fill = job_status)) +
       geom_violin() +
-      facet_wrap(. ~ step, scales = 'free_x') +
+      facet_wrap(. ~ step, scales = 'free_x', ncol = 3) +
       theme_bw() +
-      scale_y_continuous(labels = scales::percent_format())
+      labs(
+        x = column_rename_inv[['procs']],
+        y = column_rename_inv[['Job_Efficiency']],
+        fill = column_rename_inv[['job_status']]
+      ) +
+      scale_y_continuous(labels = scales::percent_format(), limits = c(0, 1))
 }

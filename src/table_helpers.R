@@ -1,43 +1,7 @@
 library(dplyr)
 loadNamespace('gt')
 
-column_rename <- c(
-  'Fail rate' = 'fail_rate',
-  'Number of jobs' = 'number_of_jobs',
-  'Wasted memory fraction' = 'mem_wasted_frac',
-  'Wasted CPU fraction' = 'cpu_wasted_frac',
-  'Wasted CPU (hrs)' = 'cpu_wasted_hrs',
-  'Requested CPU (hrs)' = 'cpu_avail_hrs',
-  'Requested memory (GB x hrs)' = 'mem_avail_gb_hrs',
-  'Wasted memory (GB x hrs)' = 'mem_wasted_gb_hrs',
-  'Wasted money' = 'wasted_cost',
-  'Accounting name' = 'accounting_name',
-  'User name' = 'USER_NAME',
-  'Awesome-ness' = 'awesomeness',
-  'Job type' = 'job_type',
-  'Queue name' = 'QUEUE_NAME',
-  'Median Wait Time' = 'median_wait_time',
-  'Median Run Time' = 'median_run_time',
-  'Wait Time' = 'PENDING_TIME_SEC',
-  'Run Time' = 'RUN_TIME_SEC',
-  'Best efficiency' = 'best_eff',
-  'Number of CPUs' = 'procs'
-)
-
-team_map <- tibble::enframe(
-  c(
-    'team152' = 'Anderson group',
-    'team281' = 'Martin group',
-    'team282' = 'Davenport group',
-    'team354' = 'Lehner group',
-    'team227' = 'Parts group',
-    'team29-grp' = 'Hurles group',
-    'team170' = 'Gaffney group',
-    'team151' = 'Soranzo group'
-  ),
-  name = 'team_code',
-  value = 'team_name'
-)
+source('src/constants.R')
 
 rename_group_column <- function(df, mapping = team_map) {
   df %>%
