@@ -161,3 +161,16 @@ test_that("generate_nextflow_cpu_plots works", {
   expect_equal(as.character(p$layers[[1]]$constructor[[1]]), 'geom_violin')
   expect_equal(p$facet$params$ncol, 3)
 })
+
+test_that("integer_breaks produces integer values", {
+  x <- runif(100, min = 1, max = 20)
+  breaks_function <- integer_breaks()
+  breaks <- breaks_function(x)
+
+  # Test that the breaks are integers
+  expect_equal(breaks, floor(breaks))
+
+  # Test that the breaks cover the range of x
+  expect_lte(min(breaks), min(x))
+  expect_gte(max(breaks), max(x))
+})

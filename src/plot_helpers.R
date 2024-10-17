@@ -10,6 +10,14 @@ assert_colnames <- function (df, colnames) {
   stopifnot(all(colnames %in% colnames(df)))
 }
 
+integer_breaks <- function(n = 5, ...) {
+  function(x) {
+    breaks <- floor(pretty(x, n, ...))
+    names(breaks) <- attr(breaks, "labels")
+    return(breaks)
+  }
+}
+
 piechart <- function(df, count_field, key_field, legend_name) {
   assert_colnames(df, c(count_field, key_field))
   ggplot(df, aes(x = '', fill = .data[[key_field]], y = .data[[count_field]])) +
@@ -148,5 +156,6 @@ generate_nextflow_cpu_plots <- function (df, steps) {
         y = column_rename_inv[['Job_Efficiency']],
         fill = column_rename_inv[['job_status']]
       ) +
-      scale_y_continuous(labels = scales::percent_format(), limits = c(0, 1))
+      scale_y_continuous(labels = scales::percent_format(), limits = c(0, 1)) +
+      scale_x_continuous(breaks = integer_breaks())
 }
