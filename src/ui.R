@@ -134,14 +134,16 @@ ui <- page_navbar(
         h3("CPU Efficiency"),
         p("This table shows the CPU efficiency of each pipeline step."),
         DT::DTOutput("nextflow_cpu_efficiency"),
-        p("This plot shows the CPU efficiency of each pipeline step."),
-        selectInput('nextflow_cpu_plots', 'Steps to plot', 
+        p("This plot shows the CPU efficiency of selected pipeline steps."),
+        selectizeInput('nextflow_cpu_plots', 'Steps to plot',
           choices = c("Select pipeline name..." = ""),
           multiple = TRUE,
-          width = '100%'
+          width = '100%',
+          options = list(
+            searchField = "value"
+          )
         ),
         plotOutput("nextflow_cpu_efficiency_plot")
-
       )
     )
   ),

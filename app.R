@@ -356,6 +356,11 @@ server <- function(input, output, session) {
       df = pipeline_records(),
       steps = input$nextflow_cpu_plots
     )
+  }, height = function () {
+    n_cols <- 3
+    n_rows <- ceiling(length(input$nextflow_cpu_plots) / n_cols)
+    h <- 400 * max(1, n_rows)
+    return(h)
   })
 
   observe({
