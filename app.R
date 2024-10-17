@@ -363,6 +363,11 @@ server <- function(input, output, session) {
     return(h)
   })
 
+  output$nextflow_mem_efficiency <- DT::renderDT({
+    df <- generate_nextflow_mem_efficiency(pipeline_records())
+    make_dt(df, table_view_opts = 'ftp')
+  })
+
   observe({
     if (input$accounting_name != 'all' || input$user_name != 'all') {
       accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',

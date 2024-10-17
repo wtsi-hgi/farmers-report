@@ -50,6 +50,7 @@ column_rename <- c(
   'Wasted CPU (hrs)' = 'cpu_wasted_hrs',
   'Requested CPU (hrs)' = 'cpu_avail_hrs',
   'Requested memory (GB x hrs)' = 'mem_avail_gb_hrs',
+  'Requested memory (GB)' = 'mem_avail_gb',
   'Wasted memory (GB x hrs)' = 'mem_wasted_gb_hrs',
   'Wasted money' = 'wasted_cost',
   'Accounting name' = 'accounting_name',
@@ -64,7 +65,8 @@ column_rename <- c(
   'Best efficiency' = 'best_eff',
   'Number of requested CPUs' = 'procs',
   'CPU efficiency' = 'Job_Efficiency',
-  'Job status' = 'job_status'
+  'Job status' = 'job_status',
+  'Max used memory (GB)' = 'max_mem_used_gb'
 )
 
 column_rename_inv <- setNames(names(column_rename), column_rename)

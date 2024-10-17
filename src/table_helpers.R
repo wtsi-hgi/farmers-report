@@ -169,11 +169,11 @@ generate_efficiency_stats <- function(df, extra_stats = list()) {
       .groups = 'drop'
     ) %>%
     mutate(
-      cpu_avail_hrs = cpu_avail_sec / 60 / 60,
-      cpu_wasted_hrs = cpu_wasted_sec / 60 / 60,
+      cpu_avail_hrs = convert_sec_to_hrs(cpu_avail_sec),
+      cpu_wasted_hrs = convert_sec_to_hrs(cpu_wasted_sec),
       cpu_wasted_frac = cpu_wasted_sec / cpu_avail_sec,
-      mem_avail_gb_hrs = mem_avail_mb_sec / 1024 / 60 / 60,
-      mem_wasted_gb_hrs = mem_wasted_mb_sec / 1024 / 60 / 60,
+      mem_avail_gb_hrs = convert_mb_sec_to_gb_hrs(mem_avail_mb_sec),
+      mem_wasted_gb_hrs = convert_mb_sec_to_gb_hrs(mem_wasted_mb_sec),
       mem_wasted_frac = mem_wasted_mb_sec / mem_avail_mb_sec,
     ) %>%
     relocate(wasted_cost, .after = last_col()) %>%
@@ -185,4 +185,16 @@ get_colname_options <- function(df, exclude_columns) {
   cols <- setdiff(cols, exclude_columns)
   cols <- column_rename[column_rename %in% cols]
   return(cols)
+}
+
+convert_mb_sec_to_gb_hrs <- function (mb_sec) {
+  convert_sec_to_hrs(convert_mb_to_gb(mb_sec))
+}
+
+convert_mb_to_gb <- function (mb) {
+  mb / 1024
+}
+
+convert_sec_to_hrs <- function (sec) {
+  sec / 60 / 60
 }

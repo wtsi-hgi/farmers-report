@@ -130,11 +130,6 @@ ui <- page_navbar(
                 "This should help you decide which step should be optimised first.")),
         DT::DTOutput("nextflow_step_freq"),
 
-        # --- CPU Efficiency ---
-        h3("CPU Efficiency"),
-        p("This table shows the CPU efficiency of each pipeline step."),
-        DT::DTOutput("nextflow_cpu_efficiency"),
-        p("This plot shows the CPU efficiency of selected pipeline steps."),
         selectizeInput('nextflow_cpu_plots', 'Steps to plot',
           choices = c("Select pipeline name..." = ""),
           multiple = TRUE,
@@ -143,7 +138,20 @@ ui <- page_navbar(
             searchField = "value"
           )
         ),
-        plotOutput("nextflow_cpu_efficiency_plot")
+
+        # --- CPU Efficiency ---
+        h3("CPU Efficiency"),
+        p("This table shows the CPU efficiency of each pipeline step."),
+        DT::DTOutput("nextflow_cpu_efficiency"),
+        p("This plot shows the CPU efficiency of selected pipeline steps."),
+        plotOutput("nextflow_cpu_efficiency_plot"),
+
+        # --- RAM Efficiency ---
+        h3("RAM Efficiency"),
+        p("This table shows the RAM efficiency of each pipeline step."),
+        DT::DTOutput("nextflow_mem_efficiency"),
+        p("This plot shows the RAM efficiency of selected pipeline steps."),
+        plotOutput("nextflow_mem_efficiency_plot")
       )
     )
   ),

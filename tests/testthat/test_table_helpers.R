@@ -216,3 +216,9 @@ test_that("get_colname_options works", {
   test_output <- get_colname_options(test_df, exclude_columns = c('USER_NAME', 'timestamp'))
   expect_equal(test_output, expected_output)
 })
+
+test_that("convert functions work", {
+  expect_equal(convert_mb_to_gb(1024), 1)
+  expect_equal(convert_sec_to_hrs(3600), 1)
+  expect_equal(convert_mb_sec_to_gb_hrs(3686400), 1)
+})
