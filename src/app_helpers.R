@@ -52,3 +52,9 @@ get_user_names <- function(con, bom, accounting_name, date_range) {
 
   as.character(httr::content(res))
 }
+
+get_height_of_facet_plot <- function (n, ncol = 3, height = 400) {
+  nrow <- ceiling(n / ncol)
+  h <- height * max(1, nrow)
+  return(h)
+}
