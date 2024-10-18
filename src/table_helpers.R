@@ -129,6 +129,9 @@ make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
   if('awesomeness' %in% colnames(df))
     dt <- DT::formatRound(dt, 'Awesome-ness', 1)
 
+  if('max_mem_used_gb' %in% colnames(df))
+    dt <- DT::formatRound(dt, 'Max used memory (GB)', 2)
+
   return(dt)
 }
 

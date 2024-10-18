@@ -101,7 +101,7 @@ generate_nextflow_mem_efficiency <- function (df) {
     summarise(
       N = n(),
       best_eff = max(MAX_MEM_EFFICIENCY, na.rm = TRUE),
-      max_mem_used_gb = max(mem_avail_gb, na.rm = TRUE),  # debug values
+      max_mem_used_gb = convert_mb_to_gb(max(MAX_MEM_USAGE_MB, na.rm = TRUE)),
       .groups = 'drop'
     )
 }
