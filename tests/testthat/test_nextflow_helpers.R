@@ -57,7 +57,7 @@ test_that("generate_nextflow_step_freq works", {
 
   expected_result <- tibble::tibble(
     step = c('step2', 'step1'),
-    n = c(2, 1)
+    number_of_jobs = c(2, 1)
   )
 
   expect_equal(result, expected_result)
@@ -75,7 +75,7 @@ test_that("generate_nextflow_cpu_efficiency works", {
   expected_result <- tibble::tibble(
     step = c('step1', 'step1', 'step2'),
     procs = c(1, 2, 4),
-    N = c(1, 1, 2),
+    number_of_jobs = c(1, 1, 2),
     best_eff = c(0.9, 0.8, 0.6)
   )
 
@@ -97,7 +97,7 @@ test_that("generate_nextflow_mem_efficiency works", {
     step = c('step1', 'step2'),
     procs = c(1, 2),
     mem_avail_gb = c(1, 2),
-    N = c(1, 2),
+    number_of_jobs = c(1, 2),
     best_eff = c(0.6, 0.5),
     max_mem_used_gb = c(0.6, 1)
   )

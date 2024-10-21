@@ -67,7 +67,8 @@ column_rename <- c(
   'CPU efficiency' = 'Job_Efficiency',
   'RAM efficiency' = 'Memory_Efficiency',
   'Job status' = 'job_status',
-  'Max used memory (GB)' = 'max_mem_used_gb'
+  'Max used memory (GB)' = 'max_mem_used_gb',
+  'Step' = 'step'
 )
 
 column_rename_inv <- setNames(names(column_rename), column_rename)

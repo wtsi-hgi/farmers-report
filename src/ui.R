@@ -48,7 +48,26 @@ ui <- page_navbar(
         "time_bucket", "Time Bucket",
         choices = c("none", "day", "week", "month")
       )
+    ),
+    conditionalPanel(
+      "input.nav === 'Nextflow Report'",
+      selectInput(
+        "pipeline_name", 
+        "Nextflow Pipeline", 
+        choices = c("Loading pipeline names..." = "")
+      ),
+      selectizeInput(
+        'nextflow_cpu_plots', 
+        'Steps to plot',
+        choices = c("Select pipeline name..." = ""),
+        multiple = TRUE,
+        width = '100%',
+        options = list(
+          searchField = "value"
+        )
+      )
     )
+
   ),
   # nav_panel(title = "Dashboard",
   #   accordion(
@@ -120,40 +139,28 @@ ui <- page_navbar(
   #   )
   # ),
   nav_panel(title = 'Nextflow Report',
-    selectInput("pipeline_name", "Nextflow Pipeline", choices = c("Loading pipeline names..." = "")),
+
     # actionButton("submit_button", "Submit"),
-    shinycssloaders::withSpinner(
-      tagList(
-        # --- Step frequency ---
-        h3("Step frequency"),
-        p(paste("This table shows the frequency of each pipeline step.",
-                "This should help you decide which step should be optimised first.")),
-        DT::DTOutput("nextflow_step_freq"),
+    # --- Step frequency ---
+    h3("Step frequency"),
+    p(paste("This table shows the frequency of each pipeline step.",
+            "This should help you decide which step should be optimised first.")),
+    shinycssloaders::withSpinner(DT::DTOutput("nextflow_step_freq")),
 
-        selectizeInput('nextflow_cpu_plots', 'Steps to plot',
-          choices = c("Select pipeline name..." = ""),
-          multiple = TRUE,
-          width = '100%',
-          options = list(
-            searchField = "value"
-          )
-        ),
+    # --- CPU Efficiency ---
+    h3("CPU Efficiency"),
+    p("This table shows the CPU efficiency of each pipeline step."),
+    shinycssloaders::withSpinner(DT::DTOutput("nextflow_cpu_efficiency")),
+    p("This plot shows the CPU efficiency of selected pipeline steps."),
+    shinycssloaders::withSpinner(plotOutput("nextflow_cpu_efficiency_plot")),
 
-        # --- CPU Efficiency ---
-        h3("CPU Efficiency"),
-        p("This table shows the CPU efficiency of each pipeline step."),
-        DT::DTOutput("nextflow_cpu_efficiency"),
-        p("This plot shows the CPU efficiency of selected pipeline steps."),
-        plotOutput("nextflow_cpu_efficiency_plot"),
-
-        # --- RAM Efficiency ---
-        h3("RAM Efficiency"),
-        p("This table shows the RAM efficiency of each pipeline step."),
-        DT::DTOutput("nextflow_mem_efficiency"),
-        p("This plot shows the RAM efficiency of selected pipeline steps."),
-        plotOutput("nextflow_mem_efficiency_plot")
-      )
-    )
+    # --- RAM Efficiency ---
+    h3("RAM Efficiency"),
+    p("This table shows the RAM efficiency of each pipeline step."),
+    shinycssloaders::withSpinner(DT::DTOutput("nextflow_mem_efficiency")),
+    p("This plot shows the RAM efficiency of selected pipeline steps."),
+    shinycssloaders::withSpinner(plotOutput("nextflow_mem_efficiency_plot"))
+    
   ),
   nav_item(doc_link)
 )
