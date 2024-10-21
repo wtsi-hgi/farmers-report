@@ -365,6 +365,16 @@ server <- function(input, output, session) {
     make_dt(df, table_view_opts = 'ftp')
   })
 
+  output$nextflow_mem_efficiency_plot <- renderPlot({
+    req(input$nextflow_cpu_plots)
+    generate_nextflow_mem_plots(
+      df = pipeline_records(),
+      steps = input$nextflow_cpu_plots
+    )
+  }, height = function () {
+    get_height_of_facet_plot(n = length(input$nextflow_cpu_plots))
+  })
+
   observe({
     if (input$accounting_name != 'all' || input$user_name != 'all') {
       accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',

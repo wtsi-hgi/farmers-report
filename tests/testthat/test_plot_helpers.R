@@ -162,6 +162,23 @@ test_that("generate_nextflow_cpu_plots works", {
   expect_equal(p$facet$params$ncol, 3)
 })
 
+test_that("generate_nextflow_mem_plots works", {
+  df <- data.frame(
+    step = c('step1', 'step2', 'step2', 'step3'),
+    mem_avail_gb = c(2, 1, 1, 4),
+    job_status = rep('Success', 4),
+    Memory_Efficiency = c(0.5, 0.8, 0.7, 0.1)
+  )
+
+  p <- generate_nextflow_mem_plots(df, steps = 'step2')
+
+  expect_equal(p$labels$x, 'Requested memory (GB)')
+  expect_equal(p$labels$y, 'RAM efficiency')
+  expect_equal(p$labels$fill, 'Job status')
+  expect_equal(as.character(p$layers[[1]]$constructor[[1]]), 'geom_violin')
+  expect_equal(p$facet$params$ncol, 3)
+})
+
 test_that("integer_breaks produces integer values", {
   x <- runif(100, min = 1, max = 20)
   breaks_function <- integer_breaks()

@@ -65,6 +65,7 @@ column_rename <- c(
   'Best efficiency' = 'best_eff',
   'Number of requested CPUs' = 'procs',
   'CPU efficiency' = 'Job_Efficiency',
+  'RAM efficiency' = 'Memory_Efficiency',
   'Job status' = 'job_status',
   'Max used memory (GB)' = 'max_mem_used_gb'
 )
