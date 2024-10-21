@@ -69,97 +69,107 @@ ui <- page_navbar(
     )
 
   ),
-  # nav_panel(title = "Dashboard",
-  #   accordion(
-  #     accordion_panel(
-  #       "Job failure statistics",
-  #       shinycssloaders::withSpinner(
-  #         tagList(
-  #           plotOutput("job_failure"),
-  #           plotOutput("per_bucket_job_failure"),
-  #           DT::DTOutput("per_bucket_job_failure_table"),
-  #           plotOutput("job_failure_time_plot")
-  #         )
-  #       ),
-  #       value = "job_failure_panel"
-  #     ),
-  #     accordion_panel(
-  #       "Unadjusted Efficiency",
-  #       shinycssloaders::withSpinner(
-  #         tagList(
-  #           DT::DTOutput("unadjusted_efficiency"),
-  #           selectInput(
-  #             "unadjusted_efficiency_column", "Column to plot",
-  #             choices = NULL
-  #           ),
-  #           plotOutput("unadjusted_efficiency_plot")
-  #         )
-  #       ),
-  #       value = 'unadjusted_efficiency_panel'
-  #     ),
-  #     accordion_panel(
-  #       "Efficiency",
-  #       shinycssloaders::withSpinner(
-  #         tagList(
-  #           textOutput("adjustments_explanation"),
-  #           DT::DTOutput("efficiency"),
-  #           htmlOutput("awesomeness_formula"),
-  #           selectInput(
-  #             "efficiency_column", "Column to plot",
-  #             choices = NULL
-  #           ),
-  #           plotOutput("efficiency_plot")
-  #         )
-  #       ),
-  #       value = 'efficiency_panel'
-  #     ),
-  #     accordion_panel(
-  #       "Job Breakdown",
-  #       shinycssloaders::withSpinner(
-  #         tagList(
-  #           DT::DTOutput("job_breakdown"),
-  #           selectInput(
-  #             "job_breakdown_column", "Column to plot",
-  #             choices = NULL
-  #           ),
-  #           plotOutput("job_breakdown_plot")
-  #         )
-  #       ),
-  #       value = "job_breakdown_panel"
-  #     ),
-  #     accordion_panel(
-  #       "GPU Statistics",
-  #       shinycssloaders::withSpinner(
-  #         DT::DTOutput("gpu_statistics")
-  #       ),
-  #       value = "gpu_statistics_panel"
-  #     ),
-  #     id = "myaccordion",
-  #     open = FALSE
-  #   )
-  # ),
+  nav_panel(title = "Dashboard",
+    accordion(
+      accordion_panel(
+        "Job failure statistics",
+        shinycssloaders::withSpinner(
+          tagList(
+            plotOutput("job_failure"),
+            plotOutput("per_bucket_job_failure"),
+            DT::DTOutput("per_bucket_job_failure_table"),
+            plotOutput("job_failure_time_plot")
+          )
+        ),
+        value = "job_failure_panel"
+      ),
+      accordion_panel(
+        "Unadjusted Efficiency",
+        shinycssloaders::withSpinner(
+          tagList(
+            DT::DTOutput("unadjusted_efficiency"),
+            selectInput(
+              "unadjusted_efficiency_column", "Column to plot",
+              choices = NULL
+            ),
+            plotOutput("unadjusted_efficiency_plot")
+          )
+        ),
+        value = 'unadjusted_efficiency_panel'
+      ),
+      accordion_panel(
+        "Efficiency",
+        shinycssloaders::withSpinner(
+          tagList(
+            textOutput("adjustments_explanation"),
+            DT::DTOutput("efficiency"),
+            htmlOutput("awesomeness_formula"),
+            selectInput(
+              "efficiency_column", "Column to plot",
+              choices = NULL
+            ),
+            plotOutput("efficiency_plot")
+          )
+        ),
+        value = 'efficiency_panel'
+      ),
+      accordion_panel(
+        "Job Breakdown",
+        shinycssloaders::withSpinner(
+          tagList(
+            DT::DTOutput("job_breakdown"),
+            selectInput(
+              "job_breakdown_column", "Column to plot",
+              choices = NULL
+            ),
+            plotOutput("job_breakdown_plot")
+          )
+        ),
+        value = "job_breakdown_panel"
+      ),
+      accordion_panel(
+        "GPU Statistics",
+        shinycssloaders::withSpinner(
+          DT::DTOutput("gpu_statistics")
+        ),
+        value = "gpu_statistics_panel"
+      ),
+      id = "myaccordion",
+      open = FALSE
+    )
+  ),
   nav_panel(title = 'Nextflow Report',
 
     # actionButton("submit_button", "Submit"),
-    # --- Step frequency ---
-    h3("Step frequency"),
-    p(paste("This table shows the frequency of each pipeline step.",
-            "This should help you decide which step should be optimised first.")),
-    shinycssloaders::withSpinner(DT::DTOutput("nextflow_step_freq")),
+    card(
+      card_header("Step frequency", style="font-size: 24px;"),
+      p(paste("This table shows the frequency of each pipeline step.",
+              "This should help you decide which step should be optimised first.")),
+      shinycssloaders::withSpinner(DT::DTOutput("nextflow_step_freq")),
+      min_height = "35rem"
+    ),
 
-    # --- CPU Efficiency ---
-    h3("CPU Efficiency"),
-    p("This table shows the CPU efficiency of each pipeline step."),
-    shinycssloaders::withSpinner(DT::DTOutput("nextflow_cpu_efficiency")),
-    p("This plot shows the CPU efficiency of selected pipeline steps."),
-    shinycssloaders::withSpinner(plotOutput("nextflow_cpu_efficiency_plot")),
+    card(
+      card_header("CPU Efficiency", style="font-size: 24px;"),
+      p("This table shows the CPU efficiency of each pipeline step."),
+      shinycssloaders::withSpinner(
+        DT::DTOutput("nextflow_cpu_efficiency")
+      ),
+      p("This plot shows the CPU efficiency of selected pipeline steps."),
+      shinycssloaders::withSpinner(
+          plotOutput("nextflow_cpu_efficiency_plot")
+      ),
+      min_height = "50rem"
+    ),
 
-    # --- RAM Efficiency ---
-    h3("RAM Efficiency"),
-    p("This table shows the RAM efficiency of each pipeline step."),
-    shinycssloaders::withSpinner(DT::DTOutput("nextflow_mem_efficiency")),
-    p("This plot shows the RAM efficiency of selected pipeline steps."),
-    shinycssloaders::withSpinner(plotOutput("nextflow_mem_efficiency_plot"))
+    card(
+      card_header("RAM Efficiency", style="font-size: 24px;"),
+      p("This table shows the RAM efficiency of each pipeline step."),
+      shinycssloaders::withSpinner(DT::DTOutput("nextflow_mem_efficiency")),
+      p("This plot shows the RAM efficiency of selected pipeline steps."),
+      shinycssloaders::withSpinner(plotOutput("nextflow_mem_efficiency_plot")),
+      min_height = "50rem"
+    )
     
   ),
   nav_item(doc_link)

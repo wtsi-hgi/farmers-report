@@ -50,7 +50,7 @@ get_user_names <- function(con, bom, accounting_name, date_range) {
 
   httr::stop_for_status(res, task = paste("get list of users for LSF group", accounting_name))
 
-  as.character(httr::content(res))
+  sort(as.character(httr::content(res)))
 }
 
 get_height_of_facet_plot <- function (n, ncol = 3, height = 400) {
