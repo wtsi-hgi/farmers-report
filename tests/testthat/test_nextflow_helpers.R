@@ -86,9 +86,9 @@ test_that("generate_nextflow_mem_efficiency works", {
   df <- data.frame(
    step = c('step1', 'step2', 'step2'),
    procs = c(1, 2, 2),
-   MEM_REQUESTED_MB = c(1024, 2048, 2048),
+   mem_avail_gb = c(1, 2, 2),
    MAX_MEM_USAGE_MB = c(614.4, 1024, 819.2),
-   MAX_MEM_EFFICIENCY = c(0.6, 0.5, 0.4)
+   Memory_Efficiency = c(0.6, 0.5, 0.4)
   )
 
   result <- generate_nextflow_mem_efficiency(df)

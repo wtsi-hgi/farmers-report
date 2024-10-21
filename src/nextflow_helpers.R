@@ -45,10 +45,11 @@ get_pipeline_records <- function (con, query, pipeline_name) {
       step = parse_nextflow_step(JOB_NAME, pipeline_name),
       RUN_TIME_SEC = MEM_REQUESTED_MB_SEC / MEM_REQUESTED_MB,
       Job_Efficiency = (AVAIL_CPU_TIME_SEC - WASTED_CPU_SECONDS) / AVAIL_CPU_TIME_SEC,
-      MAX_MEM_EFFICIENCY = (MEM_REQUESTED_MB_SEC - WASTED_MB_SECONDS) / MEM_REQUESTED_MB_SEC,
-      MAX_MEM_USAGE_MB = (MEM_REQUESTED_MB_SEC - WASTED_MB_SECONDS) / RUN_TIME_SEC
+      Memory_Efficiency = (MEM_REQUESTED_MB_SEC - WASTED_MB_SECONDS) / MEM_REQUESTED_MB_SEC,
+      MAX_MEM_USAGE_MB = (MEM_REQUESTED_MB_SEC - WASTED_MB_SECONDS) / RUN_TIME_SEC,
+      mem_avail_gb = convert_mb_to_gb(MEM_REQUESTED_MB)
     ) %>%
-    select(-JOB_NAME) %>%
+    select(-JOB_NAME, -MEM_REQUESTED_MB) %>%
     rename_raw_elastic_fields()
 }
 
@@ -94,13 +95,10 @@ generate_nextflow_cpu_efficiency <- function (df) {
 
 generate_nextflow_mem_efficiency <- function (df) {
   df %>%
-    mutate(
-      mem_avail_gb = convert_mb_to_gb(MEM_REQUESTED_MB)
-    ) %>%
     group_by(step, procs, mem_avail_gb) %>%
     summarise(
       N = n(),
-      best_eff = max(MAX_MEM_EFFICIENCY, na.rm = TRUE),
+      best_eff = max(Memory_Efficiency, na.rm = TRUE),
       max_mem_used_gb = convert_mb_to_gb(max(MAX_MEM_USAGE_MB, na.rm = TRUE)),
       .groups = 'drop'
     )
