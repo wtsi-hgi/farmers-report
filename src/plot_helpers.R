@@ -144,11 +144,17 @@ make_job_failure_timeplot <- function(df) {
 
 generate_nextflow_efficiency_plot <- function (df, steps, grouping_col, efficiency_col) {
   assert_colnames(df, c('step', grouping_col, 'job_status', efficiency_col))
-  df %>%
+  dt <- df %>%
     filter(step %in% steps) %>%
     filter(job_status == 'Success') %>%  # should be removed once Failed statistics is correct
+    group_by(.data[[grouping_col]], job_status) %>%
+    mutate(size = n()) %>%
+    ungroup()
+
+  dt %>%
     ggplot(aes(x = .data[[grouping_col]], y = .data[[efficiency_col]], group = interaction(.data[[grouping_col]], job_status), fill = job_status)) +
       geom_violin() +
+      geom_point(data = filter(dt, size == 1)) +
       facet_wrap(. ~ step, scales = 'free_x', ncol = 3) +
       theme_bw() +
       labs(
@@ -159,7 +165,6 @@ generate_nextflow_efficiency_plot <- function (df, steps, grouping_col, efficien
       scale_y_continuous(labels = scales::percent_format(), limits = c(0, 1)) +
       scale_x_continuous(breaks = integer_breaks())
 }
-
 
 generate_nextflow_cpu_plots <- function (df, steps) {
   generate_nextflow_efficiency_plot(
