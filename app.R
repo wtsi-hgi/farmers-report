@@ -325,20 +325,11 @@ server <- function(input, output, session) {
   })
 
   pipeline_records <- reactive({
-    if (input$pipeline_name != "") {
-      get_pipeline_records(elastic_con, query = elastic_query(), pipeline_name = input$pipeline_name)
-    } else {
-      data.frame(
-        step = character(),
-        procs = numeric(),
-        job_status = character(),
-        Job_Efficiency = numeric(),
-        mem_avail_gb = numeric(),
-        MAX_MEM_USAGE_MB = numeric(),
-        Memory_Efficiency = numeric(),
-        stringsAsFactors = FALSE
+      get_pipeline_records(
+        elastic_con,
+        query = elastic_query(),
+        pipeline_name = input$pipeline_name
       )
-    }
   })
 
   output$nextflow_step_freq <- DT::renderDT({

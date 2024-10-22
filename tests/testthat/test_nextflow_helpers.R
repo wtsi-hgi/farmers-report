@@ -80,6 +80,8 @@ test_that("generate_nextflow_cpu_efficiency works", {
   )
 
   expect_equal(result, expected_result)
+
+  expect_no_warning(generate_nextflow_cpu_efficiency(df[0,]))
 })
 
 test_that("generate_nextflow_mem_efficiency works", {
@@ -103,4 +105,33 @@ test_that("generate_nextflow_mem_efficiency works", {
   )
 
   expect_equal(result, expected_result)
+
+  expect_no_warning(generate_nextflow_mem_efficiency(df[0,]))
+})
+
+test_that("get_pipeline_records with no pipeline_name gives correct columns", {
+  dry_run_table <- get_pipeline_records(pipeline_name = "")
+  expected <- data.frame(
+    step = character(),
+    procs = numeric(),
+    job_status = character(),
+    Job_Efficiency = numeric(),
+    mem_avail_gb = numeric(),
+    MAX_MEM_USAGE_MB = numeric(),
+    Memory_Efficiency = numeric()
+  )
+  expect_named(dry_run_table, colnames(expected), ignore.order = TRUE)
+
+  dry_run_table <- get_pipeline_records(pipeline_name = NULL)
+  expect_named(dry_run_table, colnames(expected), ignore.order = TRUE)
+})
+
+test_that("no_inf_max returns emtpy array with no warnings", {
+  empty_array <- c()
+  expect_no_warning( result <- no_inf_max(empty_array) )
+  expect_equal(result, NA_real_)
+
+  na_array <- c(NA_real_)
+  expect_warning( result <- no_inf_max(na_array) )
+  expect_equal(result, -Inf)
 })

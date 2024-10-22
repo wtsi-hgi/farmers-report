@@ -29,16 +29,31 @@ get_nf_records <- function(con, query) {
 }
 
 get_pipeline_records <- function (con, query, pipeline_name) {
-  pipeline_prefix <- paste("nf", pipeline_name, sep = "-")
-  df <- get_records(
-    con = con,
-    query = query,
-    prefix = pipeline_prefix,
-    fields = c('JOB_NAME', 'Job',
-               'NUM_EXEC_PROCS', 'AVAIL_CPU_TIME_SEC', 'WASTED_CPU_SECONDS',
-               'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS'
-    )
+  empty_table <- data.frame(
+    JOB_NAME = character(),
+    Job = character(),
+    NUM_EXEC_PROCS = numeric(),
+    AVAIL_CPU_TIME_SEC = numeric(),
+    WASTED_CPU_SECONDS = numeric(),
+    MEM_REQUESTED_MB = numeric(),
+    MEM_REQUESTED_MB_SEC = numeric(),
+    WASTED_MB_SECONDS = numeric(),
+    stringsAsFactors = FALSE
   )
+
+  if(is.null(pipeline_name) || pipeline_name == "") {
+    df <- empty_table
+  } else {
+    pipeline_prefix <- paste("nf", pipeline_name, sep = "-")
+    df <- get_records(
+      con = con,
+      query = query,
+      prefix = pipeline_prefix,
+      fields = colnames(empty_table)
+    )
+
+    if(nrow(df) == 0) df <- empty_table
+  }
 
   df %>%
     mutate(
@@ -49,7 +64,7 @@ get_pipeline_records <- function (con, query, pipeline_name) {
       MAX_MEM_USAGE_MB = (MEM_REQUESTED_MB_SEC - WASTED_MB_SECONDS) / RUN_TIME_SEC,
       mem_avail_gb = convert_mb_to_gb(MEM_REQUESTED_MB)
     ) %>%
-    select(-JOB_NAME, -MEM_REQUESTED_MB) %>%
+    select(-JOB_NAME, -MEM_REQUESTED_MB, -AVAIL_CPU_TIME_SEC, -WASTED_CPU_SECONDS, -RUN_TIME_SEC, -MEM_REQUESTED_MB_SEC, -WASTED_MB_SECONDS) %>%
     rename_raw_elastic_fields()
 }
 
@@ -83,12 +98,19 @@ generate_nextflow_step_freq <- function (df) {
     arrange(desc(number_of_jobs))
 }
 
+# regular max that does not produce -Inf for empty vectors
+no_inf_max <- function (x) {
+  if(length(x) == 0)
+    return(NA_real_)
+  max(x, na.rm = TRUE)
+}
+
 generate_nextflow_cpu_efficiency <- function (df) {
   df %>%
     group_by(step, procs) %>%
     summarise(
       number_of_jobs = n(),
-      best_eff = max(Job_Efficiency, na.rm = TRUE),
+      best_eff = no_inf_max(Job_Efficiency),
       .groups = 'drop'
     ) 
 }
@@ -98,8 +120,8 @@ generate_nextflow_mem_efficiency <- function (df) {
     group_by(step, procs, mem_avail_gb) %>%
     summarise(
       number_of_jobs = n(),
-      best_eff = max(Memory_Efficiency, na.rm = TRUE),
-      max_mem_used_gb = convert_mb_to_gb(max(MAX_MEM_USAGE_MB, na.rm = TRUE)),
+      best_eff = no_inf_max(Memory_Efficiency),
+      max_mem_used_gb = convert_mb_to_gb(no_inf_max(MAX_MEM_USAGE_MB)),
       .groups = 'drop'
     )
 }
