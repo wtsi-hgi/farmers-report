@@ -56,6 +56,7 @@ get_pipeline_records <- function (con, query, pipeline_name) {
   }
 
   df %>%
+    filter(AVAIL_CPU_TIME_SEC > 0) %>%
     mutate(
       step = parse_nextflow_step(JOB_NAME, pipeline_name),
       RUN_TIME_SEC = MEM_REQUESTED_MB_SEC / MEM_REQUESTED_MB,
