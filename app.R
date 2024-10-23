@@ -88,7 +88,7 @@ server <- function(input, output, session) {
           selected_pipeline_name <- NULL
         }
         if (length(job_name_parts) >= 1) {
-          choices <- c("Select pipeline name..." = "", job_name_parts)
+          choices <- c("🔍 Search pipeline..." = "", job_name_parts)
         } else {
           choices <- c("No pipelines found" = "")
         }
@@ -350,7 +350,7 @@ server <- function(input, output, session) {
       choices <- c("Select pipeline name" = "")
     } else {
       steps <- pipeline_records() %>% group_by(step) %>% tally() %>% filter(n > 1) %>% pull(step)
-      choices <- c("Select steps to plot..." = "", setNames(steps, add_zero_length_space(steps)))
+      choices <- c("🔍 Search steps..." = "", setNames(steps, add_zero_length_space(steps)))
     }
       
     freezeReactiveValue(input, "nextflow_cpu_plots")    
