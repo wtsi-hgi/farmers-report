@@ -3,10 +3,19 @@ library(dplyr)
 loadNamespace('ggrepel')
 
 source('src/timeseries_helpers.R')
+source('src/constants.R')
 
 # throw an error if not all colnames are in df
 assert_colnames <- function (df, colnames) {
   stopifnot(all(colnames %in% colnames(df)))
+}
+
+integer_breaks <- function(n = 5, ...) {
+  function(x) {
+    breaks <- floor(pretty(x, n, ...))
+    names(breaks) <- attr(breaks, "labels")
+    return(breaks)
+  }
 }
 
 piechart <- function(df, count_field, key_field, legend_name) {
@@ -131,4 +140,46 @@ make_job_failure_timeplot <- function(df) {
     geom_bar(position="stack", stat="identity") + 
     theme_bw() +
     labs(x = 'Date', y = 'Number of jobs', fill = 'Job status')
+}
+
+generate_nextflow_efficiency_plot <- function (df, steps, grouping_col, efficiency_col) {
+  assert_colnames(df, c('step', grouping_col, 'job_status', efficiency_col))
+  dt <- df %>%
+    filter(step %in% steps) %>%
+    filter(job_status == 'Success') %>%  # should be removed once Failed statistics is correct
+    group_by(.data[[grouping_col]], job_status) %>%
+    mutate(size = n()) %>%
+    ungroup()
+
+  dt %>%
+    ggplot(aes(x = .data[[grouping_col]], y = .data[[efficiency_col]], group = interaction(.data[[grouping_col]], job_status), fill = job_status)) +
+      geom_violin(bw = 0.01) +
+      geom_point(data = filter(dt, size == 1)) +
+      facet_wrap(. ~ step, scales = 'free_x', ncol = 3) +
+      theme_bw() +
+      labs(
+        x = column_rename_inv[[grouping_col]],
+        y = column_rename_inv[[efficiency_col]],
+        fill = column_rename_inv[['job_status']]
+      ) +
+      scale_y_continuous(labels = scales::percent_format(), limits = c(0, 1)) +
+      scale_x_continuous(breaks = integer_breaks())
+}
+
+generate_nextflow_cpu_plots <- function (df, steps) {
+  generate_nextflow_efficiency_plot(
+    df = df,
+    steps = steps,
+    grouping_col = 'procs',
+    efficiency_col = 'Job_Efficiency'
+  )
+}
+
+generate_nextflow_mem_plots <- function (df, steps) {
+  generate_nextflow_efficiency_plot(
+    df = df,
+    steps = steps,
+    grouping_col = 'mem_avail_gb',
+    efficiency_col = 'Memory_Efficiency'
+  )
 }

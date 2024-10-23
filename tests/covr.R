@@ -1,6 +1,6 @@
 invisible(loadNamespace('covr'))
 
-src_to_exclude <- c("src/constants.R")
+src_to_exclude <- c("src/constants.R", "src/ui.R")
 
 src_code <- list.files("src", full.names = T)
 src_code <- setdiff(src_code, src_to_exclude)

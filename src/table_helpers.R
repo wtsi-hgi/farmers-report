@@ -1,41 +1,7 @@
 library(dplyr)
 loadNamespace('gt')
 
-column_rename <- c(
-  'Fail rate' = 'fail_rate',
-  'Number of jobs' = 'number_of_jobs',
-  'Wasted memory fraction' = 'mem_wasted_frac',
-  'Wasted CPU fraction' = 'cpu_wasted_frac',
-  'Wasted CPU (hrs)' = 'cpu_wasted_hrs',
-  'Requested CPU (hrs)' = 'cpu_avail_hrs',
-  'Requested memory (GB x hrs)' = 'mem_avail_gb_hrs',
-  'Wasted memory (GB x hrs)' = 'mem_wasted_gb_hrs',
-  'Wasted money' = 'wasted_cost',
-  'Accounting name' = 'accounting_name',
-  'User name' = 'USER_NAME',
-  'Awesome-ness' = 'awesomeness',
-  'Job type' = 'job_type',
-  'Queue name' = 'QUEUE_NAME',
-  'Median Wait Time' = 'median_wait_time',
-  'Median Run Time' = 'median_run_time',
-  'Wait Time' = 'PENDING_TIME_SEC',
-  'Run Time' = 'RUN_TIME_SEC'
-)
-
-team_map <- tibble::enframe(
-  c(
-    'team152' = 'Anderson group',
-    'team281' = 'Martin group',
-    'team282' = 'Davenport group',
-    'team354' = 'Lehner group',
-    'team227' = 'Parts group',
-    'team29-grp' = 'Hurles group',
-    'team170' = 'Gaffney group',
-    'team151' = 'Soranzo group'
-  ),
-  name = 'team_code',
-  value = 'team_name'
-)
+source('src/constants.R')
 
 rename_group_column <- function(df, mapping = team_map) {
   df %>%
@@ -142,6 +108,9 @@ make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
   if('mem_wasted_frac' %in% colnames(df))
     dt <- DT::formatPercentage(dt, 'Wasted memory fraction', 2)
 
+  if('best_eff' %in% colnames(df))
+    dt <- DT::formatPercentage(dt, 'Best efficiency', 2)
+
   if('cpu_avail_hrs' %in% colnames(df))
     dt <- DT::formatRound(dt, 'Requested CPU (hrs)', 0)
 
@@ -159,6 +128,9 @@ make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
 
   if('awesomeness' %in% colnames(df))
     dt <- DT::formatRound(dt, 'Awesome-ness', 1)
+
+  if('max_mem_used_gb' %in% colnames(df))
+    dt <- DT::formatRound(dt, 'Max used memory (GB)', 2)
 
   return(dt)
 }
@@ -200,11 +172,11 @@ generate_efficiency_stats <- function(df, extra_stats = list()) {
       .groups = 'drop'
     ) %>%
     mutate(
-      cpu_avail_hrs = cpu_avail_sec / 60 / 60,
-      cpu_wasted_hrs = cpu_wasted_sec / 60 / 60,
+      cpu_avail_hrs = convert_sec_to_hrs(cpu_avail_sec),
+      cpu_wasted_hrs = convert_sec_to_hrs(cpu_wasted_sec),
       cpu_wasted_frac = cpu_wasted_sec / cpu_avail_sec,
-      mem_avail_gb_hrs = mem_avail_mb_sec / 1024 / 60 / 60,
-      mem_wasted_gb_hrs = mem_wasted_mb_sec / 1024 / 60 / 60,
+      mem_avail_gb_hrs = convert_mb_sec_to_gb_hrs(mem_avail_mb_sec),
+      mem_wasted_gb_hrs = convert_mb_sec_to_gb_hrs(mem_wasted_mb_sec),
       mem_wasted_frac = mem_wasted_mb_sec / mem_avail_mb_sec,
     ) %>%
     relocate(wasted_cost, .after = last_col()) %>%
@@ -216,4 +188,16 @@ get_colname_options <- function(df, exclude_columns) {
   cols <- setdiff(cols, exclude_columns)
   cols <- column_rename[column_rename %in% cols]
   return(cols)
+}
+
+convert_mb_sec_to_gb_hrs <- function (mb_sec) {
+  convert_sec_to_hrs(convert_mb_to_gb(mb_sec))
+}
+
+convert_mb_to_gb <- function (mb) {
+  mb / 1024
+}
+
+convert_sec_to_hrs <- function (sec) {
+  sec / 60 / 60
 }
