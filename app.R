@@ -370,6 +370,10 @@ server <- function(input, output, session) {
     get_height_of_facet_plot(n = length(input$nextflow_cpu_plots))
   })
 
+  output$nextflow_cpu_efficiency_description <- renderText({
+    generate_nextflow_plot_text("CPU", number_of_plots = length(input$nextflow_cpu_plots))
+  })
+
   output$nextflow_mem_efficiency <- DT::renderDT({
     df <- generate_nextflow_mem_efficiency(pipeline_records())
     make_dt(df, table_view_opts = 'ftp')
@@ -383,6 +387,10 @@ server <- function(input, output, session) {
     )
   }, height = function () {
     get_height_of_facet_plot(n = length(input$nextflow_cpu_plots))
+  })
+
+  output$nextflow_mem_efficiency_description <- renderText({
+    generate_nextflow_plot_text("RAM", number_of_plots = length(input$nextflow_cpu_plots))
   })
 
   observe({

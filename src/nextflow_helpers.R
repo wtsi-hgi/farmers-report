@@ -131,3 +131,11 @@ add_zero_length_space <- function(pipeline_names) {
   pipeline_names <- gsub("_", "_\u200B", pipeline_names)
   return(pipeline_names)
 }
+
+generate_nextflow_plot_text <- function (resourse, number_of_plots) {
+  if(number_of_plots == 0){
+    paste("Select step(s) from the left control panel to investigate", resourse, "efficiency further.")
+  } else {
+    paste("This plot shows the", resourse, "efficiency of selected pipeline steps.")
+  }
+}

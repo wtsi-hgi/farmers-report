@@ -140,13 +140,14 @@ ui <- page_navbar(
   ),
   nav_panel(title = 'Nextflow Report',
 
-    # actionButton("submit_button", "Submit"),
     card(
       card_header("Step frequency", style="font-size: 24px;"),
       p(paste("This table shows the frequency of each pipeline step.",
               "This should help you decide which step should be optimised first.")),
-      shinycssloaders::withSpinner(DT::DTOutput("nextflow_step_freq")),
-      min_height = "35rem"
+      shinycssloaders::withSpinner(
+        DT::DTOutput("nextflow_step_freq")
+      ),
+      min_height = "43rem"
     ),
 
     card(
@@ -155,20 +156,32 @@ ui <- page_navbar(
       shinycssloaders::withSpinner(
         DT::DTOutput("nextflow_cpu_efficiency")
       ),
-      p("This plot shows the CPU efficiency of selected pipeline steps."),
+      min_height = "43rem"
+    ),
+
+    card(
+      textOutput("nextflow_cpu_efficiency_description"),
       shinycssloaders::withSpinner(
           plotOutput("nextflow_cpu_efficiency_plot")
       ),
-      min_height = "50rem"
+      min_height = "31rem"
     ),
 
     card(
       card_header("RAM Efficiency", style="font-size: 24px;"),
       p("This table shows the RAM efficiency of each pipeline step."),
-      shinycssloaders::withSpinner(DT::DTOutput("nextflow_mem_efficiency")),
-      p("This plot shows the RAM efficiency of selected pipeline steps."),
-      shinycssloaders::withSpinner(plotOutput("nextflow_mem_efficiency_plot")),
-      min_height = "50rem"
+      shinycssloaders::withSpinner(
+        DT::DTOutput("nextflow_mem_efficiency")
+      ),
+      min_height = "43rem"
+    ),
+
+    card(
+      textOutput("nextflow_mem_efficiency_description"),
+      shinycssloaders::withSpinner(
+        plotOutput("nextflow_mem_efficiency_plot")
+      ),
+      min_height = "31rem"
     )
     
   ),

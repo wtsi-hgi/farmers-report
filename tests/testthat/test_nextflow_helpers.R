@@ -135,3 +135,11 @@ test_that("no_inf_max returns emtpy array with no warnings", {
   expect_warning( result <- no_inf_max(na_array) )
   expect_equal(result, -Inf)
 })
+
+test_that("generate_nextflow_plot_text works", {
+  text <- generate_nextflow_plot_text(resourse = 'CPU', number_of_plots = 1)
+  expect_match(text, "This plot shows the CPU efficiency", fixed = T)
+
+  text <- generate_nextflow_plot_text(resourse = 'RAM', number_of_plots = 0)
+  expect_match(text, "Select step(s) from the left control panel", fixed = T)
+})
