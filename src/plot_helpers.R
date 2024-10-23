@@ -153,7 +153,7 @@ generate_nextflow_efficiency_plot <- function (df, steps, grouping_col, efficien
 
   dt %>%
     ggplot(aes(x = .data[[grouping_col]], y = .data[[efficiency_col]], group = interaction(.data[[grouping_col]], job_status), fill = job_status)) +
-      geom_violin() +
+      geom_violin(bw = 0.01) +
       geom_point(data = filter(dt, size == 1)) +
       facet_wrap(. ~ step, scales = 'free_x', ncol = 3) +
       theme_bw() +
