@@ -1,14 +1,26 @@
 # Farmers report
 
 ## Usage
-To use within Sanger just load SoftPack environment and start RStudio
+To use locally you need to prepare a `config.yaml` based on the example below:
+
+```yaml
+proxy:
+  host: "host-of-go-farmer.com"
+  port: 12321
+  scheme: "http"
+  username: "user"
+  password: "pass"
+  index: "elastic-index"
+```
+
+Then, to use within Sanger, just load SoftPack environment and start RStudio
 ```bash
 module load HGI/softpack/groups/hgi/farmers-report
 module load HGI/common/rstudio
 rstudio start -M 8000
 ```
 
-You can now knit report or serve an app.
+You can now knit a report or serve an app.
 
 ## Development
 To run tests simply execute within an environment

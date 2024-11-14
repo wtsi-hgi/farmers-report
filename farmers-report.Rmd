@@ -27,7 +27,7 @@ source("src/constants.R")
 source('src/config.R')
 source('src/logging.R')
 
-config <- read_config(params$config_path)
+config <- read_config(params$config_path, section = 'proxy')
 
 knitr::opts_chunk$set(echo = FALSE)
 removeHandler('basic.stdout')
