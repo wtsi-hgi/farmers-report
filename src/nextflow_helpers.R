@@ -95,7 +95,10 @@ get_records <- function (con, query, prefix, fields) {
 generate_nextflow_step_freq <- function (df) {
   df %>%
     group_by(step) %>%
-    tally(name = "number_of_jobs") %>%
+    summarise(
+      number_of_jobs = n(),
+      fail_rate = sum(job_status == 'Failed') / n()
+    ) %>%
     arrange(desc(number_of_jobs))
 }
 
@@ -111,6 +114,7 @@ generate_nextflow_cpu_efficiency <- function (df) {
     group_by(step, procs) %>%
     summarise(
       number_of_jobs = n(),
+      fail_rate = sum(job_status == 'Failed') / n(),
       best_eff = no_inf_max(Job_Efficiency),
       .groups = 'drop'
     ) 
@@ -121,6 +125,7 @@ generate_nextflow_mem_efficiency <- function (df) {
     group_by(step, procs, mem_avail_gb) %>%
     summarise(
       number_of_jobs = n(),
+      fail_rate = sum(job_status == 'Failed') / n(),
       best_eff = no_inf_max(Memory_Efficiency),
       max_mem_used_gb = convert_mb_to_gb(no_inf_max(MAX_MEM_USAGE_MB)),
       .groups = 'drop'

@@ -50,14 +50,16 @@ test_that("add_zero_length_space works", {
 
 test_that("generate_nextflow_step_freq works", {
   df <- data.frame(
-    step = c('step1', 'step2', 'step2')
+    step = c('step1', 'step2', 'step2'),
+    job_status = c('Failed', 'Success', 'Success')
   )
 
   result <- generate_nextflow_step_freq(df)
 
   expected_result <- tibble::tibble(
     step = c('step2', 'step1'),
-    number_of_jobs = c(2, 1)
+    number_of_jobs = c(2, 1),
+    fail_rate = c(0, 1)
   )
 
   expect_equal(result, expected_result)
@@ -67,7 +69,8 @@ test_that("generate_nextflow_cpu_efficiency works", {
   df <- data.frame(
     step = c('step1', 'step1', 'step2', 'step2'),
     procs = c(1, 2, 4, 4),
-    Job_Efficiency = c(0.9, 0.8, 0.5, 0.6)
+    Job_Efficiency = c(0.9, 0.8, 0.5, 0.6),
+    job_status = c('Failed', 'Success', 'Success', 'Failed')
   )
 
   result <- generate_nextflow_cpu_efficiency(df)
@@ -76,6 +79,7 @@ test_that("generate_nextflow_cpu_efficiency works", {
     step = c('step1', 'step1', 'step2'),
     procs = c(1, 2, 4),
     number_of_jobs = c(1, 1, 2),
+    fail_rate = c(1, 0, 0.5),
     best_eff = c(0.9, 0.8, 0.6)
   )
 
@@ -87,6 +91,7 @@ test_that("generate_nextflow_cpu_efficiency works", {
 test_that("generate_nextflow_mem_efficiency works", {
   df <- data.frame(
    step = c('step1', 'step2', 'step2'),
+   job_status = c('Success', 'Success', 'Failed'),
    procs = c(1, 2, 2),
    mem_avail_gb = c(1, 2, 2),
    MAX_MEM_USAGE_MB = c(614.4, 1024, 819.2),
@@ -100,6 +105,7 @@ test_that("generate_nextflow_mem_efficiency works", {
     procs = c(1, 2),
     mem_avail_gb = c(1, 2),
     number_of_jobs = c(1, 2),
+    fail_rate = c(0, 0.5),
     best_eff = c(0.6, 0.5),
     max_mem_used_gb = c(0.6, 1)
   )
