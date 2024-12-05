@@ -78,11 +78,13 @@ generate_wasted_cost <- function (df) {
 }
 
 make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
+  sorting_column <- integer(0)
+
   if('wasted_cost' %in% colnames(df))
-    df <- dplyr::arrange(df, desc(wasted_cost))
+    sorting_column <- which(colnames(df) == 'wasted_cost')
 
   if('awesomeness' %in% colnames(df))
-    df <- dplyr::arrange(df, desc(awesomeness))
+    sorting_column <- which(colnames(df) == 'awesomeness')
 
   if(nrow(df) > 0){
     if('median_wait_time' %in% colnames(df))
@@ -92,10 +94,19 @@ make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
       df <- mutate(df, median_run_time = gt::vec_fmt_duration(median_run_time, input_units = 'seconds', max_output_units = 2))
   }
 
-  page_length <- ifelse(all_rows, nrow(df), 10)
+  options <- list(
+    dom = table_view_opts,
+    pageLength = ifelse(all_rows, nrow(df), 10)
+  )
+
+  show_rownames <- FALSE
+  if(length(sorting_column) > 0)
+    options$order <- list(list(sorting_column - !show_rownames, 'desc'))
+
   dt <- DT::datatable(
     df,
-    options = list(dom = table_view_opts, pageLength = page_length),
+    options = options,
+    rownames = show_rownames,
     colnames = column_rename[column_rename %in% colnames(df)]
   )
 
