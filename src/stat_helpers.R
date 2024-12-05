@@ -146,7 +146,7 @@ get_bom_statistics <- function (con, query, adjust = TRUE, time_bucket = 'none')
   generate_bom_statistics(df, timed = time_bucket != 'none', adjust = adjust)
 }
 
-get_job_statistics <- function (con, query, time_bucket = 'none') {
+get_job_records <- function (con, query) {
   df <- scroll_elastic(
     con = con,
     body = list(query = query),
@@ -155,11 +155,11 @@ get_job_statistics <- function (con, query, time_bucket = 'none') {
               'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS')
   )
 
-  df <- annotate_jupyter_jobs(df, con, query)
-
-  df$timestamp <- lubridate::as_datetime(df$timestamp)
-
-  dt <- generate_job_statistics(df, time_bucket = time_bucket)
+  df %>%
+    mutate(timestamp = lubridate::as_datetime(timestamp)) %>%
+    annotate_jupyter_jobs(con, query) %>%
+    rename_raw_elastic_fields() %>%
+    mutate(job_type = sapply(job_name, parse_job_type))
 }
 
 annotate_jupyter_jobs <- function (df, con, query) {
@@ -186,10 +186,8 @@ assign_jupyter_job_names <- function (df, ids) {
 
 generate_job_statistics <- function (df, time_bucket = 'none') {
   dt <- df %>%
-    rename_raw_elastic_fields() %>%
     adjust_statistics() %>%
-    generate_wasted_cost() %>%
-    mutate(job_type = sapply(job_name, parse_job_type))
+    generate_wasted_cost()
 
   if (time_bucket != 'none') {
     dt <- dt %>%

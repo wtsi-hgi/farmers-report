@@ -35,6 +35,29 @@ generate_efficiency <- function (input, con, query, adjust, time_bucket) {
 }
 
 server <- function(input, output, session) {
+  output$debug_text <- gt::render_gt({
+    if(length(input$job_breakdown_rows_selected) > 0){
+      job_types <- job_breakdown()[input$job_breakdown_rows_selected, 'job_type', drop = TRUE]
+      dt <- filter(job_records(), job_type %in% job_types) %>% slice_sample(n = 10)
+
+      index_prefix <- stringr::str_remove(attr(elastic_con, 'index'), "\\*$")
+      ids <- pull(dt, `_id`)
+      indexes <- paste0(index_prefix, 'farm-', format(dt$timestamp, "%Y.%m.%d"))
+      res <- docs_mget(
+        conn = elastic_con,
+        index_type_id = purrr::map2(ids, indexes, ~ c(.y, '_doc', .x)),
+        source = c('Job', 'Command')
+      )
+
+      lapply(res$docs, magrittr::extract2, i = '_source') %>%
+        do.call(what = rbind) %>%
+        as.data.frame() %>%
+        gt::gt() %>%
+        gt::cols_align(align = "left", columns = 'Command') %>%
+        gt::cols_move_to_end(Command)
+    }
+  })
+
   # set bom names
   observe({
     req(all(!isInvalidDate(input$period)))
@@ -270,17 +293,25 @@ server <- function(input, output, session) {
     }
   })
 
+  job_records <- reactive({
+     if (input$accounting_name != 'all' || input$user_name != 'all') {
+      dt <- get_job_records(elastic_con, query = elastic_query())
+     }
+  })
+
+  job_breakdown <- reactive({
+    df <- job_records()
+    dt <- generate_job_statistics(df)
+  })
+
   output$job_breakdown <- DT::renderDT({
-    if (input$accounting_name != 'all' || input$user_name != 'all') {
-      dt <- get_job_statistics(elastic_con, query = elastic_query())
-      make_dt(dt, table_view_opts = 'ftp')
-    }
+    df <- job_breakdown()
+    make_dt(df, table_view_opts = 'ftp')
   })
 
   timed_job_statistics <- reactive({
-    if (input$accounting_name != 'all' || input$user_name != 'all') {
-      get_job_statistics(elastic_con, time_bucket = input$time_bucket, query = elastic_query())
-    }
+    df <- job_records()
+    dt <-  generate_job_statistics(df, time_bucket = input$time_bucket)
   })
 
   timed_job_statistics_colnames <- reactive({
@@ -525,7 +556,10 @@ server <- function(input, output, session) {
     if (input$accounting_name != 'all' || input$user_name != 'all') {
       accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
         shinycssloaders::withSpinner(
-          DT::DTOutput("job_breakdown")
+          tagList(
+            DT::DTOutput("job_breakdown"),
+            gt::gt_output("debug_text")
+          )
         ),
         if (input$time_bucket != "none") {
           shinycssloaders::withSpinner(
