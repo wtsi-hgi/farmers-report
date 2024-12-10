@@ -6,8 +6,7 @@ source('src/constants.R')
 rename_group_column <- function(df, mapping = team_map) {
   df %>%
     left_join(mapping, by = c('accounting_name' = 'team_code')) %>%
-    mutate(accounting_name = ifelse(is.na(team_name), accounting_name, team_name)) %>%
-    select(-team_name)
+    mutate(accounting_name = ifelse(is.na(team_name), accounting_name, team_name), .keep = 'unused')
 }
 
 set_team_names <- function (teams, mapping) {
@@ -202,9 +201,8 @@ generate_efficiency_stats <- function(df, extra_stats = list()) {
 
 prepare_commands_table <- function (df) {
   df %>%
-    mutate(MEM_REQUESTED = convert_bytes(MEM_REQUESTED_MB, from = 'mb', to = 'b')) %>%
+    mutate(MEM_REQUESTED = convert_bytes(MEM_REQUESTED_MB, from = 'mb', to = 'b'), .keep = 'unused') %>%
     rename(RUN_TIME = RUN_TIME_SEC) %>%
-    select(-MEM_REQUESTED_MB) %>%
     gt::gt() %>%
     gt::cols_align(align = "left", columns = 'Command') %>%
     gt::fmt_percent(columns = c('Job_Efficiency_Raw_Percent', 'RAW_MAX_MEM_EFFICIENCY_PERCENT'), scale_values = FALSE) %>%
