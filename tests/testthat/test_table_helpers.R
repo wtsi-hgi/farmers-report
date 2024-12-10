@@ -218,7 +218,9 @@ test_that("get_colname_options works", {
 })
 
 test_that("convert functions work", {
-  expect_equal(convert_mb_to_gb(1024), 1)
+  expect_equal(convert_bytes(2048, 'b', 'kb'), 2)
+  expect_equal(convert_bytes(3, 'gb', 'mb'), 3072)
+  expect_equal(convert_bytes(10, 'kb', 'kb'), 10)
   expect_equal(convert_sec_to_hrs(3600), 1)
   expect_equal(convert_mb_sec_to_gb_hrs(3686400), 1)
 })

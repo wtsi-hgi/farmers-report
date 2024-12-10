@@ -231,16 +231,14 @@ convert_mb_sec_to_gb_hrs <- function (mb_sec) {
   convert_sec_to_hrs(convert_bytes(mb_sec, from = 'mb', to = 'gb'))
 }
 
-convert_mb_to_gb <- function (mb) {
- convert_bytes(mb, from = 'mb', to = 'gb')
-}
-
 convert_sec_to_hrs <- function (sec) {
   sec / 60 / 60
 }
 
 convert_bytes <- function (x, from, to) {
+  bytes_prefix <- c('b', 'kb', 'mb', 'gb')
   stopifnot(from %in% bytes_prefix, to %in% bytes_prefix)
+
   diff <- which(from == bytes_prefix) - which(to == bytes_prefix)
   x * 1024 ^ diff
 }
