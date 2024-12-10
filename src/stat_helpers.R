@@ -3,7 +3,7 @@ library(dplyr)
 library(tsibble)
 library(tidyr)
 loadNamespace('lubridate')
-
+loadNamespace('purrr')
 
 source("src/elastic_helpers.R")
 source("src/table_helpers.R")
@@ -156,10 +156,15 @@ get_job_records <- function (con, query) {
   )
 
   df %>%
-    mutate(timestamp = lubridate::as_datetime(timestamp)) %>%
     annotate_jupyter_jobs(con, query) %>%
+    prepare_job_records()
+}
+
+prepare_job_records <- function (df) {
+  df %>%
+    mutate(timestamp = lubridate::as_datetime(timestamp)) %>%
     rename_raw_elastic_fields() %>%
-    mutate(job_type = sapply(job_name, parse_job_type))
+    mutate(job_type = purrr::map_chr(job_name, parse_job_type), .keep = 'unused')
 }
 
 annotate_jupyter_jobs <- function (df, con, query) {

@@ -26,3 +26,9 @@ test_that("index_by_custom works", {
   dt <- index_by_custom(df, time_bucket = 'month')
   expect_s3_class(dt$date, 'yearmonth')
 })
+
+test_that("isInvalidDate works", {
+  expect_false(isInvalidDate("2024-12-10"))
+  expect_true(isInvalidDate(NA))
+  expect_true(isInvalidDate(""))
+})
