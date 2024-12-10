@@ -4,6 +4,8 @@ source("src/constants.R")
 source("src/logging.R")
 source('src/timeseries_helpers.R')
 loadNamespace('tidyr')
+loadNamespace('stringr')
+loadNamespace('purrr')
 
 rename_raw_elastic_fields <- function (df, map = elastic_column_map) {
   rename(df, any_of(map))
@@ -348,4 +350,18 @@ scroll_elastic <- function(con, body, fields) {
     mutate(across(all_of(numerical_columns), ~ tidyr::replace_na(., 0)))
 
   return(df)
+}
+
+get_docs_by_ids <- function (con, ids, timestamps, fields = NULL) {
+  index_prefix <- stringr::str_remove(attr(con, 'index'), "\\*$")
+  indexes <- paste0(index_prefix, 'farm-', format(timestamps, "%Y.%m.%d"))
+
+  res <- docs_mget(
+    conn = con,
+    index_type_id = purrr::map2(ids, indexes, ~ c(.y, '_doc', .x)),
+    source = fields
+  )
+
+  lapply(res$docs, magrittr::extract2, i = '_source') %>%
+    dplyr::bind_rows()
 }

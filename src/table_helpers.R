@@ -146,6 +146,9 @@ make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
   if('number_of_jobs' %in% colnames(df))
     dt <- DT::formatRound(dt, 'Number of jobs', 0)
 
+  if('job_type' %in% colnames(df))
+    dt <- DT::formatStyle(dt, 'Job type', cursor = 'pointer')
+
   return(dt)
 }
 
@@ -197,6 +200,26 @@ generate_efficiency_stats <- function(df, extra_stats = list()) {
     select(-setdiff(fields, 'wasted_cost'))
 }
 
+prepare_commands_table <- function (df) {
+  df %>%
+    mutate(MEM_REQUESTED = convert_bytes(MEM_REQUESTED_MB, from = 'mb', to = 'b')) %>%
+    rename(RUN_TIME = RUN_TIME_SEC) %>%
+    select(-MEM_REQUESTED_MB) %>%
+    gt::gt() %>%
+    gt::cols_align(align = "left", columns = 'Command') %>%
+    gt::fmt_percent(columns = c('Job_Efficiency_Raw_Percent', 'RAW_MAX_MEM_EFFICIENCY_PERCENT'), scale_values = FALSE) %>%
+    gt::fmt_bytes(columns = MEM_REQUESTED, standard = 'binary') %>%
+    gt::fmt_duration(RUN_TIME, input_units = 'seconds', max_output_units = 1) %>%
+    gt::cols_label(
+      Job_Efficiency_Raw_Percent = 'Raw CPU efficiency',
+      RAW_MAX_MEM_EFFICIENCY_PERCENT = 'Raw memory efficiency',
+      MEM_REQUESTED = 'Memory requested',
+      RUN_TIME = 'Run time'
+    ) %>%
+    gt::cols_move_to_end(Command) %>%
+    gt::cols_move_to_start(Job)
+}
+
 get_colname_options <- function(df, exclude_columns) {
   cols <- colnames(df)
   cols <- setdiff(cols, exclude_columns)
@@ -205,13 +228,19 @@ get_colname_options <- function(df, exclude_columns) {
 }
 
 convert_mb_sec_to_gb_hrs <- function (mb_sec) {
-  convert_sec_to_hrs(convert_mb_to_gb(mb_sec))
+  convert_sec_to_hrs(convert_bytes(mb_sec, from = 'mb', to = 'gb'))
 }
 
 convert_mb_to_gb <- function (mb) {
-  mb / 1024
+ convert_bytes(mb, from = 'mb', to = 'gb')
 }
 
 convert_sec_to_hrs <- function (sec) {
   sec / 60 / 60
+}
+
+convert_bytes <- function (x, from, to) {
+  stopifnot(from %in% bytes_prefix, to %in% bytes_prefix)
+  diff <- which(from == bytes_prefix) - which(to == bytes_prefix)
+  x * 1024 ^ diff
 }

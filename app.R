@@ -35,29 +35,6 @@ generate_efficiency <- function (input, con, query, adjust, time_bucket) {
 }
 
 server <- function(input, output, session) {
-  output$debug_text <- gt::render_gt({
-    if(length(input$job_breakdown_rows_selected) > 0){
-      job_types <- job_breakdown()[input$job_breakdown_rows_selected, 'job_type', drop = TRUE]
-      dt <- filter(job_records(), job_type %in% job_types) %>% slice_sample(n = 10)
-
-      index_prefix <- stringr::str_remove(attr(elastic_con, 'index'), "\\*$")
-      ids <- pull(dt, `_id`)
-      indexes <- paste0(index_prefix, 'farm-', format(dt$timestamp, "%Y.%m.%d"))
-      res <- docs_mget(
-        conn = elastic_con,
-        index_type_id = purrr::map2(ids, indexes, ~ c(.y, '_doc', .x)),
-        source = c('Job', 'Command')
-      )
-
-      lapply(res$docs, magrittr::extract2, i = '_source') %>%
-        do.call(what = rbind) %>%
-        as.data.frame() %>%
-        gt::gt() %>%
-        gt::cols_align(align = "left", columns = 'Command') %>%
-        gt::cols_move_to_end(Command)
-    }
-  })
-
   # set bom names
   observe({
     req(all(!isInvalidDate(input$period)))
@@ -295,19 +272,50 @@ server <- function(input, output, session) {
 
   job_records <- reactive({
      if (input$accounting_name != 'all' || input$user_name != 'all') {
-      dt <- get_job_records(elastic_con, query = elastic_query())
+       get_job_records(elastic_con, query = elastic_query())
      }
   })
 
   job_breakdown <- reactive({
     df <- job_records()
-    dt <- generate_job_statistics(df)
+    generate_job_statistics(df)
   })
 
   output$job_breakdown <- DT::renderDT({
     df <- job_breakdown()
     make_dt(df, table_view_opts = 'ftp')
   })
+
+  observeEvent(input$job_breakdown_cell_clicked, {
+    info <- input$job_breakdown_cell_clicked
+    if (length(info) == 0) return()  # do nothing if not clicked yet
+
+    df <- job_breakdown()
+    job_type_index <- grep('job_type', colnames(df)) - 1
+    if (info$col != job_type_index) return()  # do nothing if the clicked cell is not in the job_type column
+
+    selected_job_type <- df[info$row, 'job_type', drop = TRUE]
+    dt <- filter(job_records(), job_type == selected_job_type) %>% slice_sample(n = 10)
+
+    records <- get_docs_by_ids(
+      con = elastic_con,
+      ids = dt$`_id`,
+      timestamps = dt$timestamp,
+      fields = c('Job', 'Command', 'Job_Efficiency_Raw_Percent', 'RAW_MAX_MEM_EFFICIENCY_PERCENT', 'MEM_REQUESTED_MB', 'RUN_TIME_SEC')
+    ) %>%
+      prepare_commands_table()
+
+    showModal(
+      modalDialog(
+        records,
+        title = paste("Commands for", info$value, 'jobs'),
+        footer = modalButton("Close"),
+        size = 'xl',
+        easyClose = TRUE
+      )
+    )
+  }, ignoreInit = TRUE)
+
 
   timed_job_statistics <- reactive({
     df <- job_records()
@@ -553,12 +561,13 @@ server <- function(input, output, session) {
   })
 
   observe({
-    if (input$accounting_name != 'all' || input$user_name != 'all') {
+    deny_values <- c('', 'all')
+    if (all(input$accounting_name != deny_values) || all(input$user_name != deny_values)) {
       accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
+        p(shiny::icon("question-circle"), "Click on a job type name to see examples of those jobs"),
         shinycssloaders::withSpinner(
           tagList(
-            DT::DTOutput("job_breakdown"),
-            gt::gt_output("debug_text")
+            DT::DTOutput("job_breakdown")
           )
         ),
         if (input$time_bucket != "none") {

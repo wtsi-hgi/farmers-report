@@ -122,8 +122,7 @@ ui <- page_navbar(
               "job_breakdown_column", "Column to plot",
               choices = NULL
             ),
-            plotOutput("job_breakdown_plot"),
-            gt::gt_output("debug_text")
+            plotOutput("job_breakdown_plot")
           )
         ),
         value = "job_breakdown_panel"
