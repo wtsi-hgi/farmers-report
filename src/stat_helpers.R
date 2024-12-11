@@ -196,7 +196,9 @@ generate_job_statistics <- function (df, time_bucket = 'none') {
 
   if (time_bucket != 'none') {
     dt <- dt %>%
-      as_tsibble(key = `_id`, index = timestamp) %>%
+      arrange(timestamp) %>%
+      mutate(group = sequence(rle(as.numeric(timestamp))$lengths)) %>%
+      as_tsibble(key = group, index = timestamp) %>%
       index_by_custom(time_bucket = time_bucket)
   }
   

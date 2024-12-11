@@ -319,7 +319,7 @@ server <- function(input, output, session) {
 
   timed_job_statistics <- reactive({
     df <- job_records()
-    dt <-  generate_job_statistics(df, time_bucket = input$time_bucket)
+    dt <- generate_job_statistics(df, time_bucket = input$time_bucket)
   })
 
   timed_job_statistics_colnames <- reactive({
