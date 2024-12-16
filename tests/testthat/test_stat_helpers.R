@@ -155,16 +155,42 @@ test_that("build_bom_aggregation works", {
   )
 })
 
+test_that("prepare_job_records works", {
+  fake_data_frame <- data.frame(
+    AVAIL_CPU_TIME_SEC = c(800, 1000, 1200),
+    JOB_NAME = c('nf-hello', 'wrp_job', 'another_job'),
+    Job = c('Success', 'Success', 'Failed'),
+    MEM_REQUESTED_MB = c(1200, 2400, 3600),
+    MEM_REQUESTED_MB_SEC = c(12000, 42000, 60000),
+    NUM_EXEC_PROCS = c(1, 1, 3),
+    timestamp = c(1732146484, 1732146665, 1732146702),
+    WASTED_CPU_SECONDS = c(600, 500, 700),
+    WASTED_MB_SECONDS = c(5000, 20000, 10000)
+  )
+
+  expected_columns <- c(
+    'cpu_avail_sec', 'job_status', 'MEM_REQUESTED_MB', 'mem_avail_mb_sec',
+    'procs', 'timestamp', 'cpu_wasted_sec', 'mem_wasted_mb_sec', 'job_type'
+  )
+
+  dt <- prepare_job_records(fake_data_frame)
+
+  expect_s3_class(dt, 'data.frame')
+  expect_s3_class(dt$timestamp, 'POSIXct')
+  expect_named(dt, expected_columns)
+  expect_equal(dt$job_type, c('nextflow', 'wr', 'other'))
+})
+
 test_that("generate_job_statistics works", {
   fake_data_frame <- data.frame(
-    Job = c('Success', 'Success', 'Failed'),
-    NUM_EXEC_PROCS = c(1, 1, 3),
-    AVAIL_CPU_TIME_SEC = c(800, 1000, 1200),
-    WASTED_CPU_SECONDS = c(600, 500, 700),
+    job_status = c('Success', 'Success', 'Failed'),
+    procs = c(1, 1, 3),
+    cpu_avail_sec = c(800, 1000, 1200),
+    cpu_wasted_sec = c(600, 500, 700),
     MEM_REQUESTED_MB = c(1200, 2400, 3600), 
-    MEM_REQUESTED_MB_SEC = c(12000, 42000, 60000),
-    WASTED_MB_SECONDS = c(5000, 20000, 10000),
-    JOB_NAME = c('nf-hello', 'wrp_job', 'another_job')
+    mem_avail_mb_sec = c(12000, 42000, 60000),
+    mem_wasted_mb_sec = c(5000, 20000, 10000),
+    job_type = c('nextflow', 'wr', 'other')
   )
 
   expected_columns <- c(

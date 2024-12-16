@@ -270,17 +270,56 @@ server <- function(input, output, session) {
     }
   })
 
-  output$job_breakdown <- DT::renderDT({
-    if (input$accounting_name != 'all' || input$user_name != 'all') {
-      dt <- get_job_statistics(elastic_con, query = elastic_query())
-      make_dt(dt, table_view_opts = 'ftp')
-    }
+  job_records <- reactive({
+     if (input$accounting_name != 'all' || input$user_name != 'all') {
+       get_job_records(elastic_con, query = elastic_query())
+     }
   })
 
+  job_breakdown <- reactive({
+    df <- job_records()
+    generate_job_statistics(df)
+  })
+
+  output$job_breakdown <- DT::renderDT({
+    df <- job_breakdown()
+    make_dt(df, table_view_opts = 'ftp')
+  })
+
+  observeEvent(input$job_breakdown_cell_clicked, {
+    info <- input$job_breakdown_cell_clicked
+    if (length(info) == 0) return()  # do nothing if not clicked yet
+
+    df <- job_breakdown()
+    job_type_index <- grep('job_type', colnames(df)) - 1
+    if (info$col != job_type_index) return()  # do nothing if the clicked cell is not in the job_type column
+
+    selected_job_type <- df[info$row, 'job_type', drop = TRUE]
+    dt <- filter(job_records(), job_type == selected_job_type) %>% slice_sample(n = 10)
+
+    records <- get_docs_by_ids(
+      con = elastic_con,
+      ids = dt$`_id`,
+      timestamps = dt$timestamp,
+      fields = c('Job', 'Command', 'Job_Efficiency_Raw_Percent', 'RAW_MAX_MEM_EFFICIENCY_PERCENT', 'MEM_REQUESTED_MB', 'RUN_TIME_SEC')
+    ) %>%
+      prepare_commands_table()
+
+    showModal(
+      modalDialog(
+        records,
+        title = paste("Commands for", info$value, 'jobs'),
+        footer = modalButton("Close"),
+        size = 'xl',
+        easyClose = TRUE
+      )
+    )
+  }, ignoreInit = TRUE)
+
+
   timed_job_statistics <- reactive({
-    if (input$accounting_name != 'all' || input$user_name != 'all') {
-      get_job_statistics(elastic_con, time_bucket = input$time_bucket, query = elastic_query())
-    }
+    df <- job_records()
+    dt <- generate_job_statistics(df, time_bucket = input$time_bucket)
   })
 
   timed_job_statistics_colnames <- reactive({
@@ -522,10 +561,14 @@ server <- function(input, output, session) {
   })
 
   observe({
-    if (input$accounting_name != 'all' || input$user_name != 'all') {
+    deny_values <- c('', 'all')
+    if (all(input$accounting_name != deny_values) || all(input$user_name != deny_values)) {
       accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
+        p(shiny::icon("question-circle"), "Click on a job type name to see examples of those jobs"),
         shinycssloaders::withSpinner(
-          DT::DTOutput("job_breakdown")
+          tagList(
+            DT::DTOutput("job_breakdown")
+          )
         ),
         if (input$time_bucket != "none") {
           shinycssloaders::withSpinner(

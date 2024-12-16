@@ -218,7 +218,25 @@ test_that("get_colname_options works", {
 })
 
 test_that("convert functions work", {
-  expect_equal(convert_mb_to_gb(1024), 1)
+  expect_equal(convert_bytes(2048, 'b', 'kb'), 2)
+  expect_equal(convert_bytes(3, 'gb', 'mb'), 3072)
+  expect_equal(convert_bytes(10, 'kb', 'kb'), 10)
   expect_equal(convert_sec_to_hrs(3600), 1)
   expect_equal(convert_mb_sec_to_gb_hrs(3686400), 1)
+})
+
+# TODO improve test
+test_that("prepare_commands_table works", {
+  df <- data.frame(
+    MEM_REQUESTED_MB = c(1000, 2000),
+    RUN_TIME_SEC = c(10, 100),
+    Command = c('rstudio', 'bash'),
+    Job_Efficiency_Raw_Percent = c(20, 30),
+    RAW_MAX_MEM_EFFICIENCY_PERCENT = c(10, 20),
+    Job = c('Success', 'Failed')
+  )
+
+  dt <- prepare_commands_table(df)
+
+  expect_s3_class(dt, 'gt_tbl')
 })

@@ -6,8 +6,7 @@ source('src/constants.R')
 rename_group_column <- function(df, mapping = team_map) {
   df %>%
     left_join(mapping, by = c('accounting_name' = 'team_code')) %>%
-    mutate(accounting_name = ifelse(is.na(team_name), accounting_name, team_name)) %>%
-    select(-team_name)
+    mutate(accounting_name = ifelse(is.na(team_name), accounting_name, team_name), .keep = 'unused')
 }
 
 set_team_names <- function (teams, mapping) {
@@ -78,11 +77,13 @@ generate_wasted_cost <- function (df) {
 }
 
 make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
+  sorting_column <- integer(0)
+
   if('wasted_cost' %in% colnames(df))
-    df <- dplyr::arrange(df, desc(wasted_cost))
+    sorting_column <- which(colnames(df) == 'wasted_cost')
 
   if('awesomeness' %in% colnames(df))
-    df <- dplyr::arrange(df, desc(awesomeness))
+    sorting_column <- which(colnames(df) == 'awesomeness')
 
   if(nrow(df) > 0){
     if('median_wait_time' %in% colnames(df))
@@ -92,10 +93,19 @@ make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
       df <- mutate(df, median_run_time = gt::vec_fmt_duration(median_run_time, input_units = 'seconds', max_output_units = 2))
   }
 
-  page_length <- ifelse(all_rows, nrow(df), 10)
+  options <- list(
+    dom = table_view_opts,
+    pageLength = ifelse(all_rows, nrow(df), 10)
+  )
+
+  show_rownames <- FALSE
+  if(length(sorting_column) > 0)
+    options$order <- list(list(sorting_column - !show_rownames, 'desc'))
+
   dt <- DT::datatable(
     df,
-    options = list(dom = table_view_opts, pageLength = page_length),
+    options = options,
+    rownames = show_rownames,
     colnames = column_rename[column_rename %in% colnames(df)]
   )
 
@@ -134,6 +144,9 @@ make_dt <- function(df, all_rows = FALSE, table_view_opts = NULL){
 
   if('number_of_jobs' %in% colnames(df))
     dt <- DT::formatRound(dt, 'Number of jobs', 0)
+
+  if('job_type' %in% colnames(df))
+    dt <- DT::formatStyle(dt, 'Job type', cursor = 'pointer')
 
   return(dt)
 }
@@ -186,6 +199,25 @@ generate_efficiency_stats <- function(df, extra_stats = list()) {
     select(-setdiff(fields, 'wasted_cost'))
 }
 
+prepare_commands_table <- function (df) {
+  df %>%
+    mutate(MEM_REQUESTED = convert_bytes(MEM_REQUESTED_MB, from = 'mb', to = 'b'), .keep = 'unused') %>%
+    rename(RUN_TIME = RUN_TIME_SEC) %>%
+    gt::gt() %>%
+    gt::cols_align(align = "left", columns = 'Command') %>%
+    gt::fmt_percent(columns = c('Job_Efficiency_Raw_Percent', 'RAW_MAX_MEM_EFFICIENCY_PERCENT'), scale_values = FALSE) %>%
+    gt::fmt_bytes(columns = MEM_REQUESTED, standard = 'binary') %>%
+    gt::fmt_duration(RUN_TIME, input_units = 'seconds', max_output_units = 1) %>%
+    gt::cols_label(
+      Job_Efficiency_Raw_Percent = 'Raw CPU efficiency',
+      RAW_MAX_MEM_EFFICIENCY_PERCENT = 'Raw memory efficiency',
+      MEM_REQUESTED = 'Memory requested',
+      RUN_TIME = 'Run time'
+    ) %>%
+    gt::cols_move_to_end(Command) %>%
+    gt::cols_move_to_start(Job)
+}
+
 get_colname_options <- function(df, exclude_columns) {
   cols <- colnames(df)
   cols <- setdiff(cols, exclude_columns)
@@ -194,13 +226,17 @@ get_colname_options <- function(df, exclude_columns) {
 }
 
 convert_mb_sec_to_gb_hrs <- function (mb_sec) {
-  convert_sec_to_hrs(convert_mb_to_gb(mb_sec))
-}
-
-convert_mb_to_gb <- function (mb) {
-  mb / 1024
+  convert_sec_to_hrs(convert_bytes(mb_sec, from = 'mb', to = 'gb'))
 }
 
 convert_sec_to_hrs <- function (sec) {
   sec / 60 / 60
+}
+
+convert_bytes <- function (x, from, to) {
+  bytes_prefix <- c('b', 'kb', 'mb', 'gb')
+  stopifnot(from %in% bytes_prefix, to %in% bytes_prefix)
+
+  diff <- which(from == bytes_prefix) - which(to == bytes_prefix)
+  x * 1024 ^ diff
 }
