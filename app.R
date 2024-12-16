@@ -2,6 +2,7 @@ library(shiny)
 library(dplyr)
 loadNamespace('shinycssloaders')
 loadNamespace('elastic')
+loadNamespace('shinyjs')
 
 source('src/ui.R')
 source('src/table_helpers.R')
@@ -47,7 +48,7 @@ server <- function(input, output, session) {
       choices = bom_names,
       selected = selected_bom_name
     )
-  }, priority = 3)
+  }, priority = 4)
 
   # set accounting names
   observeEvent(c(input$bom, input$period), {
@@ -69,7 +70,7 @@ server <- function(input, output, session) {
       choices = c('all', team_names),
       selected = selected_accounting_name
     )
-  }, priority = 2)
+  }, priority = 3)
 
   # set pipeline name
   observe({
@@ -125,7 +126,7 @@ server <- function(input, output, session) {
       choices = user_names,
       selected = selected_user_name
     )
-  }, priority = 1)
+  }, priority = 2)
 
   elastic_query <- reactive({
     req(input$bom, input$accounting_name, input$user_name)
@@ -271,9 +272,8 @@ server <- function(input, output, session) {
   })
 
   job_records <- reactive({
-     if (input$accounting_name != 'all' || input$user_name != 'all') {
-       get_job_records(elastic_con, query = elastic_query())
-     }
+     req(input$accounting_name != 'all' || input$user_name != 'all')
+     get_job_records(elastic_con, query = elastic_query())
   })
 
   job_breakdown <- reactive({
@@ -318,6 +318,7 @@ server <- function(input, output, session) {
 
 
   timed_job_statistics <- reactive({
+    req(input$time_bucket != 'none')
     df <- job_records()
     dt <- generate_job_statistics(df, time_bucket = input$time_bucket)
   })
@@ -331,11 +332,24 @@ server <- function(input, output, session) {
     cols
   })
 
+  observe({
+    choices <- timed_job_statistics_colnames()
+    selected <- isolate(input$job_breakdown_column)
+    if(selected == "") selected <- choices[1]
+    freezeReactiveValue(input, "job_breakdown_column")
+    updateSelectInput(
+      inputId = "job_breakdown_column",
+      choices = choices,
+      selected = selected
+    )
+  })
+
   output$job_breakdown_plot <- renderPlot({
-    if(input$time_bucket != "none"){
-      df <- timed_job_statistics()
-      generate_efficiency_plot(df, column_to_plot = input$job_breakdown_column)
-    }
+    req(input$time_bucket != "none")
+    req(input$job_breakdown_column)
+
+    df <- timed_job_statistics()
+    generate_efficiency_plot(df, column_to_plot = input$job_breakdown_column)
   })
 
   gpu_records <- reactive({
@@ -560,35 +574,37 @@ server <- function(input, output, session) {
     }
   })
 
+  # hide/show time plots and inputs
   observe({
     deny_values <- c('', 'all')
-    if (all(input$accounting_name != deny_values) || all(input$user_name != deny_values)) {
-      accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
-        p(shiny::icon("question-circle"), "Click on a job type name to see examples of those jobs"),
-        shinycssloaders::withSpinner(
-          tagList(
-            DT::DTOutput("job_breakdown")
-          )
-        ),
-        if (input$time_bucket != "none") {
-          shinycssloaders::withSpinner(
-            tagList(
-              selectInput(
-                "job_breakdown_column", "Column to plot",
-                choices = timed_job_statistics_colnames(),
-                selected = isolate(input$job_breakdown_column)
-              ),
-              plotOutput("job_breakdown_plot")
-            )
-          )
-        }
-      )
-    } else {
-      accordion_panel_update('myaccordion', target = 'job_breakdown_panel',
-        "To see job breakdown statistics please pick a LSF Group or a user in the left panel"
-      )
+    condition1 <- input$time_bucket != "none"
+    condition2 <- any(input$accounting_name == deny_values) & any(input$user_name == deny_values)
+    show_time_plots <- condition1 & !condition2
+
+    shinyjs::toggle(id = "job_breakdown_column", condition = show_time_plots)
+    shinyjs::toggle(id = "job_breakdown_plot", condition = show_time_plots)
+
+    if(!show_time_plots){
+      shinycssloaders::hideSpinner(id = "job_breakdown_plot")
     }
-  })
+  }, priority = 1)
+
+  # hide/show outputs restricted for department level
+  observe({
+    deny_values <- c('', 'all')
+    condition <- any(input$accounting_name == deny_values) & any(input$user_name == deny_values)
+
+    shinyjs::toggle(id = "job_breakdown_placeholder", condition = condition)
+    shinyjs::toggle(id = "job_breakdown_help", condition = !condition)
+    shinyjs::toggle(id = "job_breakdown", condition = !condition)
+
+    if(condition){
+      shinycssloaders::hideSpinner(id = "job_breakdown")
+      shinycssloaders::hideSpinner(id = "job_breakdown_plot")
+    } else {
+      shinycssloaders::showSpinner(id = "job_breakdown")
+    }
+  }, priority = 1)
 
   # correct date
   observe({
