@@ -260,10 +260,6 @@ server <- function(input, output, session) {
     )
   })
 
-  output$adjustments_explanation <- renderText({
-    adjustments_explanation
-  })
-
   output$efficiency <- DT::renderDT({
     dt <- generate_efficiency(input, elastic_con, adjust = TRUE, query = elastic_query(), time_bucket = 'none')
     make_dt(dt, table_view_opts = 'ftp')

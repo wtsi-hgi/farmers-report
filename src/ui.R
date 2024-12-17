@@ -111,7 +111,7 @@ ui <- tagList(
 
         accordion_panel(
           "Efficiency",
-          textOutput("adjustments_explanation"),
+          p(adjustments_explanation),
           shinycssloaders::withSpinner(
             DT::DTOutput("efficiency")
           ),
