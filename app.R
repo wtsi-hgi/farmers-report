@@ -351,7 +351,7 @@ server <- function(input, output, session) {
     dt <- generate_job_statistics(df, time_bucket = input$time_bucket)
   })
 
-  timed_job_statistics_colnames <- reactive({
+  observe({
     req('job_breakdown_panel' %in% input$myaccordion)
     df <- timed_job_statistics()
 
