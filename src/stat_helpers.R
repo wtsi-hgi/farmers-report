@@ -58,7 +58,7 @@ build_user_statistics_query <- function(query, time_bucket = 'none') {
 generate_user_statistics <- function(df, adjust = TRUE, timed = FALSE) {
   dt <- generate_app_wastage_statistics(df, adjust = adjust, timed = timed)
 
-  if (!timed) {
+  if (!timed & nrow(dt) > 1) {
     dt_total <- generate_total_wastage_dt(dt)
     dt <- rbind(dt, dt_total)
   }
