@@ -145,7 +145,8 @@ server <- function(input, output, session) {
 
   per_bucket_job_failure_df <- reactive({
     if (input$accounting_name == 'all') {
-      get_job_failure_statistics(con = elastic_con, query = elastic_query(), fields = c("ACCOUNTING_NAME", "Job"))
+      get_job_failure_statistics(con = elastic_con, query = elastic_query(), fields = c("ACCOUNTING_NAME", "Job")) %>%
+        mutate(job_status = factor(job_status, levels = c('Failed', 'Success')))
     } else {
       req(input$user_name)
       if (input$user_name == 'all') {
@@ -156,7 +157,7 @@ server <- function(input, output, session) {
         df <- df %>%
           rename(accounting_name = USER_NAME) %>%
           mutate(Failed = as.integer(number_of_jobs * fail_rate),
-                Success = number_of_jobs - Failed) %>%
+                 Success = number_of_jobs - Failed) %>%
           tidyr::pivot_longer(cols = c('Success', 'Failed'), names_to = 'job_status', values_to = 'doc_count')
 
         # we need by this point: c('accounting_name', 'job_status', 'doc_count')
@@ -193,7 +194,7 @@ server <- function(input, output, session) {
     if (input$accounting_name == 'all' || input$user_name == 'all') {
       df <- per_bucket_job_failure_df()
       df %>%
-        tidyr::pivot_wider(id_cols = 'accounting_name', names_from = 'job_status', values_from = 'doc_count', values_fill = 0) %>%
+        tidyr::pivot_wider(id_cols = 'accounting_name', names_from = 'job_status', names_expand = TRUE, values_from = 'doc_count', values_fill = 0) %>%
         mutate(fail_rate = Failed / (Failed + Success)) %>%
         arrange(desc(Failed)) -> dt
       total_dt <- generate_total_failure_dt(dt)
