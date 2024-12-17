@@ -253,10 +253,10 @@ parse_job_type <- function (job_name) {
 
 get_gpu_records <- function(con, query) {
   queue_filter <- list(
-    "prefix" = list("JOB_NAME" = "gpu")
+    "prefix" = list("QUEUE_NAME" = "gpu")
   )
   query$bool$filter <- c(query$bool$filter, list(queue_filter))
-  
+
   df <- scroll_elastic(
     con = con,
     body = list(query = query),
