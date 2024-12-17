@@ -74,48 +74,58 @@ ui <- tagList(
     ),
     nav_panel(title = "Dashboard",
       accordion(
+        id = "myaccordion",
+        open = FALSE,
+
         accordion_panel(
           "Job failure statistics",
           shinycssloaders::withSpinner(
-            tagList(
               plotOutput("job_failure"),
+          ),
+          shinycssloaders::withSpinner(
+            tagList(
               plotOutput("per_bucket_job_failure"),
               DT::DTOutput("per_bucket_job_failure_table"),
-              plotOutput("job_failure_time_plot")
             )
+          ),
+          shinycssloaders::withSpinner(
+              plotOutput("job_failure_time_plot")
           ),
           value = "job_failure_panel"
         ),
+
         accordion_panel(
           "Unadjusted Efficiency",
           shinycssloaders::withSpinner(
-            tagList(
-              DT::DTOutput("unadjusted_efficiency"),
-              selectInput(
-                "unadjusted_efficiency_column", "Column to plot",
-                choices = NULL
-              ),
-              plotOutput("unadjusted_efficiency_plot")
-            )
+            DT::DTOutput("unadjusted_efficiency")
+          ),
+          selectInput(
+            "unadjusted_efficiency_column", "Column to plot",
+            choices = c("Loading..." = "")
+          ),
+          shinycssloaders::withSpinner(
+            plotOutput("unadjusted_efficiency_plot")
           ),
           value = 'unadjusted_efficiency_panel'
         ),
+
         accordion_panel(
           "Efficiency",
+          textOutput("adjustments_explanation"),
           shinycssloaders::withSpinner(
-            tagList(
-              textOutput("adjustments_explanation"),
-              DT::DTOutput("efficiency"),
-              htmlOutput("awesomeness_formula"),
-              selectInput(
-                "efficiency_column", "Column to plot",
-                choices = NULL
-              ),
-              plotOutput("efficiency_plot")
-            )
+            DT::DTOutput("efficiency")
+          ),
+          htmlOutput("awesomeness_formula"),
+          selectInput(
+            "efficiency_column", "Column to plot",
+            choices = c("Loading..." = "")
+          ),
+          shinycssloaders::withSpinner(
+            plotOutput("efficiency_plot")
           ),
           value = 'efficiency_panel'
         ),
+
         accordion_panel(
           "Job Breakdown",
           p(id = "job_breakdown_placeholder", "To see job breakdown statistics please pick a LSF Group or a user in the left panel"),
@@ -132,15 +142,23 @@ ui <- tagList(
           ),
           value = "job_breakdown_panel"
         ),
+
         accordion_panel(
           "GPU Statistics",
+          p(id = "gpu_statistics_placeholder", "To see GPU statistics please pick a LSF Group or a user in the left panel"),
           shinycssloaders::withSpinner(
             DT::DTOutput("gpu_statistics")
           ),
+          selectInput(
+            "gpu_statistics_column", "Column to plot",
+            choices = c("Loading..." = "")
+          ),
+          shinycssloaders::withSpinner(
+            plotOutput("gpu_plot")
+          ),
           value = "gpu_statistics_panel"
-        ),
-        id = "myaccordion",
-        open = FALSE
+        )
+
       )
     ),
     nav_panel(title = 'Nextflow Report',

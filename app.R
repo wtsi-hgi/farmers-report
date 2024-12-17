@@ -35,6 +35,19 @@ generate_efficiency <- function (input, con, query, adjust, time_bucket) {
   get_statistics(con, query = query, time_bucket = time_bucket, adjust = adjust)
 }
 
+update_column_to_plot <- function(input, element, choices){
+  selected <- isolate(input[[element]])
+  if(selected == "" | ! selected %in% choices) selected <- choices[1]
+
+  freezeReactiveValue(input, element)
+
+  updateSelectInput(
+    inputId = element,
+    choices = choices,
+    selected = selected
+  )
+}
+
 server <- function(input, output, session) {
   # set bom names
   observe({
@@ -197,8 +210,12 @@ server <- function(input, output, session) {
         tidyr::pivot_wider(id_cols = 'accounting_name', names_from = 'job_status', names_expand = TRUE, values_from = 'doc_count', values_fill = 0) %>%
         mutate(fail_rate = Failed / (Failed + Success)) %>%
         arrange(desc(Failed)) -> dt
-      total_dt <- generate_total_failure_dt(dt)
-      dt <- rbind(dt, total_dt)
+
+      if(nrow(dt) > 1){
+        total_dt <- generate_total_failure_dt(dt)
+        dt <- rbind(dt, total_dt)
+      }
+
       dt <- dt %>%
         mutate(
           Total = Success + Failed
@@ -210,29 +227,37 @@ server <- function(input, output, session) {
   })
 
   output$unadjusted_efficiency <-  DT::renderDT({
+    req('unadjusted_efficiency_panel' %in% input$myaccordion)
     dt <- generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), time_bucket = 'none')
     make_dt(dt, table_view_opts = 'ftp')
   })
 
   unadjusted_efficiency_timed_table <- reactive({
+    req(input$time_bucket != 'none')
+    req('unadjusted_efficiency_panel' %in% input$myaccordion)
     generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), time_bucket = input$time_bucket)
   })
 
-  unadjusted_efficiency_table_colnames <- reactive({
-    req('unadjusted_efficiency_panel' %in% input$myaccordion)
+  observe({
     df <- unadjusted_efficiency_timed_table()
+
     cols <- get_colname_options(df, exclude_columns = c('timestamp', 'accounting_name', 'USER_NAME'))
     names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
     names(cols)[grep('mem_wasted_frac', cols)] <- 'Memory Efficiency'
-    cols
+
+    update_column_to_plot(
+      input = input,
+      element = "unadjusted_efficiency_column",
+      choices = cols
+    )
   })
 
   output$unadjusted_efficiency_plot <- renderPlot({
-    if(input$time_bucket != "none")
-      generate_efficiency_plot(
-        df = unadjusted_efficiency_timed_table(),
-        column_to_plot = input$unadjusted_efficiency_column
-      )
+    req(input$unadjusted_efficiency_column)
+    generate_efficiency_plot(
+      df = unadjusted_efficiency_timed_table(),
+      column_to_plot = input$unadjusted_efficiency_column
+    )
   })
 
   output$adjustments_explanation <- renderText({
@@ -245,25 +270,31 @@ server <- function(input, output, session) {
   })
 
   efficiency_timed_table <- reactive({
+    req(input$time_bucket != "none")
     generate_efficiency(input, elastic_con, adjust = TRUE, query = elastic_query(), time_bucket = input$time_bucket)
   })
 
-  efficiency_table_colnames <- reactive({
+  observe({
     req('efficiency_panel' %in% input$myaccordion)
     df <- efficiency_timed_table()
+
     cols <- get_colname_options(df, exclude_columns = c('timestamp', 'accounting_name', 'USER_NAME'))
     names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
     names(cols)[grep('mem_wasted_frac', cols)] <- 'Memory Efficiency'
-    cols
+
+    update_column_to_plot(
+      input = input,
+      element = "efficiency_column",
+      choices = cols
+    )
   })
 
   output$efficiency_plot <- renderPlot({
-    if(input$time_bucket != "none") {
-      generate_efficiency_plot(
-        df = efficiency_timed_table(),
-        column_to_plot = input$efficiency_column
-      )
-    }
+    req(input$efficiency_column)
+    generate_efficiency_plot(
+      df = efficiency_timed_table(),
+      column_to_plot = input$efficiency_column
+    )
   })
 
   output$awesomeness_formula <- renderUI({
@@ -327,26 +358,19 @@ server <- function(input, output, session) {
   timed_job_statistics_colnames <- reactive({
     req('job_breakdown_panel' %in% input$myaccordion)
     df <- timed_job_statistics()
+
     cols <- get_colname_options(df, exclude_columns = c('date', 'job_type'))
     names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
     names(cols)[grep('mem_wasted_frac', cols)] <- 'Memory Efficiency'
-    cols
-  })
 
-  observe({
-    choices <- timed_job_statistics_colnames()
-    selected <- isolate(input$job_breakdown_column)
-    if(selected == "") selected <- choices[1]
-    freezeReactiveValue(input, "job_breakdown_column")
-    updateSelectInput(
-      inputId = "job_breakdown_column",
-      choices = choices,
-      selected = selected
+    update_column_to_plot(
+      input = input,
+      element = "job_breakdown_column",
+      choices = cols
     )
   })
 
   output$job_breakdown_plot <- renderPlot({
-    req(input$time_bucket != "none")
     req(input$job_breakdown_column)
 
     df <- timed_job_statistics()
@@ -364,18 +388,27 @@ server <- function(input, output, session) {
     }
   })
 
-  gpu_records_colnames <- reactive({
+  observe({
     req('gpu_statistics_panel' %in% input$myaccordion)
+    req(input$time_bucket != "none")
+
     df <- gpu_records()
-    get_colname_options(df, exclude_columns = c('timestamp', 'USER_NAME', 'Job', 'QUEUE_NAME', '_id'))
+    cols <- get_colname_options(df, exclude_columns = c('timestamp', 'USER_NAME', 'Job', 'QUEUE_NAME', '_id'))
+
+    update_column_to_plot(
+      input = input,
+      element = "gpu_statistics_column",
+      choices = cols
+    )
   })
 
   output$gpu_plot <- renderPlot({
-    if(input$time_bucket != "none")
-      generate_gpu_plot(
-        df = gpu_records(),
-        time_bucket = input$time_bucket,
-        metric = input$gpu_statistics_column)
+    req(input$time_bucket != "none", input$gpu_statistics_column)
+    generate_gpu_plot(
+      df = gpu_records(),
+      time_bucket = input$time_bucket,
+      metric = input$gpu_statistics_column
+    )
   })
 
   pipeline_records <- reactive({
@@ -447,163 +480,75 @@ server <- function(input, output, session) {
     generate_nextflow_plot_text("RAM", number_of_plots = length(input$nextflow_cpu_plots))
   })
 
-  observe({
-    if (input$accounting_name != 'all' || input$user_name != 'all') {
-      accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
-        shinycssloaders::withSpinner(
-          DT::DTOutput("gpu_statistics")
-        ),
-        if (input$time_bucket != "none") {
-          shinycssloaders::withSpinner(
-            tagList(
-              selectInput(
-                "gpu_statistics_column", "Column to plot",
-                choices = gpu_records_colnames(),
-                selected = isolate(input$gpu_statistics_column)
-              ),
-              plotOutput("gpu_plot")
-            )
-          )
-        }
-      )
-    } else {
-      accordion_panel_update('myaccordion', target = 'gpu_statistics_panel',
-        "To see GPU statistics please pick a LSF Group or a user in the left panel"
-      )
-    }
-  })
-
-  observe({
-    if (input$time_bucket == "none") {
-      if (input$accounting_name == 'all' || input$user_name == 'all') {
-        accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
-          shinycssloaders::withSpinner(
-            tagList(
-              plotOutput("per_bucket_job_failure"),
-              DT::DTOutput("per_bucket_job_failure_table")
-            )
-          )
-        )
-      } else {
-        accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
-          shinycssloaders::withSpinner(
-            plotOutput("job_failure")
-          )
-        )
-      }
-    } else {
-      if (input$accounting_name == 'all' || input$user_name == 'all') {
-        accordion_panel_update(id = 'myaccordion', target = 'job_failure_panel',
-          shinycssloaders::withSpinner(
-            tagList(
-              plotOutput("per_bucket_job_failure"),
-              DT::DTOutput("per_bucket_job_failure_table")
-            )
-          ),
-          shinycssloaders::withSpinner(
-            plotOutput("job_failure_time_plot")
-          )
-        )
-      } else {
-        accordion_panel_update('myaccordion', target = 'job_failure_panel',
-          shinycssloaders::withSpinner(
-            plotOutput("job_failure")
-          ),
-          shinycssloaders::withSpinner(
-            plotOutput("job_failure_time_plot")
-          )
-        )
-      }
-    }
-  })
-
-  observe({
-    if (input$time_bucket == "none") {
-      accordion_panel_update('myaccordion', target = 'unadjusted_efficiency_panel',
-        shinycssloaders::withSpinner(
-          DT::DTOutput("unadjusted_efficiency")
-        )
-      )
-    } else {
-      accordion_panel_update('myaccordion', target = 'unadjusted_efficiency_panel',
-        shinycssloaders::withSpinner(
-          DT::DTOutput("unadjusted_efficiency")
-        ),
-        shinycssloaders::withSpinner(
-          tagList(
-            selectInput(
-              "unadjusted_efficiency_column", "Column to plot",
-              choices = unadjusted_efficiency_table_colnames(),
-              selected = isolate(input$unadjusted_efficiency_column)
-            ),
-            plotOutput("unadjusted_efficiency_plot")
-          )
-        )
-      )
-    }
-  })
-
-  observe({
-    if (input$time_bucket == "none") {
-      accordion_panel_update('myaccordion', target = 'efficiency_panel',
-        shinycssloaders::withSpinner(
-          tagList(
-            DT::DTOutput("efficiency"),
-            htmlOutput("awesomeness_formula")
-          )
-        )
-      )
-    } else {
-      accordion_panel_update('myaccordion', target = 'efficiency_panel',
-        shinycssloaders::withSpinner(
-          tagList(
-            DT::DTOutput("efficiency"),
-            htmlOutput("awesomeness_formula")
-          )
-        ),
-        shinycssloaders::withSpinner(
-          tagList(
-            selectInput(
-              "efficiency_column", "Column to plot",
-              choices = efficiency_table_colnames(),
-              selected = isolate(input$efficiency_column)
-            ),
-            plotOutput("efficiency_plot")
-          )
-        )
-      )
-    }
-  })
-
   # hide/show time plots and inputs
   observe({
-    deny_values <- c('', 'all')
-    condition1 <- input$time_bucket != "none"
-    condition2 <- any(input$accounting_name == deny_values) & any(input$user_name == deny_values)
-    show_time_plots <- condition1 & !condition2
+    show_time_plots <- input$time_bucket != "none"
 
-    shinyjs::toggle(id = "job_breakdown_column", condition = show_time_plots)
-    shinyjs::toggle(id = "job_breakdown_plot", condition = show_time_plots)
+    shinyjs::toggle(id = "efficiency_column", condition = show_time_plots)
+    shinyjs::toggle(id = "efficiency_plot", condition = show_time_plots)
+    shinyjs::toggle(id = "unadjusted_efficiency_column", condition = show_time_plots)
+    shinyjs::toggle(id = "unadjusted_efficiency_plot", condition = show_time_plots)
+    shinyjs::toggle(id = "job_failure_time_plot", condition = show_time_plots)
 
     if(!show_time_plots){
-      shinycssloaders::hideSpinner(id = "job_breakdown_plot")
+      shinycssloaders::hideSpinner(id = "efficiency_plot")
+      shinycssloaders::hideSpinner(id = "unadjusted_efficiency_plot")
+      shinycssloaders::hideSpinner(id = "job_failure_time_plot")
     }
   }, priority = 1)
+
+  # hide/show outputs relevent only to user level
+  observe({
+    is_user_level <- (input$accounting_name != 'all') & (input$user_name != 'all')
+    shinyjs::toggle(id = "job_failure", condition = is_user_level)
+    shinyjs::toggle(id = "per_bucket_job_failure", condition = !is_user_level)
+    shinyjs::toggle(id = "per_bucket_job_failure_table", condition = !is_user_level)
+
+    if(is_user_level){
+      shinycssloaders::showSpinner(id = "job_failure")
+      shinycssloaders::hideSpinner(id = "per_bucket_job_failure")
+      shinycssloaders::hideSpinner(id = "per_bucket_job_failure_table")
+    } else {
+      shinycssloaders::hideSpinner(id = "job_failure")
+      shinycssloaders::showSpinner(id = "per_bucket_job_failure")
+      shinycssloaders::showSpinner(id = "per_bucket_job_failure_table")
+    }
+  })
 
   # hide/show outputs restricted for department level
   observe({
     deny_values <- c('', 'all')
-    condition <- any(input$accounting_name == deny_values) & any(input$user_name == deny_values)
+    is_bom_level <- any(input$accounting_name == deny_values) & any(input$user_name == deny_values)
 
-    shinyjs::toggle(id = "job_breakdown_placeholder", condition = condition)
-    shinyjs::toggle(id = "job_breakdown_help", condition = !condition)
-    shinyjs::toggle(id = "job_breakdown", condition = !condition)
+    shinyjs::toggle(id = "job_breakdown_placeholder", condition = is_bom_level)
+    shinyjs::toggle(id = "job_breakdown_help", condition = !is_bom_level)
+    shinyjs::toggle(id = "job_breakdown", condition = !is_bom_level)
+    shinyjs::toggle(id = "gpu_statistics_placeholder", condition = is_bom_level)
+    shinyjs::toggle(id = "gpu_statistics", condition = !is_bom_level)
 
-    if(condition){
+    if(is_bom_level){
       shinycssloaders::hideSpinner(id = "job_breakdown")
-      shinycssloaders::hideSpinner(id = "job_breakdown_plot")
+      shinycssloaders::hideSpinner(id = "gpu_statistics")
     } else {
       shinycssloaders::showSpinner(id = "job_breakdown")
+      shinycssloaders::showSpinner(id = "gpu_statistics")
+    }
+  }, priority = 1)
+
+  # hide/show time outputs restricted for department level
+  observe({
+    deny_values <- c('', 'all')
+    is_bom_level <- any(input$accounting_name == deny_values) & any(input$user_name == deny_values)
+    is_bom_level_no_bucket <- is_bom_level | (input$time_bucket == "none")
+
+    shinyjs::toggle(id = "job_breakdown_column", condition = !is_bom_level_no_bucket)
+    shinyjs::toggle(id = "job_breakdown_plot", condition = !is_bom_level_no_bucket)
+    shinyjs::toggle(id = "gpu_statistics_column", condition = !is_bom_level_no_bucket)
+    shinyjs::toggle(id = "gpu_plot", condition = !is_bom_level_no_bucket)
+
+    if(is_bom_level_no_bucket){
+      shinycssloaders::hideSpinner(id = "job_breakdown_plot")
+      shinycssloaders::hideSpinner(id = "gpu_plot")
     }
   }, priority = 1)
 
