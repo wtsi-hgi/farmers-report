@@ -4,6 +4,8 @@ loadNamespace('DT')
 loadNamespace('shinycssloaders')
 loadNamespace('shinyjs')
 
+source("src/constants.R")
+
 doc_link <- tags$a(
   shiny::icon("book"), "Docs",
   href = "https://docs.google.com/document/d/1U55kxuEJpvksGG2we_tMhzYeVLXv5YakOGNwH2Rscd8/edit?usp=sharing",

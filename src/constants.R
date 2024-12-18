@@ -23,7 +23,7 @@ $$
 "
 
 adjustments_explanation <- "
-From this accordion and on we assume that
+From here and on we assume that
 successful processes requiring 1 cpu do not waste cpu.
 "
 
