@@ -58,7 +58,7 @@ build_user_statistics_query <- function(query, time_bucket = 'none') {
 generate_user_statistics <- function(df, adjust = TRUE, timed = FALSE) {
   dt <- generate_app_wastage_statistics(df, adjust = adjust, timed = timed)
 
-  if (!timed) {
+  if (!timed & nrow(dt) > 1) {
     dt_total <- generate_total_wastage_dt(dt)
     dt <- rbind(dt, dt_total)
   }
@@ -253,10 +253,10 @@ parse_job_type <- function (job_name) {
 
 get_gpu_records <- function(con, query) {
   queue_filter <- list(
-    "prefix" = list("JOB_NAME" = "gpu")
+    "prefix" = list("QUEUE_NAME" = "gpu")
   )
   query$bool$filter <- c(query$bool$filter, list(queue_filter))
-  
+
   df <- scroll_elastic(
     con = con,
     body = list(query = query),
