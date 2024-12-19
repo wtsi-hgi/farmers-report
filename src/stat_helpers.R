@@ -189,7 +189,21 @@ assign_jupyter_job_names <- function (df, ids) {
     mutate(JOB_NAME = ifelse(`_id` %in% ids, "jupyter", JOB_NAME))
 }
 
-generate_job_statistics <- function (df, adjust_cpu = TRUE, time_bucket = 'none') {
+get_interactive_jobs <- function(con, jobs){
+  interactive_jobs <- filter(jobs, job_type == 'interactive')
+  df <- get_docs_by_ids(
+      con = con,
+      ids = interactive_jobs$`_id`,
+      timestamps = interactive_jobs$timestamp,
+      fields = c('RAW_WASTED_CPU_SECONDS', 'RAW_WASTED_MB_SECONDS')
+  )
+}
+
+generate_job_statistics <- function (df, adjust_cpu = TRUE, adjust_interactive = NULL, time_bucket = 'none') {
+  if(!is.null(adjust_interactive)){
+    df <- adjust_interactive_statistics(df, interactive_jobs = adjust_interactive)
+  }
+
   if(adjust_cpu){
     df <- adjust_statistics(df)
   }

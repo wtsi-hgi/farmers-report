@@ -240,3 +240,48 @@ test_that("prepare_commands_table works", {
 
   expect_s3_class(dt, 'gt_tbl')
 })
+
+test_that("adjust_statistics works", {
+  df <- data.frame(
+    mem_wasted_mb_sec = c(3/ram_mb_second, 2/ram_mb_second),
+    job_status = c('Success', 'Failed'),
+    cpu_wasted_sec = c(100, 200),
+    procs = c(1, 1),
+    wasted_cost = c(5, 6)
+  )
+
+  dt <- adjust_statistics(df)
+
+  expect_s3_class(dt, 'data.frame')
+  expect_equal(dt$mem_wasted_cost, c(3, 2))
+  expect_equal(dt$cpu_wasted_sec, c(0, 200))
+  expect_equal(dt$wasted_cost, c(3, 6))
+})
+
+test_that("adjust_interactive_statistics works", {
+  df <- data.frame(
+    `_id` = c('id1', 'id2', 'id3'),
+    job_type = c('interactive', 'other', 'interactive'),
+    cpu_wasted_sec = c(100, 200, 300),
+    mem_wasted_mb_sec = c(1000, 2000, 3000),
+    job_status = c('Success', 'Failed', 'Failed'),
+    check.names = FALSE
+  )
+
+  jobs <- data.frame(
+    `_id` = c('id1', 'id3'),
+    RAW_WASTED_CPU_SECONDS = c(150, 350),
+    RAW_WASTED_MB_SECONDS = c(1500, 3500),
+    check.names = FALSE
+  )
+
+  expected_df <- df
+  expected_df$cpu_wasted_sec <- c(150, 200, 350)
+  expected_df$mem_wasted_mb_sec <- c(1500, 2000, 3500)
+  expected_df$job_status <- c('Success', 'Failed', 'Success')
+
+  dt <- adjust_interactive_statistics(df, jobs)
+
+  expect_s3_class(dt, 'data.frame')
+  expect_equal(dt, expected_df)
+})

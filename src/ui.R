@@ -62,15 +62,15 @@ ui <- tagList(
               adjustments_explanation
             ),
             value = TRUE
+          ),
+          input_switch(
+            "adjust_interactive",
+            label = tooltip(
+              trigger = list("interactive jobs", shiny::icon("question-circle")),
+              "Asume that interactive jobs are always successful"
+            ),
+            value = TRUE
           )
-          # input_switch(
-          #   "adjust_interactive",
-          #   label = tooltip(
-          #     trigger = list("interactive jobs", shiny::icon("question-circle")),
-          #     "Asume that interactive jobs are always successful"
-          #   ),
-          #   value = TRUE
-          # )
         )
       ),
       conditionalPanel(
