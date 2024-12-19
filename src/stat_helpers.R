@@ -189,9 +189,12 @@ assign_jupyter_job_names <- function (df, ids) {
     mutate(JOB_NAME = ifelse(`_id` %in% ids, "jupyter", JOB_NAME))
 }
 
-generate_job_statistics <- function (df, time_bucket = 'none') {
+generate_job_statistics <- function (df, adjust_cpu = TRUE, time_bucket = 'none') {
+  if(adjust_cpu){
+    df <- adjust_statistics(df)
+  }
+
   dt <- df %>%
-    adjust_statistics() %>%
     generate_wasted_cost()
 
   if (time_bucket != 'none') {

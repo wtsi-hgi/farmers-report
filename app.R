@@ -226,48 +226,16 @@ server <- function(input, output, session) {
     }
   })
 
-  output$unadjusted_efficiency <-  DT::renderDT({
-    req('unadjusted_efficiency_panel' %in% input$myaccordion)
-    dt <- generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), time_bucket = 'none')
-    make_dt(dt, table_view_opts = 'ftp')
-  })
-
-  unadjusted_efficiency_timed_table <- reactive({
-    req(input$time_bucket != 'none')
-    req('unadjusted_efficiency_panel' %in% input$myaccordion)
-    generate_efficiency(input, elastic_con, adjust = FALSE, query = elastic_query(), time_bucket = input$time_bucket)
-  })
-
-  observe({
-    df <- unadjusted_efficiency_timed_table()
-
-    cols <- get_colname_options(df, exclude_columns = c('timestamp', 'accounting_name', 'USER_NAME'))
-    names(cols)[grep('cpu_wasted_frac', cols)] <- 'CPU Efficiency'
-    names(cols)[grep('mem_wasted_frac', cols)] <- 'Memory Efficiency'
-
-    update_column_to_plot(
-      input = input,
-      element = "unadjusted_efficiency_column",
-      choices = cols
-    )
-  })
-
-  output$unadjusted_efficiency_plot <- renderPlot({
-    req(input$unadjusted_efficiency_column)
-    generate_efficiency_plot(
-      df = unadjusted_efficiency_timed_table(),
-      column_to_plot = input$unadjusted_efficiency_column
-    )
-  })
-
   output$efficiency <- DT::renderDT({
-    dt <- generate_efficiency(input, elastic_con, adjust = TRUE, query = elastic_query(), time_bucket = 'none')
+    req('efficiency_panel' %in% input$myaccordion)
+    dt <- generate_efficiency(input, elastic_con, adjust = input$adjust_cpu, query = elastic_query(), time_bucket = 'none')
     make_dt(dt, table_view_opts = 'ftp')
   })
 
   efficiency_timed_table <- reactive({
     req(input$time_bucket != "none")
-    generate_efficiency(input, elastic_con, adjust = TRUE, query = elastic_query(), time_bucket = input$time_bucket)
+    req('efficiency_panel' %in% input$myaccordion)
+    generate_efficiency(input, elastic_con, adjust = input$adjust_cpu, query = elastic_query(), time_bucket = input$time_bucket)
   })
 
   observe({
@@ -306,7 +274,7 @@ server <- function(input, output, session) {
 
   job_breakdown <- reactive({
     df <- job_records()
-    generate_job_statistics(df)
+    generate_job_statistics(df, adjust_cpu = input$adjust_cpu)
   })
 
   output$job_breakdown <- DT::renderDT({
@@ -348,7 +316,7 @@ server <- function(input, output, session) {
   timed_job_statistics <- reactive({
     req(input$time_bucket != 'none')
     df <- job_records()
-    dt <- generate_job_statistics(df, time_bucket = input$time_bucket)
+    dt <- generate_job_statistics(df, adjust_cpu = input$adjust_cpu, time_bucket = input$time_bucket)
   })
 
   observe({

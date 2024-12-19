@@ -23,8 +23,7 @@ $$
 "
 
 adjustments_explanation <- "
-From here and on we assume that
-successful processes requiring 1 cpu do not waste cpu.
+Assume that successful processes requiring 1 cpu do not waste cpu.
 "
 
 time_buckets <- c("day", "week", "month")
