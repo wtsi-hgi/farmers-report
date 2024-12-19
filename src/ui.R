@@ -52,6 +52,25 @@ ui <- tagList(
         selectInput(
           "time_bucket", "Time Bucket",
           choices = c("none", "day", "week", "month")
+        ),
+        card(
+          card_title("Adjustments"),
+          input_switch(
+            "adjust_cpu",
+            label = tooltip(
+              trigger = list("1-CPU processes", shiny::icon("question-circle")),
+              adjustments_explanation
+            ),
+            value = TRUE
+          )
+          # input_switch(
+          #   "adjust_interactive",
+          #   label = tooltip(
+          #     trigger = list("interactive jobs", shiny::icon("question-circle")),
+          #     "Asume that interactive jobs are always successful"
+          #   ),
+          #   value = TRUE
+          # )
         )
       ),
       conditionalPanel(
@@ -97,23 +116,7 @@ ui <- tagList(
         ),
 
         accordion_panel(
-          "Unadjusted Efficiency",
-          shinycssloaders::withSpinner(
-            DT::DTOutput("unadjusted_efficiency")
-          ),
-          selectInput(
-            "unadjusted_efficiency_column", "Column to plot",
-            choices = c("Loading..." = "")
-          ),
-          shinycssloaders::withSpinner(
-            plotOutput("unadjusted_efficiency_plot")
-          ),
-          value = 'unadjusted_efficiency_panel'
-        ),
-
-        accordion_panel(
           "Efficiency",
-          p(adjustments_explanation),
           shinycssloaders::withSpinner(
             DT::DTOutput("efficiency")
           ),
