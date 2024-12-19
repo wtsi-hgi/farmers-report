@@ -268,13 +268,18 @@ server <- function(input, output, session) {
   })
 
   job_records <- reactive({
+     req('job_breakdown_panel' %in% input$myaccordion)
      req(input$accounting_name != 'all' || input$user_name != 'all')
      get_job_records(elastic_con, query = elastic_query())
   })
 
+  interactive_jobs <- reactive({
+    if(input$adjust_interactive)
+      get_interactive_jobs(elastic_con, jobs = job_records())
+  })
+
   job_breakdown <- reactive({
-    df <- job_records()
-    generate_job_statistics(df, adjust_cpu = input$adjust_cpu)
+    generate_job_statistics(df = job_records(), adjust_cpu = input$adjust_cpu, adjust_interactive = interactive_jobs())
   })
 
   output$job_breakdown <- DT::renderDT({
@@ -315,12 +320,15 @@ server <- function(input, output, session) {
 
   timed_job_statistics <- reactive({
     req(input$time_bucket != 'none')
-    df <- job_records()
-    dt <- generate_job_statistics(df, adjust_cpu = input$adjust_cpu, time_bucket = input$time_bucket)
+    generate_job_statistics(
+      df = job_records(),
+      adjust_cpu = input$adjust_cpu,
+      adjust_interactive = interactive_jobs(),
+      time_bucket = input$time_bucket
+    )
   })
 
   observe({
-    req('job_breakdown_panel' %in% input$myaccordion)
     df <- timed_job_statistics()
 
     cols <- get_colname_options(df, exclude_columns = c('date', 'job_type'))

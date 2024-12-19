@@ -67,6 +67,18 @@ adjust_statistics <- function (df) {
   return(df)
 }
 
+adjust_interactive_statistics <- function (df, interactive_jobs) {
+  is_interactive <- df$job_type == 'interactive'
+  df %>%
+    left_join(interactive_jobs, by = '_id') %>%
+    mutate(
+      cpu_wasted_sec = ifelse(is_interactive, RAW_WASTED_CPU_SECONDS, cpu_wasted_sec),
+      mem_wasted_mb_sec = ifelse(is_interactive, RAW_WASTED_MB_SECONDS, mem_wasted_mb_sec),
+      job_status = ifelse(is_interactive, 'Success', job_status)
+    ) %>%
+    select(-c('RAW_WASTED_CPU_SECONDS', 'RAW_WASTED_MB_SECONDS'))
+}
+
 generate_wasted_cost <- function (df) {
   df %>%
     mutate(
