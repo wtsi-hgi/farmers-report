@@ -362,6 +362,8 @@ get_docs_by_ids <- function (con, ids, timestamps, fields = NULL) {
     source = fields
   )
 
+  ids <- purrr::map_chr(res$docs, magrittr::extract2, i = '_id')
   lapply(res$docs, magrittr::extract2, i = '_source') %>%
-    dplyr::bind_rows()
+    dplyr::bind_rows() %>%
+    mutate(`_id` = ids)
 }
