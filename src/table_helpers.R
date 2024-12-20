@@ -213,6 +213,7 @@ generate_efficiency_stats <- function(df, extra_stats = list()) {
 
 prepare_commands_table <- function (df) {
   df %>%
+    select(-`_id`) %>%
     mutate(MEM_REQUESTED = convert_bytes(MEM_REQUESTED_MB, from = 'mb', to = 'b'), .keep = 'unused') %>%
     rename(RUN_TIME = RUN_TIME_SEC) %>%
     gt::gt() %>%

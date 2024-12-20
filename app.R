@@ -227,19 +227,19 @@ server <- function(input, output, session) {
   })
 
   output$efficiency <- DT::renderDT({
-    req('efficiency_panel' %in% input$myaccordion)
+    req('efficiency_panel' %in% isolate(input$myaccordion))
     dt <- generate_efficiency(input, elastic_con, adjust = input$adjust_cpu, query = elastic_query(), time_bucket = 'none')
     make_dt(dt, table_view_opts = 'ftp')
   })
 
   efficiency_timed_table <- reactive({
     req(input$time_bucket != "none")
-    req('efficiency_panel' %in% input$myaccordion)
+    req('efficiency_panel' %in% isolate(input$myaccordion))
     generate_efficiency(input, elastic_con, adjust = input$adjust_cpu, query = elastic_query(), time_bucket = input$time_bucket)
   })
 
   observe({
-    req('efficiency_panel' %in% input$myaccordion)
+    req('efficiency_panel' %in% isolate(input$myaccordion))
     df <- efficiency_timed_table()
 
     cols <- get_colname_options(df, exclude_columns = c('timestamp', 'accounting_name', 'USER_NAME'))
@@ -268,7 +268,7 @@ server <- function(input, output, session) {
   })
 
   job_records <- reactive({
-     req('job_breakdown_panel' %in% input$myaccordion)
+     req('job_breakdown_panel' %in% isolate(input$myaccordion))
      req(input$accounting_name != 'all' || input$user_name != 'all')
      get_job_records(elastic_con, query = elastic_query())
   })
@@ -361,7 +361,7 @@ server <- function(input, output, session) {
   })
 
   observe({
-    req('gpu_statistics_panel' %in% input$myaccordion)
+    req('gpu_statistics_panel' %in% isolate(input$myaccordion))
     req(input$time_bucket != "none")
 
     df <- gpu_records()

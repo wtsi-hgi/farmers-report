@@ -191,6 +191,7 @@ assign_jupyter_job_names <- function (df, ids) {
 
 get_interactive_jobs <- function(con, jobs){
   interactive_jobs <- filter(jobs, job_type == 'interactive')
+  if(nrow(interactive_jobs) == 0) return(NULL)
   df <- get_docs_by_ids(
       con = con,
       ids = interactive_jobs$`_id`,
