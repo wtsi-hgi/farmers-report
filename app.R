@@ -494,6 +494,7 @@ server <- function(input, output, session) {
 
     shinyjs::toggle(id = "job_breakdown_placeholder", condition = is_bom_level)
     shinyjs::toggle(id = "job_breakdown_help", condition = !is_bom_level)
+    shinyjs::toggle(id = "adjust_interactive", condition = !is_bom_level)
     shinyjs::toggle(id = "job_breakdown", condition = !is_bom_level)
     shinyjs::toggle(id = "gpu_statistics_placeholder", condition = is_bom_level)
     shinyjs::toggle(id = "gpu_statistics", condition = !is_bom_level)

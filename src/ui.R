@@ -62,14 +62,6 @@ ui <- tagList(
               adjustments_explanation
             ),
             value = TRUE
-          ),
-          input_switch(
-            "adjust_interactive",
-            label = tooltip(
-              trigger = list("interactive jobs", shiny::icon("question-circle")),
-              "Asume that interactive jobs are always successful"
-            ),
-            value = TRUE
           )
         )
       ),
@@ -135,6 +127,14 @@ ui <- tagList(
           "Job Breakdown",
           p(id = "job_breakdown_placeholder", "To see job breakdown statistics please pick a LSF Group or a user in the left panel"),
           p(id = "job_breakdown_help", shiny::icon("question-circle"), "Click on a job type name to see examples of those jobs"),
+          input_switch(
+            "adjust_interactive",
+            label = tooltip(
+              trigger = list("adjust interactive jobs", shiny::icon("question-circle")),
+              "Asume that interactive jobs are always successful"
+            ),
+            value = FALSE
+          ),
           shinycssloaders::withSpinner(
             DT::DTOutput("job_breakdown")
           ),
