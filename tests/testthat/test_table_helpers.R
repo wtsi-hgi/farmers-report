@@ -228,12 +228,14 @@ test_that("convert functions work", {
 # TODO improve test
 test_that("prepare_commands_table works", {
   df <- data.frame(
+    `_id` = c(1, 2),
     MEM_REQUESTED_MB = c(1000, 2000),
     RUN_TIME_SEC = c(10, 100),
     Command = c('rstudio', 'bash'),
     Job_Efficiency_Raw_Percent = c(20, 30),
     RAW_MAX_MEM_EFFICIENCY_PERCENT = c(10, 20),
-    Job = c('Success', 'Failed')
+    Job = c('Success', 'Failed'),
+    check.names = FALSE
   )
 
   dt <- prepare_commands_table(df)
