@@ -1,11 +1,15 @@
 library(dplyr)
 
+loadNamespace('data.table')
+loadNamespace('httr')
+loadNamespace('purrr')
+loadNamespace('stringr')
+loadNamespace('tidyr')
+loadNamespace('yyjsonr')
+
 source("src/constants.R")
 source("src/logging.R")
 source('src/timeseries_helpers.R')
-loadNamespace('tidyr')
-loadNamespace('stringr')
-loadNamespace('purrr')
 
 rename_raw_elastic_fields <- function (df, map = elastic_column_map) {
   rename(df, any_of(map))
@@ -329,17 +333,73 @@ elastic_search <- function (...){
   Search(...)
 }
 
+send_elastic_scroll <- function(conn, index, source, body, time_scroll, size){
+  res <- httr::POST(
+    httr::authenticate(conn$user, conn$pwd),
+    url = httr::modify_url(
+      url = conn$make_url(),
+      path = paste(index, "_search", sep = "/"),
+      query = list(
+        '_source' = paste(source, collapse = ","),
+        scroll = time_scroll,
+        track_total_hits = TRUE,
+        size = size
+      )
+    ),
+    body = body,
+    encode = 'json'
+  )
+
+  if(httr::http_error(res)) stop(httr::content(res))
+  httr::content(res, as = 'raw')
+}
+
+fast_elastic_search <- function(...){
+  log_request(...)
+  # t1 <- Sys.time()
+  res <- send_elastic_scroll(...)
+  # t2 <- Sys.time()
+  res <- yyjsonr::read_json_raw(res, opts = list(int64 = "double"))
+  # t3 <- Sys.time()
+  res$hits$hits <- cbind(
+    '_id' = res$hits$hits$`_id`,
+    data.table::rbindlist(res$hits$hits$`_source`)
+  )
+  # t4 <- Sys.time()
+  # message("Time taken (httr request): ", t2 - t1)
+  # message("Time taken (json parser raw): ", t3 - t2)
+  # message("Time taken (table binder): ", t4 - t3)
+  return(res)
+}
+
 scroll_elastic <- function(con, body, fields) {
-  res <- elastic_search(
-    con,
+  # browser()
+  # t1 <- Sys.time()
+  # res <- elastic_search(
+  #   con,
+  #   index = attr(con, 'index'),
+  #   time_scroll="1m",
+  #   source = fields,
+  #   body = body,
+  #   asdf = T,
+  #   size = 10000
+  # )
+  # df <- pull_everything(con, res)
+  # t2 <- Sys.time()
+  # message("Time taken (elastic parser): ", t2 - t1)
+
+  t1 <- Sys.time()
+  res <- fast_elastic_search(
+    conn = con,
     index = attr(con, 'index'),
     time_scroll="1m",
     source = fields,
     body = body,
-    asdf = T,
     size = 10000
   )
   df <- pull_everything(con, res)
+  t2 <- Sys.time()
+  message("Time taken (custom parser 1): ", t2 - t1)
 
   if(nrow(df) == 0)
     df <- mutate(df, !!!sapply(fields, c))
