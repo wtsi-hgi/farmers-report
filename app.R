@@ -350,6 +350,7 @@ server <- function(input, output, session) {
   })
 
   gpu_records <- reactive({
+    req('gpu_statistics_panel' %in% isolate(input$myaccordion))
     get_gpu_records(elastic_con, query = elastic_query())
   })
 
@@ -361,7 +362,6 @@ server <- function(input, output, session) {
   })
 
   observe({
-    req('gpu_statistics_panel' %in% isolate(input$myaccordion))
     req(input$time_bucket != "none")
 
     df <- gpu_records()
