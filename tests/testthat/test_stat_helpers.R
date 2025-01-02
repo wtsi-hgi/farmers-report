@@ -214,12 +214,14 @@ test_that("generate_job_statistics works", {
 })
 
 test_that("parse_job_type works", {
-  expect_equal(parse_job_type("nf-NFCORE-HELLOWORLD"), "nextflow")
-  expect_equal(parse_job_type("wrp_c842dac"), "wr")
-  expect_equal(parse_job_type("bsub rstudio user ip13"), "interactive")
-  expect_equal(parse_job_type("cromwell_ffe311a3_auto_ccs_outputs_barcoded"), "cromwell")
-  expect_equal(parse_job_type("jupyter"), "interactive")
-  expect_equal(parse_job_type(""), "other")
+  job_names <- c(
+    "nf-NFCORE-HELLOWORLD", "wrp_c842dac", "bsub rstudio user ip13",
+    "cromwell_ffe311a3_auto_ccs_outputs_barcoded", "jupyter", ""
+  )
+
+  job_types <- c("nextflow", "wr", "interactive", "cromwell", "interactive", "other")
+
+  expect_equal(parse_job_type(job_names), job_types)
 })
 
 test_that("generate_gpu_statistics works", {
