@@ -164,7 +164,7 @@ prepare_job_records <- function (df) {
   df %>%
     mutate(timestamp = lubridate::as_datetime(timestamp)) %>%
     rename_raw_elastic_fields() %>%
-    mutate(job_type = purrr::map_chr(job_name, parse_job_type), .keep = 'unused')
+    mutate(job_type = parse_job_type(job_name), .keep = 'unused')
 }
 
 annotate_jupyter_jobs <- function (df, con, query) {
@@ -253,20 +253,15 @@ get_job_failure_statistics <- function(con, query, fields, time_bucket = "none")
   return(df)
 }
 
-parse_job_type <- function (job_name) {
-  if (startsWith(job_name, "nf-"))
-    return('nextflow')
-
-  if (startsWith(job_name, 'wrp_'))
-    return('wr')
-
-  if (any(startsWith(job_name, c('bsub rstudio', 'jupyter'))))
-    return('interactive')
-
-  if (startsWith(job_name, 'cromwell'))
-    return('cromwell')
-
-  return('other')
+parse_job_type <- function(job_names) {
+  dplyr::case_when(
+    startsWith(job_names, "nf-") ~ "nextflow",
+    startsWith(job_names, "wrp_") ~ "wr",
+    startsWith(job_names, "bsub rstudio") ~ "interactive",
+    startsWith(job_names, "jupyter") ~ "interactive",
+    startsWith(job_names, "cromwell") ~ "cromwell",
+    .default = "other"
+  )
 }
 
 get_gpu_records <- function(con, query) {
