@@ -458,3 +458,72 @@ test_that("get_numerical_colnames", {
 
   expect_equal(test_colnames, character(0))
 })
+
+# test_that("elastic_search works", {
+#   mockery::stub(elastic_search, "Search", 100)
+#   result <- elastic_search()
+#
+#   expect_type(result, 'list')
+#   expect_equal(result$mocked, TRUE)
+# })
+
+test_that("fast_elastic_search works", {
+  result <- mockthat::with_mock(
+    fast_elastic_search(),
+    send_elastic_scroll = function (...)
+      charToRaw(
+        jsonlite::toJSON(
+          list(
+            hits = list(
+              hits = list(
+                list(
+                  `_id` = 1,
+                  `_source` = list(
+                    BOM = "Human Genetics",
+                    RAW_WASTED_MB_SECONDS = 2547391490
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+  )
+
+  expect_type(result, 'list')
+  expect_s3_class(result$hits$hits, 'data.frame')
+  expect_named(result$hits$hits, c('_id', 'BOM', 'RAW_WASTED_MB_SECONDS'))
+  expect_type(result$hits$hits$RAW_WASTED_MB_SECONDS, 'double')
+})
+
+fake_elastic_response <- charToRaw(
+        jsonlite::toJSON(
+          list(
+            hits = list(
+              total = list(
+                value = 1
+              ),
+              hits = list(
+                list(
+                  `_id` = 1,
+                  `_source` = list(
+                    JOB_NAME = "rstudio bsub"
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+
+
+test_that("scroll_elastic works", {
+  con <- structure(list(), class = 'Elasticsearch', index = 'test-index-*')
+
+  mockery::stub(fast_elastic_search, "send_elastic_scroll", fake_elastic_response, depth = 2)
+  mockery::stub(pull_everything, "elastic::scroll_clear", TRUE, depth = 4)
+
+  result <- scroll_elastic(con, body = list(), fields = c('JOB_NAME'))
+  expect_s3_class(result, 'data.frame')
+
+})
