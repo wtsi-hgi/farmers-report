@@ -1,11 +1,16 @@
 library(dplyr)
+library(elastic)
+
+loadNamespace('data.table')
+loadNamespace('httr')
+loadNamespace('purrr')
+loadNamespace('stringr')
+loadNamespace('tidyr')
+loadNamespace('yyjsonr')
 
 source("src/constants.R")
 source("src/logging.R")
 source('src/timeseries_helpers.R')
-loadNamespace('tidyr')
-loadNamespace('stringr')
-loadNamespace('purrr')
 
 rename_raw_elastic_fields <- function (df, map = elastic_column_map) {
   rename(df, any_of(map))
@@ -329,20 +334,51 @@ elastic_search <- function (...){
   Search(...)
 }
 
+send_elastic_scroll <- function(conn, index, source, body, time_scroll, size){
+  res <- httr::POST(
+    httr::authenticate(conn$user, conn$pwd),
+    url = httr::modify_url(
+      url = conn$make_url(),
+      path = paste(index, "_search", sep = "/"),
+      query = list(
+        '_source' = paste(source, collapse = ","),
+        scroll = time_scroll,
+        track_total_hits = TRUE,
+        size = size
+      )
+    ),
+    body = body,
+    encode = 'json'
+  )
+
+  if(httr::http_error(res)) stop(httr::content(res))
+  httr::content(res, as = 'raw')
+}
+
+fast_elastic_search <- function(...){
+  log_request(...)
+  res <- send_elastic_scroll(...)
+  res <- yyjsonr::read_json_raw(res, opts = list(int64 = "double"))
+  res$hits$hits <- cbind(
+    '_id' = res$hits$hits$`_id`,
+    data.table::rbindlist(res$hits$hits$`_source`)
+  )
+  return(res)
+}
+
 scroll_elastic <- function(con, body, fields) {
-  res <- elastic_search(
-    con,
+  res <- fast_elastic_search(
+    conn = con,
     index = attr(con, 'index'),
     time_scroll="1m",
     source = fields,
     body = body,
-    asdf = T,
     size = 10000
   )
   df <- pull_everything(con, res)
 
   if(nrow(df) == 0)
-    df <- mutate(df, !!!sapply(fields, c))
+    df <- mutate(df, `_id` = character(), !!!sapply(fields, c))
 
   numerical_columns <- get_numerical_colnames(df)
 
@@ -364,6 +400,6 @@ get_docs_by_ids <- function (con, ids, timestamps, fields = NULL) {
 
   ids <- purrr::map_chr(res$docs, magrittr::extract2, i = '_id')
   lapply(res$docs, magrittr::extract2, i = '_source') %>%
-    dplyr::bind_rows() %>%
+    data.table::rbindlist() %>%
     mutate(`_id` = ids)
 }

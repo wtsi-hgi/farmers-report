@@ -1,13 +1,16 @@
 bslib==0.7.0
 covr==3.6.4
+data.table==1.15.4
 dplyr==1.1.4
 DT==0.32
 elastic==1.2.0
 ggplot2==3.4.4
 ggrepel==0.9.5
 gt==0.10.1
+httr==1.4.7
 knitr==1.45
 logging==0.10-108
+purrr==1.0.2
 rmarkdown==2.25
 shiny==1.8.1.1
 shinycssloaders==1.1.0
@@ -16,3 +19,4 @@ stringr==1.5.1
 testthat==3.2.1
 tidyr==1.3.1
 tsibble==1.1.4
+yyjsonr==0.1.18
