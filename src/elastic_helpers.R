@@ -1,4 +1,5 @@
 library(dplyr)
+library(elastic)
 
 loadNamespace('data.table')
 loadNamespace('httr')
@@ -356,39 +357,16 @@ send_elastic_scroll <- function(conn, index, source, body, time_scroll, size){
 
 fast_elastic_search <- function(...){
   log_request(...)
-  # t1 <- Sys.time()
   res <- send_elastic_scroll(...)
-  # t2 <- Sys.time()
   res <- yyjsonr::read_json_raw(res, opts = list(int64 = "double"))
-  # t3 <- Sys.time()
   res$hits$hits <- cbind(
     '_id' = res$hits$hits$`_id`,
     data.table::rbindlist(res$hits$hits$`_source`)
   )
-  # t4 <- Sys.time()
-  # message("Time taken (httr request): ", t2 - t1)
-  # message("Time taken (json parser raw): ", t3 - t2)
-  # message("Time taken (table binder): ", t4 - t3)
   return(res)
 }
 
 scroll_elastic <- function(con, body, fields) {
-  # browser()
-  # t1 <- Sys.time()
-  # res <- elastic_search(
-  #   con,
-  #   index = attr(con, 'index'),
-  #   time_scroll="1m",
-  #   source = fields,
-  #   body = body,
-  #   asdf = T,
-  #   size = 10000
-  # )
-  # df <- pull_everything(con, res)
-  # t2 <- Sys.time()
-  # message("Time taken (elastic parser): ", t2 - t1)
-
-  t1 <- Sys.time()
   res <- fast_elastic_search(
     conn = con,
     index = attr(con, 'index'),
@@ -398,8 +376,6 @@ scroll_elastic <- function(con, body, fields) {
     size = 10000
   )
   df <- pull_everything(con, res)
-  t2 <- Sys.time()
-  message("Time taken (custom parser 1): ", t2 - t1)
 
   if(nrow(df) == 0)
     df <- mutate(df, !!!sapply(fields, c))
@@ -424,6 +400,6 @@ get_docs_by_ids <- function (con, ids, timestamps, fields = NULL) {
 
   ids <- purrr::map_chr(res$docs, magrittr::extract2, i = '_id')
   lapply(res$docs, magrittr::extract2, i = '_source') %>%
-    dplyr::bind_rows() %>%
+    data.table::rbindlist() %>%
     mutate(`_id` = ids)
 }
