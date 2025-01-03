@@ -378,7 +378,7 @@ scroll_elastic <- function(con, body, fields) {
   df <- pull_everything(con, res)
 
   if(nrow(df) == 0)
-    df <- mutate(df, !!!sapply(fields, c))
+    df <- mutate(df, `_id` = character(), !!!sapply(fields, c))
 
   numerical_columns <- get_numerical_colnames(df)
 

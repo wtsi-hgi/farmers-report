@@ -232,14 +232,17 @@ server <- function(input, output, session) {
     make_dt(dt, table_view_opts = 'ftp')
   })
 
-  efficiency_timed_table <- reactive({
+  efficiency_timed_table_cache <- reactive({
     req(input$time_bucket != "none")
-    req('efficiency_panel' %in% isolate(input$myaccordion))
     generate_efficiency(input, elastic_con, adjust = input$adjust_cpu, query = elastic_query(), time_bucket = input$time_bucket)
   })
 
+  efficiency_timed_table <- reactive({
+    req('efficiency_panel' %in% input$myaccordion)
+    efficiency_timed_table_cache()
+  })
+
   observe({
-    req('efficiency_panel' %in% isolate(input$myaccordion))
     df <- efficiency_timed_table()
 
     cols <- get_colname_options(df, exclude_columns = c('timestamp', 'accounting_name', 'USER_NAME'))
@@ -267,10 +270,14 @@ server <- function(input, output, session) {
     }
   })
 
+  job_records_cache <- reactive({
+    req(input$accounting_name != 'all' || input$user_name != 'all')
+    get_job_records(elastic_con, query = elastic_query())
+  })
+
   job_records <- reactive({
-     req('job_breakdown_panel' %in% isolate(input$myaccordion))
-     req(input$accounting_name != 'all' || input$user_name != 'all')
-     get_job_records(elastic_con, query = elastic_query())
+     req('job_breakdown_panel' %in% input$myaccordion)
+     job_records_cache()
   })
 
   interactive_jobs <- reactive({
@@ -349,9 +356,14 @@ server <- function(input, output, session) {
     generate_efficiency_plot(df, column_to_plot = input$job_breakdown_column)
   })
 
-  gpu_records <- reactive({
-    req('gpu_statistics_panel' %in% isolate(input$myaccordion))
+  gpu_records_cache <- reactive({
+    req((input$accounting_name != 'all' || input$user_name != 'all'))
     get_gpu_records(elastic_con, query = elastic_query())
+  })
+
+  gpu_records <- reactive({
+    req('gpu_statistics_panel' %in% input$myaccordion)
+    gpu_records_cache()
   })
 
   output$gpu_statistics <- DT::renderDT({
@@ -362,8 +374,6 @@ server <- function(input, output, session) {
   })
 
   observe({
-    req(input$time_bucket != "none")
-
     df <- gpu_records()
     cols <- get_colname_options(df, exclude_columns = c('timestamp', 'USER_NAME', 'Job', 'QUEUE_NAME', '_id'))
 
@@ -458,13 +468,10 @@ server <- function(input, output, session) {
 
     shinyjs::toggle(id = "efficiency_column", condition = show_time_plots)
     shinyjs::toggle(id = "efficiency_plot", condition = show_time_plots)
-    shinyjs::toggle(id = "unadjusted_efficiency_column", condition = show_time_plots)
-    shinyjs::toggle(id = "unadjusted_efficiency_plot", condition = show_time_plots)
     shinyjs::toggle(id = "job_failure_time_plot", condition = show_time_plots)
 
     if(!show_time_plots){
       shinycssloaders::hideSpinner(id = "efficiency_plot")
-      shinycssloaders::hideSpinner(id = "unadjusted_efficiency_plot")
       shinycssloaders::hideSpinner(id = "job_failure_time_plot")
     }
   }, priority = 1)
