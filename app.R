@@ -356,6 +356,37 @@ server <- function(input, output, session) {
     generate_efficiency_plot(df, column_to_plot = input$job_breakdown_column)
   })
 
+  debounced_command_pattern <- reactive({
+    shiny::validate(
+      need(nchar(input$command_pattern) >= 5, "Please enter at least 5 characters")
+    )
+    return(input$command_pattern)
+  }) %>% debounce(1500)
+
+  command_records <- reactive({
+    get_command_records(
+      con = elastic_con,
+      query = elastic_query(),
+      command_pattern = debounced_command_pattern()
+    )
+  })
+
+  output$command_cpu_efficiency_plot <- renderPlot({
+    df <- mutate(command_records(), step = debounced_command_pattern())
+    shiny::validate(
+      need(nrow(df) > 0, "No records found for the given command pattern")
+    )
+    generate_nextflow_cpu_plots(df, steps = debounced_command_pattern())
+  })
+
+  output$command_mem_efficiency_plot <- renderPlot({
+    df <- mutate(command_records(), step = debounced_command_pattern())
+    shiny::validate(
+      need(nrow(df) > 0, "No records found for the given command pattern")
+    )
+    generate_nextflow_mem_plots(df, steps = debounced_command_pattern())
+  })
+
   gpu_records_cache <- reactive({
     req((input$accounting_name != 'all' || input$user_name != 'all'))
     get_gpu_records(elastic_con, query = elastic_query())
@@ -394,11 +425,14 @@ server <- function(input, output, session) {
   })
 
   pipeline_records <- reactive({
-      get_pipeline_records(
-        elastic_con,
-        query = elastic_query(),
-        pipeline_name = input$pipeline_name
-      )
+    shiny::validate(
+      need(input$pipeline_name, "Please select a pipeline name from the left control panel.")
+    )
+    get_pipeline_records(
+      elastic_con,
+      query = elastic_query(),
+      pipeline_name = input$pipeline_name
+    )
   })
 
   output$nextflow_step_freq <- DT::renderDT({

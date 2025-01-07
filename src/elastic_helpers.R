@@ -25,12 +25,23 @@ format_elastic_date_range <- function(date_range) {
   strftime(date_range, format = "%Y-%m-%dT%H:%M:%SZ")
 }
 
+build_elastic_filter <- function (keyword, field, value) {
+  l1 <- list()
+  l1[[field]] <- value
+
+  l2 <- list()
+  l2[[keyword]] <- l1
+
+  l3 <- list(l2)
+  return(l3)
+}
+
 build_match_phrase_filter <- function (field, value) {
-  list(
-    list(
-      "match_phrase" = as.list(setNames(value, field))
-    )
-  )
+  build_elastic_filter("match_phrase", field, value)
+}
+
+build_prefix_filter <- function (field, value) {
+  build_elastic_filter("prefix", field, value)
 }
 
 build_humgen_filters <- function (
@@ -378,12 +389,13 @@ scroll_elastic <- function(con, body, fields) {
   df <- pull_everything(con, res)
 
   if(nrow(df) == 0)
-    df <- mutate(df, `_id` = character(), !!!sapply(fields, c))
+    df <- mutate(df, `_id` = character(), !!!setNames(logical(length(fields)), fields))
 
   numerical_columns <- get_numerical_colnames(df)
+  df <- mutate(df, across(all_of(numerical_columns), ~ tidyr::replace_na(., 0)))
 
-  df <- df %>% 
-    mutate(across(all_of(numerical_columns), ~ tidyr::replace_na(., 0)))
+  if('timestamp' %in% fields)
+    df$timestamp <- lubridate::as_datetime(df$timestamp)
 
   return(df)
 }

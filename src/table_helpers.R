@@ -231,6 +231,20 @@ prepare_commands_table <- function (df) {
     gt::cols_move_to_start(Job)
 }
 
+prepare_raw_stats_records <- function (df) {
+  df %>%
+    filter(AVAIL_CPU_TIME_SEC > 0) %>%
+    mutate(
+      RUN_TIME_SEC = MEM_REQUESTED_MB_SEC / MEM_REQUESTED_MB,
+      Job_Efficiency = (AVAIL_CPU_TIME_SEC - WASTED_CPU_SECONDS) / AVAIL_CPU_TIME_SEC,
+      Memory_Efficiency = (MEM_REQUESTED_MB_SEC - WASTED_MB_SECONDS) / MEM_REQUESTED_MB_SEC,
+      MAX_MEM_USAGE_MB = (MEM_REQUESTED_MB_SEC - WASTED_MB_SECONDS) / RUN_TIME_SEC,
+      mem_avail_gb = convert_bytes(MEM_REQUESTED_MB, from = 'mb', to = 'gb'),
+      .keep = 'unused'
+    ) %>%
+    rename_raw_elastic_fields()
+}
+
 get_colname_options <- function(df, exclude_columns) {
   cols <- colnames(df)
   cols <- setdiff(cols, exclude_columns)

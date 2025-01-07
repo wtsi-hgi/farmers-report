@@ -116,6 +116,8 @@ test_that("generate_nextflow_mem_efficiency works", {
 })
 
 test_that("get_pipeline_records with no pipeline_name gives correct columns", {
+  skip("Need to mock elastic call to run this test.")
+
   dry_run_table <- get_pipeline_records(pipeline_name = "")
   expected <- data.frame(
     step = character(),
