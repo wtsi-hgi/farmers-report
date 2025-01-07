@@ -57,7 +57,7 @@ parse_nextflow_step <- function(job_names, pipeline_name) {
 
 get_records <- function (con, query, prefix, fields) {
   job_name_filter <- build_prefix_filter("JOB_NAME", prefix)
-  query$bool$filter <- c(query$bool$filter, job_name_filter)
+  query$bool$filter <- append(query$bool$filter, job_name_filter)
 
   df <- scroll_elastic(
     con = con,

@@ -152,14 +152,12 @@ ui <- tagList(
           "Command Statistics",
           textInput(
             "command_pattern",
-            "Type command substring to see stattistics for all jobs containing this substring",
+            "Type command substring to see statistics for all jobs containing this substring",
             width = '600px', placeholder = "python my_script.py"
           ),
-          shinycssloaders::withSpinner(
-            layout_columns(
-              plotOutput("command_cpu_efficiency_plot"),
-              plotOutput("command_mem_efficiency_plot")
-            )
+          layout_columns(
+            shinycssloaders::withSpinner(plotOutput("command_cpu_efficiency_plot")),
+            shinycssloaders::withSpinner(plotOutput("command_mem_efficiency_plot"))
           )
         ),
 

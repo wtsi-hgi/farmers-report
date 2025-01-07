@@ -372,19 +372,21 @@ server <- function(input, output, session) {
   })
 
   output$command_cpu_efficiency_plot <- renderPlot({
-    df <- mutate(command_records(), step = debounced_command_pattern())
+    df <- mutate(command_records(), step = 'command')
     shiny::validate(
-      need(nrow(df) > 0, "No records found for the given command pattern")
+      need(nrow(df) > 0, "No records found for the given command pattern"),
+      need(any(df$job_status == 'Success'), "No successful jobs found for the given command pattern")
     )
-    generate_nextflow_cpu_plots(df, steps = debounced_command_pattern())
+    generate_nextflow_cpu_plots(df, steps = 'command')
   })
 
   output$command_mem_efficiency_plot <- renderPlot({
-    df <- mutate(command_records(), step = debounced_command_pattern())
+    df <- mutate(command_records(), step = 'command')
     shiny::validate(
-      need(nrow(df) > 0, "No records found for the given command pattern")
+      need(nrow(df) > 0, "No records found for the given command pattern"),
+      need(any(df$job_status == 'Success'), "No successful jobs found for the given command pattern")
     )
-    generate_nextflow_mem_plots(df, steps = debounced_command_pattern())
+    generate_nextflow_mem_plots(df, steps = 'command')
   })
 
   gpu_records_cache <- reactive({
