@@ -356,14 +356,10 @@ server <- function(input, output, session) {
     generate_efficiency_plot(df, column_to_plot = input$job_breakdown_column)
   })
 
-  debounced_command_pattern <- reactive({
-    shiny::validate(
-      need(nchar(input$command_pattern) >= 5, "Please enter at least 5 characters")
-    )
-    return(input$command_pattern)
-  }) %>% debounce(1500)
+  debounced_command_pattern <- reactive(input$command_pattern) %>% debounce(2000)
 
   command_records <- reactive({
+    req(nchar(debounced_command_pattern()) >= 5)
     get_command_records(
       con = elastic_con,
       query = elastic_query(),
@@ -372,21 +368,28 @@ server <- function(input, output, session) {
   })
 
   output$command_cpu_efficiency_plot <- renderPlot({
+    shiny::validate(  # replace validatation to shinyvalidate eventually
+      need(nchar(debounced_command_pattern()) >= 5, "Please enter at least 5 characters"),
+    )
+
     df <- mutate(command_records(), step = 'command')
     shiny::validate(
-      need(nrow(df) > 0, "No records found for the given command pattern"),
       need(any(df$job_status == 'Success'), "No successful jobs found for the given command pattern")
     )
+
     generate_nextflow_cpu_plots(df, steps = 'command')
   })
 
   output$command_mem_efficiency_plot <- renderPlot({
     df <- mutate(command_records(), step = 'command')
-    shiny::validate(
-      need(nrow(df) > 0, "No records found for the given command pattern"),
-      need(any(df$job_status == 'Success'), "No successful jobs found for the given command pattern")
-    )
+    req(any(df$job_status == 'Success'))
     generate_nextflow_mem_plots(df, steps = 'command')
+  })
+
+  output$command_pattern_count <- renderText({
+    total <- nrow(command_records())
+    success <- nrow(filter(command_records(), job_status == 'Success'))
+    paste(success, "/", total)
   })
 
   gpu_records_cache <- reactive({

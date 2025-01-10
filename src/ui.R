@@ -150,10 +150,18 @@ ui <- tagList(
 
         accordion_panel(
           "Command Statistics",
-          textInput(
-            "command_pattern",
-            "Type command substring to see statistics for all jobs containing this substring",
-            width = '600px', placeholder = "python my_script.py"
+          layout_column_wrap(
+            textInput(
+              "command_pattern",
+              "Type command substring to see statistics for all jobs containing this substring",
+              placeholder = "python my_script.py"
+            ),
+            value_box(
+              title = "Number of records",
+              value = textOutput("command_pattern_count"),
+              showcase = shiny::icon("magnifying-glass"),
+              p("(successfull / total)")
+            )
           ),
           layout_columns(
             shinycssloaders::withSpinner(plotOutput("command_cpu_efficiency_plot")),

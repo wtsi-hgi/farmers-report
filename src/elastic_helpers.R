@@ -354,7 +354,7 @@ send_elastic_scroll <- function(conn, index, source, body, time_scroll, size){
       query = list(
         '_source' = paste(source, collapse = ","),
         scroll = time_scroll,
-        track_total_hits = TRUE,
+        track_total_hits = 'true',
         size = size
       )
     ),
