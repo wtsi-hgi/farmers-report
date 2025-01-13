@@ -1,6 +1,7 @@
 library(dplyr)
 loadNamespace('stringr')
 
+source("src/constants.R")
 source("src/elastic_helpers.R")
 source("src/table_helpers.R")
 
@@ -29,44 +30,21 @@ get_nf_records <- function(con, query) {
 }
 
 get_pipeline_records <- function (con, query, pipeline_name) {
-  empty_table <- data.frame(
-    JOB_NAME = character(),
-    Job = character(),
-    NUM_EXEC_PROCS = numeric(),
-    AVAIL_CPU_TIME_SEC = numeric(),
-    WASTED_CPU_SECONDS = numeric(),
-    MEM_REQUESTED_MB = numeric(),
-    MEM_REQUESTED_MB_SEC = numeric(),
-    WASTED_MB_SECONDS = numeric(),
-    stringsAsFactors = FALSE
+  pipeline_prefix <- paste("nf", pipeline_name, sep = "-")
+
+  df <- get_records(
+    con = con,
+    query = query,
+    prefix = pipeline_prefix,
+    fields = append(raw_stats_elastic_columns, 'JOB_NAME')
   )
 
-  if(is.null(pipeline_name) || pipeline_name == "") {
-    df <- empty_table
-  } else {
-    pipeline_prefix <- paste("nf", pipeline_name, sep = "-")
-    df <- get_records(
-      con = con,
-      query = query,
-      prefix = pipeline_prefix,
-      fields = colnames(empty_table)
-    )
-
-    if(nrow(df) == 0) df <- empty_table
-  }
-
-  df %>%
-    filter(AVAIL_CPU_TIME_SEC > 0) %>%
+  dt <- df %>%
+    prepare_raw_stats_records() %>%
     mutate(
-      step = parse_nextflow_step(JOB_NAME, pipeline_name),
-      RUN_TIME_SEC = MEM_REQUESTED_MB_SEC / MEM_REQUESTED_MB,
-      Job_Efficiency = (AVAIL_CPU_TIME_SEC - WASTED_CPU_SECONDS) / AVAIL_CPU_TIME_SEC,
-      Memory_Efficiency = (MEM_REQUESTED_MB_SEC - WASTED_MB_SECONDS) / MEM_REQUESTED_MB_SEC,
-      MAX_MEM_USAGE_MB = (MEM_REQUESTED_MB_SEC - WASTED_MB_SECONDS) / RUN_TIME_SEC,
-      mem_avail_gb = convert_bytes(MEM_REQUESTED_MB, from = 'mb', to = 'gb')
-    ) %>%
-    select(-JOB_NAME, -MEM_REQUESTED_MB, -AVAIL_CPU_TIME_SEC, -WASTED_CPU_SECONDS, -RUN_TIME_SEC, -MEM_REQUESTED_MB_SEC, -WASTED_MB_SECONDS) %>%
-    rename_raw_elastic_fields()
+      step = parse_nextflow_step(job_name, pipeline_name),
+      keep = 'unused'
+    )
 }
 
 parse_nextflow_step <- function(job_names, pipeline_name) {
@@ -78,10 +56,8 @@ parse_nextflow_step <- function(job_names, pipeline_name) {
 }
 
 get_records <- function (con, query, prefix, fields) {
-  queue_filter <- list(
-    "prefix" = list("JOB_NAME" = prefix)
-  )
-  query$bool$filter <- c(query$bool$filter, list(queue_filter))
+  job_name_filter <- build_prefix_filter("JOB_NAME", prefix)
+  query$bool$filter <- append(query$bool$filter, job_name_filter)
 
   df <- scroll_elastic(
     con = con,

@@ -287,3 +287,27 @@ test_that("adjust_interactive_statistics works", {
   expect_s3_class(dt, 'data.frame')
   expect_equal(dt, expected_df)
 })
+
+test_that("prepare_raw_stats_records works", {
+  df <- data.frame(
+    AVAIL_CPU_TIME_SEC = c(100, 200, 0, 400),
+    WASTED_CPU_SECONDS = c(10, 50, 0, 150),
+    MEM_REQUESTED_MB_SEC = c(1024, 2048, 3072, 4096),
+    MEM_REQUESTED_MB = c(512, 1024, 1536, 2048),
+    WASTED_MB_SECONDS = c(256, 512, 0, 1024)
+  )
+
+  expected_df <- data.frame(
+    RUN_TIME_SEC = c(2, 2, 2),
+    Job_Efficiency = c(0.9, 0.75, 0.625),
+    Memory_Efficiency = c(0.75, 0.75, 0.75),
+    MAX_MEM_USAGE_MB = c(384, 768, 1536),
+    mem_avail_gb = c(0.5, 1, 2)
+  )
+
+  result <- prepare_raw_stats_records(df)
+
+  expect_true(all(result$AVAIL_CPU_TIME_SEC > 0))
+  expect_named(result, names(expected_df))
+  expect_equal(result, expected_df)
+})

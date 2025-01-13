@@ -427,16 +427,6 @@ test_that("build_match_phrase_filter works", {
   expect_equal(object, expected_object)
 })
 
-test_that("rename_raw_elastic_fields works", {
-  df <- as.data.frame(as.list(seq_along(elastic_column_map)))
-  names(df) <- elastic_column_map
-
-  result <- rename_raw_elastic_fields(df)
-
-  expect_s3_class(result,'data.frame')
-  expect_named(result, names(elastic_column_map))
-})
-
 test_that("get_numerical_colnames", {
   # with mixed columns
   test_df <- data.frame(

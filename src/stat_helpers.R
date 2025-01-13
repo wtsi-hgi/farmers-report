@@ -5,6 +5,7 @@ library(tidyr)
 loadNamespace('lubridate')
 loadNamespace('purrr')
 
+source("src/labels.R")
 source("src/elastic_helpers.R")
 source("src/table_helpers.R")
 source('src/timeseries_helpers.R')
@@ -74,7 +75,6 @@ get_team_statistics <- function(con, query, time_bucket = "none", adjust = TRUE)
               'NUM_EXEC_PROCS', 'AVAIL_CPU_TIME_SEC', 'WASTED_CPU_SECONDS',
               'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS')
   )
-  df$timestamp <- lubridate::as_datetime(df$timestamp)
   dt <- generate_team_statistics(df, time_bucket, adjust = adjust)
 }
 
@@ -265,18 +265,14 @@ parse_job_type <- function(job_names) {
 }
 
 get_gpu_records <- function(con, query) {
-  queue_filter <- list(
-    "prefix" = list("QUEUE_NAME" = "gpu")
-  )
-  query$bool$filter <- c(query$bool$filter, list(queue_filter))
+  queue_filter <- build_prefix_filter("QUEUE_NAME", "gpu")
+  query$bool$filter <- append(query$bool$filter, queue_filter)
 
   df <- scroll_elastic(
     con = con,
     body = list(query = query),
     fields = c('timestamp', 'USER_NAME', 'QUEUE_NAME', 'Job', 'PENDING_TIME_SEC', 'RUN_TIME_SEC')
   )
-
-  df$timestamp <- lubridate::as_datetime(df$timestamp)
 
   return(df)
 }
@@ -326,4 +322,19 @@ decide_statistics_function <- function (user_name, accounting_name) {
   }
 
   return(get_bom_statistics)
+}
+
+get_command_records <- function (con, query, command_pattern) {
+  command_filter <- build_match_phrase_filter("Command", command_pattern)
+  query$bool$filter <- append(query$bool$filter, command_filter)
+
+  df <- scroll_elastic(
+    con,
+    body = list(query = query),
+    fields = append(raw_stats_elastic_columns, 'Command')
+  )
+
+  dt <- prepare_raw_stats_records(df)
+
+  return(dt)
 }

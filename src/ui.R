@@ -149,6 +149,27 @@ ui <- tagList(
         ),
 
         accordion_panel(
+          "Command Statistics",
+          layout_column_wrap(
+            textInput(
+              "command_pattern",
+              "Type command substring to see statistics for all jobs containing this substring",
+              placeholder = "python my_script.py"
+            ),
+            value_box(
+              title = "Number of records",
+              value = textOutput("command_pattern_count"),
+              showcase = shiny::icon("magnifying-glass"),
+              p("(successfull / total)")
+            )
+          ),
+          layout_columns(
+            shinycssloaders::withSpinner(plotOutput("command_cpu_efficiency_plot")),
+            shinycssloaders::withSpinner(plotOutput("command_mem_efficiency_plot"))
+          )
+        ),
+
+        accordion_panel(
           "GPU Statistics",
           p(id = "gpu_statistics_placeholder", "To see GPU statistics please pick a LSF Group or a user in the left panel"),
           shinycssloaders::withSpinner(

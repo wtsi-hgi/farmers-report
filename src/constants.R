@@ -29,6 +29,12 @@ Assume that successful processes requiring 1 cpu do not waste cpu.
 time_buckets <- c("day", "week", "month")
 elastic_bucket_aggregations <- c("terms", "multi_terms", "date_histogram")
 
+raw_stats_elastic_columns <- c(
+  'Job',
+  'NUM_EXEC_PROCS', 'AVAIL_CPU_TIME_SEC', 'WASTED_CPU_SECONDS',
+  'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS'
+)
+
 elastic_column_map <- c(
   'cpu_avail_sec' = 'AVAIL_CPU_TIME_SEC',
   'mem_avail_mb_sec' = 'MEM_REQUESTED_MB_SEC',

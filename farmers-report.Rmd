@@ -45,6 +45,7 @@ elastic_con <- connect(
 )
 
 index <- config$elastic$index
+attr(elastic_con, 'index') <- config$elastic$index
 table_view_opts <- ifelse(params$static, 't', 'ftp')
 ```
 
