@@ -5,6 +5,7 @@ library(tidyr)
 loadNamespace('lubridate')
 loadNamespace('purrr')
 
+source("src/labels.R")
 source("src/elastic_helpers.R")
 source("src/table_helpers.R")
 source('src/timeseries_helpers.R')

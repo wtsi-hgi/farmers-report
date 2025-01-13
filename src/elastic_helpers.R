@@ -10,11 +10,8 @@ loadNamespace('yyjsonr')
 
 source("src/constants.R")
 source("src/logging.R")
+source("src/labels.R")
 source('src/timeseries_helpers.R')
-
-rename_raw_elastic_fields <- function (df, map = elastic_column_map) {
-  rename(df, any_of(map))
-}
 
 format_elastic_date_range <- function(date_range) {
   if (!isa(date_range, "Date")) {

@@ -2,6 +2,7 @@ library(dplyr)
 loadNamespace('gt')
 
 source('src/constants.R')
+source("src/labels.R")
 
 rename_group_column <- function(df, mapping = team_map) {
   df %>%
