@@ -171,7 +171,6 @@ ui <- tagList(
 
         accordion_panel(
           "GPU Statistics",
-          p(id = "gpu_statistics_placeholder", "To see GPU statistics please pick a LSF Group or a user in the left panel"),
           shinycssloaders::withSpinner(
             DT::DTOutput("gpu_statistics")
           ),
