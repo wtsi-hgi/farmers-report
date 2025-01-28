@@ -427,6 +427,17 @@ test_that("build_match_phrase_filter works", {
   expect_equal(object, expected_object)
 })
 
+test_that("build_prefix_filter works", {
+  object <- build_prefix_filter("JOB_NAME", "nf-")
+  expected_object <- list(
+    list(
+      "prefix" = list("JOB_NAME" = "nf-")
+    )
+  )
+
+  expect_equal(object, expected_object)
+})
+
 test_that("get_numerical_colnames", {
   # with mixed columns
   test_df <- data.frame(
