@@ -59,25 +59,23 @@ adjust_statistics <- function (df) {
   df <- df %>%
     mutate(
       mem_wasted_cost = mem_wasted_mb_sec * ram_mb_second,
-      cpu_wasted_sec = ifelse(job_status == 'Success' & procs == 1, 0, cpu_wasted_sec)
+      cpu_wasted_sec = ifelse(job_status == success & procs == 1, 0, cpu_wasted_sec)
     )
 
   if('wasted_cost' %in% names(df))
-    df <- mutate(df, wasted_cost = ifelse(job_status == 'Success' & procs == 1, mem_wasted_cost, wasted_cost))
+    df <- mutate(df, wasted_cost = ifelse(job_status == success & procs == 1, mem_wasted_cost, wasted_cost))
 
   return(df)
 }
 
-adjust_interactive_statistics <- function (df, interactive_jobs) {
+adjust_interactive_statistics <- function (df) {
   is_interactive <- df$job_type == 'interactive'
   df %>%
-    left_join(interactive_jobs, by = '_id') %>%
     mutate(
-      cpu_wasted_sec = ifelse(is_interactive, RAW_WASTED_CPU_SECONDS, cpu_wasted_sec),
-      mem_wasted_mb_sec = ifelse(is_interactive, RAW_WASTED_MB_SECONDS, mem_wasted_mb_sec),
-      job_status = ifelse(is_interactive, 'Success', job_status)
-    ) %>%
-    select(-c('RAW_WASTED_CPU_SECONDS', 'RAW_WASTED_MB_SECONDS'))
+      cpu_wasted_sec = ifelse(is_interactive, raw_cpu_wasted_sec, cpu_wasted_sec),
+      mem_wasted_mb_sec = ifelse(is_interactive, raw_mem_wasted_mb_sec, mem_wasted_mb_sec),
+      job_status = ifelse(is_interactive, success, job_status)
+    )
 }
 
 generate_wasted_cost <- function (df) {
@@ -214,22 +212,26 @@ generate_efficiency_stats <- function(df, extra_stats = list()) {
 
 prepare_commands_table <- function (df) {
   df %>%
-    select(-`_id`) %>%
-    mutate(MEM_REQUESTED = convert_bytes(MEM_REQUESTED_MB, from = 'mb', to = 'b'), .keep = 'unused') %>%
-    rename(RUN_TIME = RUN_TIME_SEC) %>%
+    mutate(
+      MEM_REQUESTED = convert_bytes(MEM_REQUESTED_MB, from = 'mb', to = 'b'),
+      raw_cpu_efficiency = 100 * (1 - raw_cpu_wasted_sec / cpu_avail_sec),
+      raw_mem_efficiency = 100 * (1 - raw_mem_wasted_mb_sec / mem_avail_mb_sec),
+      .keep = 'unused') %>%
+    select(job_status, RUN_TIME = RUN_TIME_SEC, raw_cpu_efficiency, raw_mem_efficiency, MEM_REQUESTED, Command) %>%
     gt::gt() %>%
     gt::cols_align(align = "left", columns = 'Command') %>%
-    gt::fmt_percent(columns = c('Job_Efficiency_Raw_Percent', 'RAW_MAX_MEM_EFFICIENCY_PERCENT'), scale_values = FALSE) %>%
+    gt::fmt_percent(columns = c('raw_cpu_efficiency', 'raw_mem_efficiency'), scale_values = FALSE) %>%
     gt::fmt_bytes(columns = MEM_REQUESTED, standard = 'binary') %>%
     gt::fmt_duration(RUN_TIME, input_units = 'seconds', max_output_units = 1) %>%
-    gt::cols_label(
-      Job_Efficiency_Raw_Percent = 'Raw CPU efficiency',
-      RAW_MAX_MEM_EFFICIENCY_PERCENT = 'Raw memory efficiency',
-      MEM_REQUESTED = 'Memory requested',
-      RUN_TIME = 'Run time'
-    ) %>%
     gt::cols_move_to_end(Command) %>%
-    gt::cols_move_to_start(Job)
+    gt::cols_move_to_start(job_status) %>%
+    gt::cols_label(
+      raw_cpu_efficiency = 'Raw CPU efficiency',
+      raw_mem_efficiency = 'Raw memory efficiency',
+      MEM_REQUESTED = 'Memory requested',
+      RUN_TIME = 'Run time',
+      job_status = 'Job status',
+    )
 }
 
 prepare_raw_stats_records <- function (df) {

@@ -150,13 +150,12 @@ get_job_records <- function (con, query) {
   df <- scroll_elastic(
     con = con,
     body = list(query = query),
-    fields = c('timestamp', 'JOB_NAME', 'Job',
-              'NUM_EXEC_PROCS', 'AVAIL_CPU_TIME_SEC', 'WASTED_CPU_SECONDS',
-              'MEM_REQUESTED_MB', 'MEM_REQUESTED_MB_SEC', 'WASTED_MB_SECONDS')
+    fields = c('timestamp', 'JOB_NAME', 'Job', 'RUN_TIME_SEC', 'Command',
+              'NUM_EXEC_PROCS', 'RAW_WASTED_CPU_SECONDS', 'MEM_REQUESTED_MB', 'RAW_WASTED_MB_SECONDS')
   )
 
   df %>%
-    annotate_jupyter_jobs(con, query) %>%
+    annotate_jupyter_jobs() %>%
     prepare_job_records()
 }
 
@@ -164,24 +163,26 @@ prepare_job_records <- function (df) {
   df %>%
     mutate(timestamp = lubridate::as_datetime(timestamp)) %>%
     rename_raw_elastic_fields() %>%
-    mutate(job_type = parse_job_type(job_name), .keep = 'unused')
+    mutate(
+      mem_avail_mb_sec = as.numeric(RUN_TIME_SEC) * MEM_REQUESTED_MB,
+      cpu_avail_sec = as.numeric(RUN_TIME_SEC) * procs,
+      cpu_wasted_sec = ifelse(job_status == success, raw_cpu_wasted_sec, cpu_avail_sec),
+      mem_wasted_mb_sec = ifelse(job_status == success, raw_mem_wasted_mb_sec, mem_avail_mb_sec),
+      job_type = parse_job_type(job_name)
+    ) %>%
+    select(-job_name)
 }
 
-annotate_jupyter_jobs <- function (df, con, query) {
-  ids <- get_jupyter_jobs(con, query)
+annotate_jupyter_jobs <- function (df) {
+  ids <- get_jupyter_jobs(df)
   df <- assign_jupyter_job_names(df, ids)
   return(df)
 }
 
-get_jupyter_jobs <- function (con, query) {
-  jupyter_filter <- build_match_phrase_filter("Command", "jupyterhub-singleuser")
-  query$bool$filter <- append(query$bool$filter, jupyter_filter)
-  b <- list(query = query)
-
-  res <- elastic_search(con, index = attr(con, 'index'), body = b, asdf = T, size = 1e4, source = FALSE)
-
-  df <- extract_hits_from_elastic_response(res)
-  df[['_id']]
+get_jupyter_jobs <- function (df) {
+  df %>%
+    filter(grepl("jupyterhub-singleuser", Command)) %>%
+    pull(`_id`)
 }
 
 assign_jupyter_job_names <- function (df, ids) {
@@ -189,20 +190,9 @@ assign_jupyter_job_names <- function (df, ids) {
     mutate(JOB_NAME = ifelse(`_id` %in% ids, "jupyter", JOB_NAME))
 }
 
-get_interactive_jobs <- function(con, jobs){
-  interactive_jobs <- filter(jobs, job_type == 'interactive')
-  if(nrow(interactive_jobs) == 0) return(NULL)
-  df <- get_docs_by_ids(
-      con = con,
-      ids = interactive_jobs$`_id`,
-      timestamps = interactive_jobs$timestamp,
-      fields = c('RAW_WASTED_CPU_SECONDS', 'RAW_WASTED_MB_SECONDS')
-  )
-}
-
-generate_job_statistics <- function (df, adjust_cpu = TRUE, adjust_interactive = NULL, time_bucket = 'none') {
-  if(!is.null(adjust_interactive)){
-    df <- adjust_interactive_statistics(df, interactive_jobs = adjust_interactive)
+generate_job_statistics <- function (df, adjust_cpu = TRUE, adjust_interactive = FALSE, time_bucket = 'none') {
+  if(adjust_interactive){
+    df <- adjust_interactive_statistics(df)
   }
 
   if(adjust_cpu){
