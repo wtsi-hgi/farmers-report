@@ -349,7 +349,7 @@ test_that("assign_jupyter_job_names works", {
 test_that("get_jupyter_jobs works", {
   df <- data.frame(
     '_id' = c(1, 3, 2, 4),
-    'Command' = c('ls', 'jupyterhub-singleuser', 'bash', 'call jupyterhub-singleuser\necho'),
+    'Command' = c('ls', 'jupyterhub-singleuser spawner', 'bash', 'call jupyterhub-singleuser\nspawner'),
     check.names = FALSE
   )
   expected <- c(3, 4)
@@ -360,7 +360,7 @@ test_that("get_jupyter_jobs works", {
 test_that("annotate_jupyter_jobs works", {
   df <- data.frame(
     '_id' = c(1, 3, 2, 4),
-    'Command' = c('ls', 'jupyterhub-singleuser', 'bash', 'call jupyterhub-singleuser\necho'),
+    'Command' = c('ls', 'jupyterhub-singleuser spawner', 'bash', 'call jupyterhub-singleuser\nspawner'),
     'JOB_NAME' = c('job1', NA, 'job2', NA),
     check.names = FALSE
   )

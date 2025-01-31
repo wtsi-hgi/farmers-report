@@ -181,7 +181,8 @@ annotate_jupyter_jobs <- function (df) {
 
 get_jupyter_jobs <- function (df) {
   df %>%
-    filter(grepl("jupyterhub-singleuser", Command)) %>%
+    filter(stringr::str_detect(Command, stringr::fixed('jupyter'))) %>%
+    filter(stringr::str_detect(Command, stringr::fixed('spawner'))) %>%
     pull(`_id`)
 }
 
