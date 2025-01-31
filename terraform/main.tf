@@ -133,8 +133,8 @@ resource "openstack_networking_secgroup_rule_v2" "shinyproxy_web_port" {
 
 resource "openstack_compute_instance_v2" "server" {
   name            = "shinyproxy-server"
-  image_name      = "jammy-WTSI-docker_247771_4ea57c30"
-  flavor_name     = "m1.xlarge"
+  image_name      = "jammy-WTSI-docker_324910_82eec972"
+  flavor_name     = "m2.xlarge"
   key_pair        = openstack_compute_keypair_v2.kp.name
   security_groups = [
     "default",
