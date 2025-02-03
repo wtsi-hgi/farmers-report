@@ -232,9 +232,11 @@ test_that("prepare_commands_table works", {
     MEM_REQUESTED_MB = c(1000, 2000),
     RUN_TIME_SEC = c(10, 100),
     Command = c('rstudio', 'bash'),
-    Job_Efficiency_Raw_Percent = c(20, 30),
-    RAW_MAX_MEM_EFFICIENCY_PERCENT = c(10, 20),
-    Job = c('Success', 'Failed'),
+    cpu_avail_sec = c(500, 1000),
+    raw_cpu_wasted_sec = c(400, 700),
+    mem_avail_mb_sec = c(100, 1000),
+    raw_mem_wasted_mb_sec = c(90, 800),
+    job_status = c('Success', 'Failed'),
     check.names = FALSE
   )
 
@@ -267,13 +269,8 @@ test_that("adjust_interactive_statistics works", {
     cpu_wasted_sec = c(100, 200, 300),
     mem_wasted_mb_sec = c(1000, 2000, 3000),
     job_status = c('Success', 'Failed', 'Failed'),
-    check.names = FALSE
-  )
-
-  jobs <- data.frame(
-    `_id` = c('id1', 'id3'),
-    RAW_WASTED_CPU_SECONDS = c(150, 350),
-    RAW_WASTED_MB_SECONDS = c(1500, 3500),
+    raw_cpu_wasted_sec = c(150, 200, 350),
+    raw_mem_wasted_mb_sec = c(1500, 2000, 3500),
     check.names = FALSE
   )
 
@@ -282,7 +279,7 @@ test_that("adjust_interactive_statistics works", {
   expected_df$mem_wasted_mb_sec <- c(1500, 2000, 3500)
   expected_df$job_status <- c('Success', 'Failed', 'Success')
 
-  dt <- adjust_interactive_statistics(df, jobs)
+  dt <- adjust_interactive_statistics(df)
 
   expect_s3_class(dt, 'data.frame')
   expect_equal(dt, expected_df)

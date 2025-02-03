@@ -280,13 +280,8 @@ server <- function(input, output, session) {
      job_records_cache()
   })
 
-  interactive_jobs <- reactive({
-    if(input$adjust_interactive)
-      get_interactive_jobs(elastic_con, jobs = job_records())
-  })
-
   job_breakdown <- reactive({
-    generate_job_statistics(df = job_records(), adjust_cpu = input$adjust_cpu, adjust_interactive = interactive_jobs())
+    generate_job_statistics(df = job_records(), adjust_cpu = input$adjust_cpu, adjust_interactive = input$adjust_interactive)
   })
 
   output$job_breakdown <- DT::renderDT({
@@ -303,14 +298,9 @@ server <- function(input, output, session) {
     if (info$col != job_type_index) return()  # do nothing if the clicked cell is not in the job_type column
 
     selected_job_type <- df[info$row, 'job_type', drop = TRUE]
-    dt <- filter(job_records(), job_type == selected_job_type) %>% slice_sample(n = 10)
-
-    records <- get_docs_by_ids(
-      con = elastic_con,
-      ids = dt$`_id`,
-      timestamps = dt$timestamp,
-      fields = c('Job', 'Command', 'Job_Efficiency_Raw_Percent', 'RAW_MAX_MEM_EFFICIENCY_PERCENT', 'MEM_REQUESTED_MB', 'RUN_TIME_SEC')
-    ) %>%
+    records <- job_records() %>%
+      filter(job_type == selected_job_type) %>%
+      slice_sample(n = 10) %>%
       prepare_commands_table()
 
     showModal(
@@ -330,7 +320,7 @@ server <- function(input, output, session) {
     generate_job_statistics(
       df = job_records(),
       adjust_cpu = input$adjust_cpu,
-      adjust_interactive = interactive_jobs(),
+      adjust_interactive = input$adjust_interactive,
       time_bucket = input$time_bucket
     )
   })

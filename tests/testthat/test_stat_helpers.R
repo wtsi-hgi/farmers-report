@@ -157,20 +157,20 @@ test_that("build_bom_aggregation works", {
 
 test_that("prepare_job_records works", {
   fake_data_frame <- data.frame(
-    AVAIL_CPU_TIME_SEC = c(800, 1000, 1200),
     JOB_NAME = c('nf-hello', 'wrp_job', 'another_job'),
     Job = c('Success', 'Success', 'Failed'),
     MEM_REQUESTED_MB = c(1200, 2400, 3600),
-    MEM_REQUESTED_MB_SEC = c(12000, 42000, 60000),
     NUM_EXEC_PROCS = c(1, 1, 3),
     timestamp = c(1732146484, 1732146665, 1732146702),
-    WASTED_CPU_SECONDS = c(600, 500, 700),
-    WASTED_MB_SECONDS = c(5000, 20000, 10000)
+    raw_cpu_wasted_sec = c(600, 500, 700),
+    raw_mem_wasted_mb_sec = c(5000, 20000, 10000),
+    RUN_TIME_SEC = c(800, 1000, 400)
   )
 
   expected_columns <- c(
-    'cpu_avail_sec', 'job_status', 'MEM_REQUESTED_MB', 'mem_avail_mb_sec',
-    'procs', 'timestamp', 'cpu_wasted_sec', 'mem_wasted_mb_sec', 'job_type'
+    'job_status', 'MEM_REQUESTED_MB', 'procs', 'timestamp',
+    'raw_cpu_wasted_sec', 'raw_mem_wasted_mb_sec', 'RUN_TIME_SEC', 'mem_avail_mb_sec',
+    'cpu_avail_sec', 'cpu_wasted_sec', 'mem_wasted_mb_sec', 'job_type'
   )
 
   dt <- prepare_job_records(fake_data_frame)
@@ -344,6 +344,30 @@ test_that("assign_jupyter_job_names works", {
   expect_s3_class(dt,'data.frame')
   expect_named(dt, names(df))
   expect_equal(dt$JOB_NAME, expected_job_names)
+})
+
+test_that("get_jupyter_jobs works", {
+  df <- data.frame(
+    '_id' = c(1, 3, 2, 4),
+    'Command' = c('ls', 'jupyterhub-singleuser spawner', 'bash', 'call jupyterhub-singleuser\nspawner'),
+    check.names = FALSE
+  )
+  expected <- c(3, 4)
+  result <- get_jupyter_jobs(df)
+  expect_equal(result, expected)
+})
+
+test_that("annotate_jupyter_jobs works", {
+  df <- data.frame(
+    '_id' = c(1, 3, 2, 4),
+    'Command' = c('ls', 'jupyterhub-singleuser spawner', 'bash', 'call jupyterhub-singleuser\nspawner'),
+    'JOB_NAME' = c('job1', NA, 'job2', NA),
+    check.names = FALSE
+  )
+  expected <- c('job1', 'jupyter', 'job2', 'jupyter')
+  result <- annotate_jupyter_jobs(df)
+  expect_s3_class(result, 'data.frame')
+  expect_equal(result$JOB_NAME, expected)
 })
 
 test_that("decide_statistics_function works", {
