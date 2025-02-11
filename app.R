@@ -386,9 +386,12 @@ server <- function(input, output, session) {
     get_gpu_records(elastic_con, query = elastic_query())
   })
 
-  gpu_records <- reactive({
-    req('gpu_statistics_panel' %in% input$myaccordion)
-    gpu_records_cache()
+  gpu_records <- reactiveVal(NULL)
+
+  observe({
+    if ('gpu_statistics_panel' %in% input$myaccordion) {
+      gpu_records(gpu_records_cache())
+    }
   })
 
   output$gpu_statistics <- DT::renderDT({
