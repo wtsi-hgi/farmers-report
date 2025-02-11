@@ -383,7 +383,6 @@ server <- function(input, output, session) {
   })
 
   gpu_records_cache <- reactive({
-    req((input$accounting_name != 'all' || input$user_name != 'all'))
     get_gpu_records(elastic_con, query = elastic_query())
   })
 
@@ -393,10 +392,8 @@ server <- function(input, output, session) {
   })
 
   output$gpu_statistics <- DT::renderDT({
-    if (input$accounting_name != 'all' || input$user_name != 'all'){
-      dt <- generate_gpu_statistics(gpu_records())
-      make_dt(dt, table_view_opts = 'ftp')
-    }
+    dt <- generate_gpu_statistics(gpu_records())
+    make_dt(dt, table_view_opts = 'ftp')
   })
 
   observe({
@@ -498,10 +495,13 @@ server <- function(input, output, session) {
     shinyjs::toggle(id = "efficiency_column", condition = show_time_plots)
     shinyjs::toggle(id = "efficiency_plot", condition = show_time_plots)
     shinyjs::toggle(id = "job_failure_time_plot", condition = show_time_plots)
+    shinyjs::toggle(id = "gpu_statistics_column", condition = show_time_plots)
+    shinyjs::toggle(id = "gpu_plot", condition = show_time_plots)
 
     if(!show_time_plots){
       shinycssloaders::hideSpinner(id = "efficiency_plot")
       shinycssloaders::hideSpinner(id = "job_failure_time_plot")
+      shinycssloaders::hideSpinner(id = "gpu_plot")
     }
   }, priority = 1)
 
@@ -532,15 +532,11 @@ server <- function(input, output, session) {
     shinyjs::toggle(id = "job_breakdown_help", condition = !is_bom_level)
     shinyjs::toggle(id = "adjust_interactive", condition = !is_bom_level)
     shinyjs::toggle(id = "job_breakdown", condition = !is_bom_level)
-    shinyjs::toggle(id = "gpu_statistics_placeholder", condition = is_bom_level)
-    shinyjs::toggle(id = "gpu_statistics", condition = !is_bom_level)
 
     if(is_bom_level){
       shinycssloaders::hideSpinner(id = "job_breakdown")
-      shinycssloaders::hideSpinner(id = "gpu_statistics")
     } else {
       shinycssloaders::showSpinner(id = "job_breakdown")
-      shinycssloaders::showSpinner(id = "gpu_statistics")
     }
   }, priority = 1)
 
@@ -552,12 +548,9 @@ server <- function(input, output, session) {
 
     shinyjs::toggle(id = "job_breakdown_column", condition = !is_bom_level_no_bucket)
     shinyjs::toggle(id = "job_breakdown_plot", condition = !is_bom_level_no_bucket)
-    shinyjs::toggle(id = "gpu_statistics_column", condition = !is_bom_level_no_bucket)
-    shinyjs::toggle(id = "gpu_plot", condition = !is_bom_level_no_bucket)
 
     if(is_bom_level_no_bucket){
       shinycssloaders::hideSpinner(id = "job_breakdown_plot")
-      shinycssloaders::hideSpinner(id = "gpu_plot")
     }
   }, priority = 1)
 
