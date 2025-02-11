@@ -275,9 +275,12 @@ server <- function(input, output, session) {
     get_job_records(elastic_con, query = elastic_query())
   })
 
-  job_records <- reactive({
-     req('job_breakdown_panel' %in% input$myaccordion)
-     job_records_cache()
+  job_records <- reactiveVal(NULL)
+
+  observe({
+     if('job_breakdown_panel' %in% input$myaccordion) {
+       job_records(job_records_cache())
+     }
   })
 
   job_breakdown <- reactive({
@@ -316,7 +319,7 @@ server <- function(input, output, session) {
 
 
   timed_job_statistics <- reactive({
-    req(input$time_bucket != 'none')
+    req(input$time_bucket != 'none', job_records())
     generate_job_statistics(
       df = job_records(),
       adjust_cpu = input$adjust_cpu,
@@ -386,9 +389,12 @@ server <- function(input, output, session) {
     get_gpu_records(elastic_con, query = elastic_query())
   })
 
-  gpu_records <- reactive({
-    req('gpu_statistics_panel' %in% input$myaccordion)
-    gpu_records_cache()
+  gpu_records <- reactiveVal(NULL)
+
+  observe({
+    if ('gpu_statistics_panel' %in% input$myaccordion) {
+      gpu_records(gpu_records_cache())
+    }
   })
 
   output$gpu_statistics <- DT::renderDT({
@@ -408,7 +414,7 @@ server <- function(input, output, session) {
   })
 
   output$gpu_plot <- renderPlot({
-    req(input$time_bucket != "none", input$gpu_statistics_column)
+    req(input$time_bucket != "none", input$gpu_statistics_column, gpu_records())
     generate_gpu_plot(
       df = gpu_records(),
       time_bucket = input$time_bucket,
