@@ -84,6 +84,7 @@ column_rename_inv <- setNames(names(column_rename), column_rename)
 
 team_map <- tibble::enframe(
   c(
+    # HumGen
     'team152' = 'Anderson group',
     'team281' = 'Martin group',
     'team282' = 'Davenport group',
@@ -91,7 +92,19 @@ team_map <- tibble::enframe(
     'team227' = 'Parts group',
     'team29-grp' = 'Hurles group',
     'team170' = 'Gaffney group',
-    'team151' = 'Soranzo group'
+    'team151' = 'Soranzo group',
+    # CellGen
+    "team205" = "Teich group",
+    "team274" = "Behjati group",
+    "team278" = "Cellgeni group",
+    "team283" = "Bayraktar group",
+    "team292" = "Vento group",
+    "team297" = "Clatworthy group",
+    "team298" = "Haniffa group",
+    "team303" = "Stegle group",
+    "team304" = "Theis group",
+    "team319" = "Chen group",
+    "team361" = "Lotfollahi group"
   ),
   name = 'team_code',
   value = 'team_name'
