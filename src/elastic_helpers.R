@@ -56,7 +56,7 @@ build_humgen_filters <- function (
     list(
       "range" = list(
         "timestamp" = list(
-          "lte" = date_range[2],
+          "lt" = date_range[2],
           "gte" = date_range[1],
           "format" = "strict_date_optional_time"
         )
