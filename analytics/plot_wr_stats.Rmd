@@ -120,3 +120,34 @@ plot_ly(
 ```
 
 // https://echarts4r.john-coene.com/articles/timeline
+
+## Usage over time
+```{r time chart, out.width = "100%"}
+hdata <- df %>%
+  group_by(date) %>%
+  summarise(across('number_of_jobs', sum),
+            .groups = 'drop') %>%
+  tidyr::complete(
+    date = seq(min(date), max(date), by = "1 day"),
+    fill = list(number_of_jobs = 0)
+  )
+
+# TODO fill in missing dates with zero
+
+highchart(type = "stock") %>%
+  hc_add_series(xts::xts(hdata$number_of_jobs, as.Date(hdata$date)), name = "Number of Jobs") %>%
+  hc_chart(zoomType = "x") %>%  # enables zooming along the x-axis (time)
+  hc_plotOptions(
+    series = list(
+      dataGrouping = list(
+        forced = FALSE,
+        groupPixelWidth = 10,
+        approximation = 'sum',
+        units = list(
+          list("week", list(1)),
+          list("month", list(1))
+        )
+      )
+    )
+  )
+```

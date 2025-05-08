@@ -6,7 +6,7 @@ source('src/table_helpers.R')
 source('src/elastic_helpers.R')
 
 # inputs
-start_date <- Sys.Date() - 30*12
+start_date <- as.Date("2014-09-21")
 config_file <- "config-elastic.yaml"  # works only with real elastic because of BOM-unspecific query
 outfolder <- "./data"
 
