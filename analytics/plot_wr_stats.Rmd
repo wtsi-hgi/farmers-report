@@ -1,0 +1,122 @@
+---
+title: "WR analytics"
+output:
+  html_document: default
+params:
+  data_folder: ""
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(plotly)
+library(ggplot2)
+library(logging)
+library(highcharter)
+
+setwd("..")
+source('src/table_helpers.R')
+
+rename_colnames <- function(df) {
+  cols <- colnames(df)
+  sapply(cols, function(col) {
+    if (col %in% column_rename) {
+      names(column_rename[column_rename == col])
+    } else {
+      col
+    }
+  })
+}
+
+knitr::opts_chunk$set(echo = FALSE)
+removeHandler('basic.stdout')
+```
+
+```{r read}
+files <- list.files(path = params$data_folder, pattern = "*.csv", full.names = TRUE)
+df <- lapply(files, data.table::fread) %>% data.table::rbindlist()
+```
+
+```{r prepare table}
+df <- df %>%
+  rename(bom = BOM, accounting_name = ACCOUNTING_NAME, cpu_avail_hrs = total_cpu_usage, mem_avail_gb_hrs = total_memory_usage) %>%
+  rename_group_column()
+```
+
+**Period:** `r format(min(df$date), "%d %B %Y")` &mdash; `r format(max(df$date), "%d %B %Y")`
+
+## Total usage {.tabset}
+
+```{r make total usage}
+total_usage <- df %>%
+  group_by(bom, accounting_name, USER_NAME) %>%
+  summarise(across(c('number_of_jobs', 'cpu_avail_hrs', 'mem_avail_gb_hrs'), sum),
+            .groups = 'drop')
+knitr::kable(total_usage, col.names = rename_colnames(total_usage), digits = 0, format.args = list(big.mark = ','))
+```
+
+```{r eval=FALSE, include=FALSE}
+gt::gt(total_usage) %>%
+  gt::fmt_number(columns = c('number_of_jobs', 'cpu_avail_hrs', 'mem_avail_gb_hrs'), decimals = 0) %>%
+  gt::cols_label(.list = rename_colnames(total_usage))
+```
+
+```{r sunburst}
+# https://jkunst.com/highcharter/articles/highcharter.html
+make_sunburst <- function(total_usage, column) {
+  hdata <- data_to_hierarchical(
+    data = total_usage,
+    group_vars = c(bom, accounting_name, USER_NAME),
+    size_var = all_of(column)
+  )
+  hchart(
+    hdata,
+    type = "sunburst"
+  ) %>% hc_plotOptions(
+    sunburst = list(
+      allowTraversingTree = TRUE,   # Enables clicking to drill down
+      cursor = "pointer",
+      levels = list(
+        list(level = 1, colorVariation = list(key = 'brightness', to = 0)),  # Base level
+        list(level = 2, colorVariation = list(key = 'brightness', to = -0.5))  # Darker shade
+        # Add more levels with different 'to' values (-0.3, -0.7, etc.)
+      ),
+      levelIsConstant = FALSE  # Ensures dynamic shading when drilling
+    )
+  )
+}
+
+```
+
+### Number of jobs
+```{r}
+make_sunburst(total_usage, 'number_of_jobs')
+```
+
+### CPU usage
+```{r}
+make_sunburst(total_usage, 'cpu_avail_hrs')
+```
+
+### Memory usage
+```{r}
+make_sunburst(total_usage, 'mem_avail_gb_hrs')
+```
+
+
+```{r sunburst plotly, eval=FALSE, include=FALSE}
+# https://plotly.com/r/sunburst-charts/
+plotly_data <- hdata %>%
+  data.table::rbindlist(fill = TRUE) %>%
+  tidyr::replace_na(list(parent = "", value = 0))
+plot_ly(
+  plotly_data,
+  ids = ~id,
+  labels = ~name,
+  parents = ~parent,
+  values = ~value,
+  type = 'sunburst',
+  branchvalues = 'remainder'
+)
+```
+
+// https://echarts4r.john-coene.com/articles/timeline
