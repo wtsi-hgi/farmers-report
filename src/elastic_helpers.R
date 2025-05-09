@@ -42,27 +42,27 @@ build_prefix_filter <- function (field, value) {
 }
 
 build_humgen_filters <- function (
-  BOM = "Human Genetics", accounting_name = NULL, user_name = NULL,
+  BOM = "Human Genetics", accounting_name = NULL, user_name = NULL, meta_cluster_name = "farm",
   custom_filters = NULL, date_range = c(Sys.Date()-7, Sys.Date())
 ) {
   date_range <- format_elastic_date_range(date_range)
 
   filters <- list(
     list(
-      "match_phrase" = list(
-        "META_CLUSTER_NAME" = "farm"
-      )
-    ),
-    list(
       "range" = list(
         "timestamp" = list(
-          "lte" = date_range[2],
+          "lt" = date_range[2],
           "gte" = date_range[1],
           "format" = "strict_date_optional_time"
         )
       )
     )
   )
+
+  if (!is.null(meta_cluster_name)){
+    meta_cluster_name_filter <- build_match_phrase_filter("META_CLUSTER_NAME", meta_cluster_name)
+    filters <- append(filters, meta_cluster_name_filter)
+  }
 
   if (!is.null(BOM)) {
     bom_filter <- build_match_phrase_filter("BOM", BOM)
@@ -246,7 +246,7 @@ build_elastic_sub_agg <- function (field, agg_fun) {
 }
 
 extract_hits_from_elastic_response <- function(x) {
-  garbage_columns <- c('_index', '_type', '_score', 'sort')
+  garbage_columns <- c('_index', '_type', '_score', 'sort', "_ignored")
   if (length(x$hits$hits) == 0) 
     return(data.frame())
   x$hits$hits %>%
