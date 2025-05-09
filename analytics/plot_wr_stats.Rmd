@@ -121,8 +121,11 @@ plot_ly(
 
 // https://echarts4r.john-coene.com/articles/timeline
 
-## Usage over time
-```{r time chart, out.width = "100%"}
+## Usage over time {.tabset}
+
+### Number of jobs
+
+```{r time chart jobs, out.width = "100%"}
 hdata <- df %>%
   group_by(date) %>%
   summarise(across('number_of_jobs', sum),
@@ -131,8 +134,6 @@ hdata <- df %>%
     date = seq(min(date), max(date), by = "1 day"),
     fill = list(number_of_jobs = 0)
   )
-
-# TODO fill in missing dates with zero
 
 highchart(type = "stock") %>%
   hc_add_series(xts::xts(hdata$number_of_jobs, as.Date(hdata$date)), name = "Number of Jobs") %>%
@@ -150,4 +151,71 @@ highchart(type = "stock") %>%
       )
     )
   )
+```
+
+### Number of users
+
+```{r time chart users, out.width = "100%"}
+hdata <- df %>%
+  mutate(year_month = tsibble::yearmonth(date)) %>%
+  group_by(year_month) %>%
+  summarise(number_of_users = n_distinct(USER_NAME),
+            list_of_users = list(unique(USER_NAME)),
+            .groups = 'drop') %>%
+  mutate(date = as.Date(year_month))
+
+hchart(
+    hdata,
+    type = "lollipop",
+    hcaes(x = date, y = number_of_users, label = list_of_users)
+  ) %>%
+  hc_tooltip(
+    pointFormat = paste(
+      "Number of users: {point.y}<br>",
+      "Users: {point.label}"
+    )
+  ) %>%
+  hc_yAxis(title = list(text = '')) %>%
+  hc_yAxis(title = list(text = 'Number of Users')) %>%
+  hc_plotOptions(
+    lollipop = list(
+      marker = list(
+        enabled = TRUE
+      )
+    )
+  )
+```
+
+### Users activity
+
+```{r time chart users activity, out.width = "100%"}
+hdata <- df %>%
+  group_by(USER_NAME) %>%
+  summarise(start = min(date),
+            end = max(date),
+            .groups = 'drop') %>%
+  mutate(start = as.Date(start),
+         end = as.Date(end)) %>%
+  purrr::transpose() %>%
+  purrr::map(~list(
+    low = datetime_to_timestamp(as.Date(.$start)),
+    high = datetime_to_timestamp(as.Date(.$end)),
+    name = .$USER_NAME
+  ))
+
+highchart() %>%
+  hc_chart(type = "dumbbell", inverted = TRUE, zoomType = "y") %>%
+  hc_add_series(
+    data = hdata,
+    name = "Active",
+    dataSorting = list(enabled = TRUE, sortKey = 'low'),
+    dataLabels = list(
+      list(enabled = FALSE),
+      list(enabled = TRUE, format = '{point.name}')
+      )
+  ) %>%
+  hc_xAxis(type = 'category', visible = FALSE) %>%
+  hc_yAxis(type = 'datetime') %>%
+  hc_legend(enabled = FALSE) %>%
+  hc_tooltip(pointFormat = "{series.name}: {point.low:%B %Y} - {point.high:%B %Y}")
 ```
