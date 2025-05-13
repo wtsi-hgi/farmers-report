@@ -54,7 +54,7 @@ total_usage <- df %>%
 knitr::kable(total_usage, col.names = rename_colnames(total_usage), digits = 0, format.args = list(big.mark = ','))
 ```
 
-```{r eval=FALSE, include=FALSE}
+```{r total usage gt, eval=FALSE, include=FALSE}
 gt::gt(total_usage) %>%
   gt::fmt_number(columns = c('number_of_jobs', 'cpu_avail_hrs', 'mem_avail_gb_hrs'), decimals = 0) %>%
   gt::cols_label(.list = rename_colnames(total_usage))
@@ -88,17 +88,17 @@ make_sunburst <- function(total_usage, column) {
 ```
 
 ### Number of jobs
-```{r}
+```{r sunburst jobs}
 make_sunburst(total_usage, 'number_of_jobs')
 ```
 
 ### CPU usage
-```{r}
+```{r sunburst cpu}
 make_sunburst(total_usage, 'cpu_avail_hrs')
 ```
 
 ### Memory usage
-```{r}
+```{r sunburst memory}
 make_sunburst(total_usage, 'mem_avail_gb_hrs')
 ```
 
