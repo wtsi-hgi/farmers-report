@@ -20,7 +20,7 @@ jobs:
         run: |
           Rscript -e '
             rmarkdown::render(
-              "farmers_report.Rmd",
+              "farmers-report.Rmd",
               params = list(
                 bom = "${{ matrix.bom }}",
                 config_path = "/opt/farmer/farm-config.yaml"
