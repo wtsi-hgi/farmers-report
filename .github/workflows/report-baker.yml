@@ -1,0 +1,42 @@
+name: Generate and send report
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 12 * * 4'  # This runs at 12:00 UTC every Thursday
+
+jobs:
+  make-report:
+    runs-on: self-hosted
+    container:
+      image: mercury/farmers-report:latest
+    strategy:
+      matrix:
+        bom: [ "Human Genetics", "Cellular Genetics" ]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Generate HumGen report
+        run: |
+          Rscript -e '
+            rmarkdown::render(
+              "farmers_report.Rmd",
+              params = list(
+                bom = "${{ matrix.bom }}",
+                config_path = "/opt/farmer/farm-config.yaml"
+              ),
+              output_file = "/tmp/farmers-report-${{ matrix.bom }}.html"
+            )
+          '
+      - uses: actions/upload-artifact@v4
+        with:
+          name: html-report-${{ matrix.bom }}
+          path: /tmp/farmers-report-${{ matrix.bom }}.html
+
+        # https://docs.slack.dev/tools/slack-github-action/sending-techniques/sending-data-slack-api-method/#uploading-a-file
+  send-report:
+    runs-on: ubuntu-latest
+    needs: make-report
+    steps:
+      - uses: actions/download-artifact@v4
+      - name: Send report
+        run: ls
