@@ -25,7 +25,8 @@ jobs:
               "farmers-report.Rmd",
               params = list(
                 bom = "${{ matrix.bom }}",
-                config_path = "/opt/farm-config.yaml"
+                config_path = "/opt/farm-config.yaml",
+                static = TRUE
               ),
               output_file = "/tmp/farmers-report-${{ matrix.bom }}.html"
             )
@@ -36,11 +37,17 @@ jobs:
           path: /tmp/farmers-report-${{ matrix.bom }}.html
           retention-days: 7
 
-        # https://docs.slack.dev/tools/slack-github-action/sending-techniques/sending-data-slack-api-method/#uploading-a-file
   send-report:
     runs-on: ubuntu-latest
     needs: make-report
     steps:
       - uses: actions/download-artifact@v4
       - name: Send report
-        run: ls
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          method: files.uploadV2
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel_id: ${{ secrets.SLACK_CHANNEL_ID }}
+            title: "Weekly Farmers Report for Human Genetics"
+            file: "html-report-Human Genetics/farmers-report-Human Genetics.html"
