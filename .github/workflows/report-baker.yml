@@ -2,6 +2,7 @@ name: Generate and send report
 
 on:
   workflow_dispatch:
+  push:
   schedule:
     - cron: '0 12 * * 4'  # This runs at 12:00 UTC every Thursday
 
@@ -31,6 +32,7 @@ jobs:
         with:
           name: html-report-${{ matrix.bom }}
           path: /tmp/farmers-report-${{ matrix.bom }}.html
+          retention-days: 7
 
         # https://docs.slack.dev/tools/slack-github-action/sending-techniques/sending-data-slack-api-method/#uploading-a-file
   send-report:
