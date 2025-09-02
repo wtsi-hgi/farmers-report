@@ -12,20 +12,20 @@ jobs:
     container:
       image: mercury/farmers-report:latest
       volumes:
-        - /opt/farmer:/opt/farmer
+        - /opt:/opt
     strategy:
       matrix:
         bom: [ "Human Genetics", "Cellular Genetics" ]
     steps:
       - uses: actions/checkout@v3
-      - name: Generate HumGen report
+      - name: Generate report
         run: |
           Rscript -e '
             rmarkdown::render(
               "farmers-report.Rmd",
               params = list(
                 bom = "${{ matrix.bom }}",
-                config_path = "/opt/farmer/farm-config.yaml"
+                config_path = "/opt/farm-config.yaml"
               ),
               output_file = "/tmp/farmers-report-${{ matrix.bom }}.html"
             )
