@@ -1,0 +1,4 @@
+- name: Restart go-farmer
+  systemd:
+    name: go-farmer.service
+    state: restarted

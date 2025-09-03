@@ -1,0 +1,2 @@
+smb_credentials: /path/to/creds
+nfs_share: //nfs-server/share-name

@@ -1,0 +1,10 @@
+[Unit]
+Description=go-farmer server
+Wants=network-online.target
+
+[Service]
+ExecStart={{ go_farmer_exec }} server -c {{ go_farmer_config }}
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

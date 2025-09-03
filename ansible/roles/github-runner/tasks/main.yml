@@ -1,0 +1,11 @@
+- name: Create actions-runner directory
+  file:
+    path: /opt/actions-runner
+    state: directory
+
+- name: Extract actions-runner tarball
+  unarchive:
+    src: "https://github.com/actions/runner/releases/download/v{{ actions_runner_version }}/actions-runner-linux-x64-{{ actions_runner_version }}.tar.gz"
+    dest: /opt/actions-runner
+    remote_src: yes
+    creates: /opt/actions-runner/run.sh

@@ -148,9 +148,8 @@ resource "openstack_compute_instance_v2" "server" {
 
   user_data       = templatefile("startup.yaml", {
     farm_config       = filebase64(var.farm_config)
-    shinyproxy_config = filebase64("./shinyproxy.yml")
-    smbcredentials    = filebase64(var.smbcredentials)
-    nfs_share         = var.nfs_share
+    # smbcredentials    = filebase64(var.smbcredentials)
+    # nfs_share         = var.nfs_share
   })
 }
 

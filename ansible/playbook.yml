@@ -1,0 +1,14 @@
+---
+- hosts: all
+  become: true
+  vars_files:
+    - versions.yml
+
+  roles:
+    - nfs-mount
+    - go-farmer
+    - shinyproxy
+    - github-runner
+
+  handlers:
+    - import_tasks: handlers/main.yml

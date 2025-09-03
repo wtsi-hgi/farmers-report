@@ -1,0 +1,4 @@
+---
+go_version: "1.23.0"
+actions_runner_version: "2.328.0"
+shinyproxy_version: "3.1.1"

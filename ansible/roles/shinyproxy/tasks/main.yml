@@ -1,0 +1,14 @@
+- name: Install ShinyProxy deb package
+  apt:
+    deb: "https://www.shinyproxy.io/downloads/shinyproxy_{{ shinyproxy_version }}_amd64.deb"
+
+- name: Write shinyproxy config
+  copy:
+    src: shinyproxy.yml
+    dest: /etc/shinyproxy/application.yml
+
+- name: Enable shinyproxy service
+  systemd:
+    name: shinyproxy
+    enabled: yes
+    state: started
