@@ -1,10 +1,5 @@
 #cloud-config
 
-write_files:
- - path: /opt/farm-config.yaml
-   content: !!binary |
-    ${farm_config}
-
 # for some reason we have to set DNS address manually.
 # should be changed if the DNS server gets a new IP
  - path: /etc/systemd/resolved.conf.d/dns.conf
@@ -15,5 +10,3 @@ write_files:
 runcmd:
  - # https://www.idevopz.com/automatically-register-github-actions-self-hosted-runners-via-terraform-and-shell-script/
  - systemctl restart systemd-resolved
- - systemctl restart go-farmer
- - systemctl restart shinyproxy

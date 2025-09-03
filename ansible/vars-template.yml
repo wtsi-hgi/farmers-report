@@ -1,2 +1,3 @@
 smb_credentials: /path/to/creds
 nfs_share: //nfs-server/share-name
+farmers_config: /path/to/config.yaml

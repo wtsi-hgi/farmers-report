@@ -1,11 +1,25 @@
 - name: Install ShinyProxy deb package
   apt:
     deb: "https://www.shinyproxy.io/downloads/shinyproxy_{{ shinyproxy_version }}_amd64.deb"
+  notify:
+    - Reload systemd
+
+- name: Fail if farmers config path is not provided
+  fail:
+    msg: "You must pass -e farmers_config=/path/to/config.yml"
+  when: farmers_config == ""
+
+- name: Write farmers config
+  copy:
+    src: "{{ farmers_config }}"
+    dest: /opt/farm-config.yaml
 
 - name: Write shinyproxy config
   copy:
     src: shinyproxy.yml
     dest: /etc/shinyproxy/application.yml
+  notify:
+    - Restart shinyproxy
 
 - name: Enable shinyproxy service
   systemd:

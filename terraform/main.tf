@@ -146,11 +146,7 @@ resource "openstack_compute_instance_v2" "server" {
     port          = openstack_networking_port_v2.port.id
   }
 
-  user_data       = templatefile("startup.yaml", {
-    farm_config       = filebase64(var.farm_config)
-    # smbcredentials    = filebase64(var.smbcredentials)
-    # nfs_share         = var.nfs_share
-  })
+  user_data       = file("startup.yaml")
 }
 
 output "instance_ip_addr" {
