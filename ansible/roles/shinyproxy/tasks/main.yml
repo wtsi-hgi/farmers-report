@@ -4,10 +4,11 @@
   notify:
     - Reload systemd
 
-- name: Write farmers config
-  copy:
-    src: "{{ farmers_config }}"
-    dest: /opt/farm-config.yaml
+- name: Check that farmers config file exists
+  stat:
+    path: "{{ farmers_config_remote }}"
+  register: farmers_config_stat
+  failed_when: not farmers_config_stat.stat.exists
 
 - name: Write shinyproxy config
   copy:

@@ -3,6 +3,7 @@
 
   roles:
     - nfs-mount
+    - farmer-config
     - go-farmer
     - shinyproxy
     - role: MonolithProjects.github_actions_runner

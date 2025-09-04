@@ -1,0 +1,4 @@
+- name: Write farmers config
+  copy:
+    src: "{{ farmers_config }}"
+    dest: "{{ farmers_config_remote }}"

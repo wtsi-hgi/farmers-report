@@ -51,10 +51,6 @@ variable "farm_config" {
   default     = "./config.yaml"
 }
 
-locals {
-  farmers_config = yamldecode(file(var.farm_config))
-}
-
 variable "infoblox_user" {
   type        = string
   description = "username for infoblox"

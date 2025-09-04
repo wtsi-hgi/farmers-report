@@ -1,10 +1,10 @@
 argument_specs:
   main:
     options:
-      shinyproxy_version:
+      go_version:
         type: str
-        description: Version of the ShinyProxy to install
-        default: "3.1.1"
+        description: Version of go to install
+        default: "1.23.0"
       farmers_config_remote:
         type: str
         required: true

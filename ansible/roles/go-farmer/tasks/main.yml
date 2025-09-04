@@ -42,12 +42,18 @@
     HOME: "/root"
     GOPATH: "/root/go"
 
+- name: Check that farmers config file exists
+  stat:
+    path: "{{ farmers_config_remote }}"
+  register: farmers_config_stat
+  failed_when: not farmers_config_stat.stat.exists
+
 - name: Make go-farmer systemd unit
   template:
     src: go-farmer.service.j2
     dest: /etc/systemd/system/go-farmer.service
   vars:
-    go_farmer_config: /opt/farm-config.yaml
+    go_farmer_config: "{{ farmers_config_remote }}"
   notify:
     - Reload systemd
     - Restart go-farmer
