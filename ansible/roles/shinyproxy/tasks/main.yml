@@ -4,11 +4,6 @@
   notify:
     - Reload systemd
 
-- name: Fail if farmers config path is not provided
-  fail:
-    msg: "You must pass -e farmers_config=/path/to/config.yml"
-  when: farmers_config == ""
-
 - name: Write farmers config
   copy:
     src: "{{ farmers_config }}"

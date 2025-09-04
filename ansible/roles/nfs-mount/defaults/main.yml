@@ -1,3 +1,1 @@
-smb_credentials: ""
-nfs_share: ""
 smb_creds_path: /opt/smbcredentials
