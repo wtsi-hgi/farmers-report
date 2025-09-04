@@ -1,13 +1,18 @@
 - hosts: all
   become: true
-  vars_files:
-    - versions.yml
 
   roles:
     - nfs-mount
     - go-farmer
     - shinyproxy
-    - github-runner
+    - role: MonolithProjects.github_actions_runner
+      vars:
+        runner_user: "ubuntu"
+        runner_version: "{{ actions_runner_version }}"
+        runner_name: "shinyproxy-dev-server-runner"
+        access_token: "{{ github_pat }}"
+        github_owner: "wtsi-hgi"
+        github_repo: "farmers-report"
 
   handlers:
     - import_tasks: handlers/main.yml
@@ -26,4 +31,10 @@
       private: no
     - name: farmers_config
       prompt: "Path to farmers config file"
+      private: no
+    - name: github_pat
+      prompt: "GitHub personal access token"
+      private: yes
+    - name: github_account
+      prompt: "GitHub account of the token"
       private: no
