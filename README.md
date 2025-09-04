@@ -1,7 +1,7 @@
 # Farmers report
 
 ## Usage
-To use locally you need to prepare a `config.yaml` based on the example below:
+To use locally, you need to prepare a `config.yaml` based on the example below:
 
 ```yaml
 proxy:
@@ -49,7 +49,7 @@ docker run --rm -v $(pwd):/code -w /code mercury/farmers-report:latest Rscript /
 ### Infrastructure 
 
 Infrastructure is managed via Terraform with a remote backend in a s3 bucket to enable shared access to Terraform state file.
-Code contains instructions just to create an OpenStack as follows. Configuration is done later.
+Code contains instructions just to create an OpenStack VM as follows. Configuration is done later.
 
 Terraform creates all cloud resources and does not reuse any existing objects. It creates
 * keypair
