@@ -2,13 +2,13 @@ name: Generate and send report
 
 on:
   workflow_dispatch:
-  push:
+  push:  # TODO remove
   schedule:
     - cron: '0 12 * * 4'  # This runs at 12:00 UTC every Thursday
 
 jobs:
   make-report:
-    runs-on: self-hosted
+    runs-on: [self-hosted, prod]
     container:
       image: mercury/farmers-report:latest
       volumes:

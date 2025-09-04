@@ -5,3 +5,7 @@ argument_specs:
         type: str
         required: true
         description: Path to farmers config file
+      shinyproxy_version:
+        type: str
+        description: Version of the ShinyProxy to install
+        default: "3.1.1"
