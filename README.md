@@ -75,9 +75,9 @@ Ensure your user has access to a s3 bucket and execute
 terraform init -backend-config="config.s3.tfbackend"
 ```
 
-Now download `openrc.sh` file for your OpenStack tenant.
-
 #### Deploy
+
+Now download `openrc.sh` file for your OpenStack tenant.
 
 Prepare a file `terraform/terraform.tfvars` based on `terraform-template.tfvars`. 
 Now execute
@@ -85,6 +85,7 @@ Now execute
 ```bash
 source openrc.sh
 cd ./terraform
+export AWS_REQUEST_CHECKSUM_CALCULATION=when_required
 terraform apply
 ```
 

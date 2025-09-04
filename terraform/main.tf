@@ -33,24 +33,6 @@ variable "public_key" {
   default     = "~/.ssh/id_rsa.pub"
 }
 
-variable "nfs_share" {
-  type        = string
-  description = "Path to NFS share for SMB mount"
-  nullable    = false
-}
-
-variable "smbcredentials" {
-  type        = string
-  description = "Path to a file with credentials for SMB mount"
-  nullable    = false
-}
-
-variable "farm_config" {
-  type        = string
-  description = "Path to farmers report config file"
-  default     = "./config.yaml"
-}
-
 variable "infoblox_user" {
   type        = string
   description = "username for infoblox"
@@ -124,6 +106,16 @@ resource "openstack_networking_secgroup_rule_v2" "shinyproxy_web_port" {
   protocol          = "tcp"
   port_range_min    = 8080
   port_range_max    = 8080
+  security_group_id = openstack_networking_secgroup_v2.secgroup.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "go_farmer_port" {
+  count             = terraform.workspace == "default" ? 0 : 1
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 28238
+  port_range_max    = 28238
   security_group_id = openstack_networking_secgroup_v2.secgroup.id
 }
 

@@ -1,5 +1,6 @@
 #cloud-config
 
+write_files:
 # for some reason we have to set DNS address manually.
 # should be changed if the DNS server gets a new IP
  - path: /etc/systemd/resolved.conf.d/dns.conf
