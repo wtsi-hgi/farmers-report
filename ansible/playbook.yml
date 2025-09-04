@@ -10,7 +10,7 @@
         runner_user: "ubuntu"
         runner_version: "{{ actions_runner_version }}"
         runner_name: "{{ github_runner_name }}"
-        runner_labels: "{{ github_runner_labels }}"
+        runner_labels: ["{{ github_runner_label }}"]
         access_token: "{{ github_pat }}"
         github_owner: "wtsi-hgi"
         github_repo: "farmers-report"

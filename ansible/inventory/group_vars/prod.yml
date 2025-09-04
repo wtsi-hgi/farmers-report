@@ -1,2 +1,2 @@
 github_runner_name: "shinyproxy-server-runner"
-github_runner_labels: prod
+github_runner_label: prod
