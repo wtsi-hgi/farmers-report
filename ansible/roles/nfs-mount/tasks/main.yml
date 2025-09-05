@@ -1,6 +1,10 @@
-- name: Install cifs-utils
+- name: Update apt cache
   apt:
     update_cache: yes
+  run_once: yes
+
+- name: Install cifs-utils
+  package:
     name: cifs-utils
     state: present
 
@@ -22,3 +26,6 @@
     name: nfs.mount
     enabled: yes
     state: started
+
+- name: Flush handlers
+  meta: flush_handlers

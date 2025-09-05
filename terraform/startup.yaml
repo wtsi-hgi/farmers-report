@@ -9,4 +9,5 @@ write_files:
     DNS=172.18.255.1 172.18.255.2
 
 runcmd:
+ - systemctl daemon-reload
  - systemctl restart systemd-resolved

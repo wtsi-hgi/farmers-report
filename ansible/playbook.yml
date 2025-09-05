@@ -1,6 +1,9 @@
 - hosts: all
   become: true
 
+  handlers:
+    - import_tasks: handlers/main.yml
+
   roles:
     - nfs-mount
     - farmer-config
@@ -15,9 +18,6 @@
         access_token: "{{ github_pat }}"
         github_owner: "wtsi-hgi"
         github_repo: "farmers-report"
-
-  handlers:
-    - import_tasks: handlers/main.yml
 
   vars:
     go_version: "1.23.0"
