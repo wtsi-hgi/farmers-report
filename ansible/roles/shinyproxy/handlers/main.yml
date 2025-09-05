@@ -1,0 +1,4 @@
+- name: Restart shinyproxy
+  systemd:
+    name: shinyproxy
+    state: restarted

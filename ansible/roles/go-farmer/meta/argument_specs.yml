@@ -1,0 +1,11 @@
+argument_specs:
+  main:
+    options:
+      go_version:
+        type: str
+        description: Version of go to install
+        default: "1.23.0"
+      farmers_config_remote:
+        type: str
+        required: true
+        description: Path to farmers config file on remote host

@@ -33,28 +33,6 @@ variable "public_key" {
   default     = "~/.ssh/id_rsa.pub"
 }
 
-variable "nfs_share" {
-  type        = string
-  description = "Path to NFS share for SMB mount"
-  nullable    = false
-}
-
-variable "smbcredentials" {
-  type        = string
-  description = "Path to a file with credentials for SMB mount"
-  nullable    = false
-}
-
-variable "farm_config" {
-  type        = string
-  description = "Path to farmers report config file"
-  default     = "./config.yaml"
-}
-
-locals {
-  farmers_config = yamldecode(file(var.farm_config))
-}
-
 variable "infoblox_user" {
   type        = string
   description = "username for infoblox"
@@ -131,6 +109,16 @@ resource "openstack_networking_secgroup_rule_v2" "shinyproxy_web_port" {
   security_group_id = openstack_networking_secgroup_v2.secgroup.id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "go_farmer_port" {
+  count             = terraform.workspace == "default" ? 0 : 1
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 28238
+  port_range_max    = 28238
+  security_group_id = openstack_networking_secgroup_v2.secgroup.id
+}
+
 resource "openstack_compute_instance_v2" "server" {
   name            = "shinyproxy-server"
   image_name      = "jammy-WTSI-docker_324910_82eec972"
@@ -146,12 +134,7 @@ resource "openstack_compute_instance_v2" "server" {
     port          = openstack_networking_port_v2.port.id
   }
 
-  user_data       = templatefile("startup.yaml", {
-    farm_config       = filebase64(var.farm_config)
-    shinyproxy_config = filebase64("./shinyproxy.yml")
-    smbcredentials    = filebase64(var.smbcredentials)
-    nfs_share         = var.nfs_share
-  })
+  user_data       = file("startup.yaml")
 }
 
 output "instance_ip_addr" {

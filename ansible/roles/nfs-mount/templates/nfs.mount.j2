@@ -1,0 +1,12 @@
+[Unit]
+Description=Mount NFS
+Before=go-farmer.target
+
+[Mount]
+What={{ nfs_share }}
+Where=/nfs
+Type=cifs
+Options=credentials={{ smb_creds_path }},vers=2.0
+
+[Install]
+RequiredBy=go-farmer.target

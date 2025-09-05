@@ -1,0 +1,31 @@
+- name: Update apt cache
+  apt:
+    update_cache: yes
+  run_once: yes
+
+- name: Install cifs-utils
+  package:
+    name: cifs-utils
+    state: present
+
+- name: Copy smb credentials
+  copy:
+    src: "{{ smb_credentials }}"
+    dest: "{{ smb_creds_path }}"
+
+- name: Make systemd unit for nfs mount
+  template:
+    src: nfs.mount.j2
+    dest: /etc/systemd/system/nfs.mount
+  notify:
+    - Reload systemd
+    - Restart nfs-mount
+
+- name: Enable nfs-mount service
+  systemd:
+    name: nfs.mount
+    enabled: yes
+    state: started
+
+- name: Flush handlers
+  meta: flush_handlers

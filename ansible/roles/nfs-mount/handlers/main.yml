@@ -1,0 +1,4 @@
+- name: Restart nfs-mount
+  systemd:
+    name: nfs.mount
+    state: restarted

@@ -1,0 +1,65 @@
+- name: Create Go directory
+  file:
+    path: /opt/go
+    state: directory
+
+- name: Download Go
+  unarchive:
+    src: "https://go.dev/dl/go{{ go_version }}.linux-amd64.tar.gz"
+    dest: /opt/go/
+    remote_src: yes
+    extra_opts:
+      - --transform
+      - s/^go/go-{{ go_version }}/
+    creates: /opt/go/go-{{ go_version }}/bin/go
+  register: go_unarchive
+
+- name: Install Go
+  file:
+    src: "/opt/go/go-{{ go_version }}"
+    dest: /usr/local/go
+    state: link
+
+- name: Clone go-farmer
+  git:
+    repo: https://github.com/wtsi-hgi/go-farmer.git
+    dest: /tmp/go-farmer
+    depth: 1
+  register: farmer_repo
+
+- name: Check if farmer binary exists
+  stat:
+    path: "{{ go_farmer_exec }}"
+  register: farmer_bin
+
+- name: Build go-farmer
+  command:
+    cmd: make -C /tmp/go-farmer
+  when:
+    - go_unarchive.changed or farmer_repo.changed or not farmer_bin.stat.exists
+  environment:
+    PATH: "/usr/local/go/bin:{{ ansible_env.PATH }}"
+    HOME: "/root"
+    GOPATH: "/root/go"
+
+- name: Check that farmers config file exists
+  stat:
+    path: "{{ farmers_config_remote }}"
+  register: farmers_config_stat
+  failed_when: not farmers_config_stat.stat.exists
+
+- name: Make go-farmer systemd unit
+  template:
+    src: go-farmer.service.j2
+    dest: /etc/systemd/system/go-farmer.service
+  vars:
+    go_farmer_config: "{{ farmers_config_remote }}"
+  notify:
+    - Reload systemd
+    - Restart go-farmer
+
+- name: Enable go-farmer service
+  systemd:
+    name: go-farmer.service
+    enabled: yes
+    state: started

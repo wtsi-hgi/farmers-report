@@ -1,0 +1,24 @@
+- name: Install ShinyProxy deb package
+  apt:
+    deb: "https://www.shinyproxy.io/downloads/shinyproxy_{{ shinyproxy_version }}_amd64.deb"
+  notify:
+    - Reload systemd
+
+- name: Check that farmers config file exists
+  stat:
+    path: "{{ farmers_config_remote }}"
+  register: farmers_config_stat
+  failed_when: not farmers_config_stat.stat.exists
+
+- name: Write shinyproxy config
+  copy:
+    src: shinyproxy.yml
+    dest: /etc/shinyproxy/application.yml
+  notify:
+    - Restart shinyproxy
+
+- name: Enable shinyproxy service
+  systemd:
+    name: shinyproxy
+    enabled: yes
+    state: started

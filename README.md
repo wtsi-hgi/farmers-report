@@ -1,7 +1,7 @@
 # Farmers report
 
 ## Usage
-To use locally you need to prepare a `config.yaml` based on the example below:
+To use locally, you need to prepare a `config.yaml` based on the example below:
 
 ```yaml
 proxy:
@@ -49,9 +49,9 @@ docker run --rm -v $(pwd):/code -w /code mercury/farmers-report:latest Rscript /
 ### Infrastructure 
 
 Infrastructure is managed via Terraform with a remote backend in a s3 bucket to enable shared access to Terraform state file.
-Code contains instructions to create an OpenStack VM and configure it as follows.
+Code contains instructions just to create an OpenStack VM as follows. Configuration is done later.
 
-Terraform creates all cloud resources and do not reuse any existing objects. It creates
+Terraform creates all cloud resources and does not reuse any existing objects. It creates
 * keypair
 * network and subnetwork
 * external floating IP
@@ -59,16 +59,9 @@ Terraform creates all cloud resources and do not reuse any existing objects. It 
 * VM
 * DNS record
 
-OpenStack instance is configured using `cloud-config` defined in `terraform/startup.yaml`. It
-* mounts NFS (`nfs.mount` systemd service)
-* writes config files (for SMB mount, go-farmer, farm-dashboard)
-* installs cifs-utils, go, go-farmer, shinyproxy
-* runs go-farmer (`go-farmer.service` systemd service)
-* writes shinyproxy configuration (`terraform/shinyproxy.yml`)
-
 #### Initialisation (needed only once) 
 
-To initialise terraform prepare a config file `config.s3.tfbackend` with your s3 credentials:
+To initialise terraform, prepare a config file `config.s3.tfbackend` with your s3 credentials:
 ```terraform
 access_key = "your-access-key"
 secret_key = "your-secret-key"
@@ -76,28 +69,58 @@ endpoints  = {
         s3 = "https://your-host-base"
 }
 ```
+
 Ensure your user has access to a s3 bucket and execute
 ```bash
 terraform init -backend-config="config.s3.tfbackend"
 ```
-Now download `openrc.sh` file for your OpenStack tenant.
 
 #### Deploy
 
-Prepare a config file `config.yaml` based on `config-template.yaml`.
-Now prepare a file `terraform/terraform.tfvars` based on `terraform-template.tfvars` where `farm_config` would point to your `config.yaml`. 
+Now download `openrc.sh` file for your OpenStack tenant.
+
+Prepare a file `terraform/terraform.tfvars` based on `terraform-template.tfvars`. 
 Now execute
 
 ```bash
-cd ./terraform
 source openrc.sh
+cd ./terraform
+export AWS_REQUEST_CHECKSUM_CALCULATION=when_required
 terraform apply
 ```
 
-Terraform will now update infrastructure according to `main.tf`.
+Terraform will now update infrastructure according to `terraform/main.tf`.
 
-You can manage different deployments by changing terraform workspaces. 
-You have to use different OpenStack tenants for each deployment.
+You can manage different deployments by changing terraform workspaces:
+```bash
+terraform workspace list
+terraform workspace select dev
+terraform workspace select default
+```
+
+You have to use different OpenStack tenants (read different `openrc.sh` files) for each deployment.
+
+### Configuration
+Configuration is managed via Ansible.
+
+OpenStack instance is configured using playbook defined in `ansible/playbook.yml`. It
+* mounts NFS (`nfs.mount` systemd service)
+* installs go-farmer (`go-farmer.service` systemd service)
+* installs shinyproxy
+* installs and configures GitHub actions runner
+* writes shinyproxy configuration (`ansible/roles/shinyproxy/files/shinyproxy.yml`)
+* writes other config files (for SMB mount, go-farmer, farm-dashboard)
+
+Prepare a config file `config.yaml` based on `config-template.yaml`.  
+Next, prepare `ansible/vars.yml` file based on `ansible/vars-template.yml` where `farmers_config` would point to your `config.yaml`.
+
+Now execute:
+```bash
+ansible-galaxy install -r ansible/requirements.yml -p ansible/roles/
+ansible-playbook -i ansible/inventory/prod.ini -u ubuntu --private-key /path/to/key ansible/playbook.yml -e "@ansible/vars.yml"
+```
+Use the corresponding private key to the one that you used in `terraform.tfvars` file.  
+NB use `ansible/inventory/dev.ini` to configure a dev instance.
 
 ### Update application on the server
 

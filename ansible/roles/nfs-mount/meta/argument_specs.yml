@@ -1,0 +1,11 @@
+argument_specs:
+  main:
+    options:
+      smb_credentials:
+        type: str
+        required: true
+        description: Path to smb credentials file
+      nfs_share:
+        type: str
+        required: true
+        description: NFS share to mount

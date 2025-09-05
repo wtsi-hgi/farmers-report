@@ -1,0 +1,42 @@
+- hosts: all
+  become: true
+
+  handlers:
+    - import_tasks: handlers/main.yml
+
+  roles:
+    - nfs-mount
+    - farmer-config
+    - go-farmer
+    - shinyproxy
+    - role: MonolithProjects.github_actions_runner
+      vars:
+        runner_user: "ubuntu"
+        runner_version: "{{ actions_runner_version }}"
+        runner_name: "{{ github_runner_name }}"
+        runner_labels: ["{{ github_runner_label }}"]
+        access_token: "{{ github_pat }}"
+        github_owner: "wtsi-hgi"
+        github_repo: "farmers-report"
+
+  vars:
+    go_version: "1.23.0"
+    actions_runner_version: "2.328.0"
+    shinyproxy_version: "3.1.1"
+
+  vars_prompt:
+    - name: smb_credentials
+      prompt: "Path to smb credentials file"
+      private: no
+    - name: nfs_share
+      prompt: "NFS share to mount"
+      private: no
+    - name: farmers_config
+      prompt: "Path to farmers config file"
+      private: no
+    - name: github_pat
+      prompt: "GitHub personal access token"
+      private: yes
+    - name: github_account
+      prompt: "GitHub account of the token"
+      private: no
