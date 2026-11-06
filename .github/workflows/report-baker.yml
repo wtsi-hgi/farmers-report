@@ -3,7 +3,7 @@ name: Generate and send report
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 12 * * 4'  # This runs at 12:00 UTC every Thursday
+    - cron: '0 9 * * 4'  # This runs at 09:00 UTC every Thursday
 
 jobs:
   make-report:
